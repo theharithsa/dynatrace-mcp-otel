@@ -1,0 +1,66 @@
+{
+  "name": "@dynatrace-oss/dynatrace-mcp-server",
+  "version": "0.4.0",
+  "description": "Model Context Protocol (MCP) server for Dynatrace",
+  "keywords": [
+    "Dynatrace",
+    "mcp",
+    "model-context-protocol",
+    "server"
+  ],
+  "main": "./dist/index.js",
+  "type": "commonjs",
+  "bin": {
+    "mcp-server-dynatrace": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "bugs": {
+    "url": "https://github.com/dynatrace-oss/dynatrace-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dynatrace-oss/dynatrace-mcp.git"
+  },
+  "directories": {
+    "dist": "dist"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "prepare": "npm run build",
+    "watch": "tsc --watch",
+    "test": "jest",
+    "prettier": "prettier --check .",
+    "prettier:fix": "prettier --write ."
+  },
+  "author": "Dynatrace",
+  "license": "MIT",
+  "dependencies": {
+    "@dynatrace-sdk/client-automation": "^5.3.0",
+    "@dynatrace-sdk/client-classic-environment-v2": "^3.6.8",
+    "@dynatrace-sdk/client-platform-management-service": "^1.6.3",
+    "@dynatrace-sdk/client-query": "^1.18.1",
+    "@dynatrace-sdk/shared-errors": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.8.0",
+    "dotenv": "^16.4.7",
+    "dt-app": "^0.140.1",
+    "zod-to-json-schema": "^3.24.5"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22",
+    "jest": "^30.0.0",
+    "prettier": "^3.6.2",
+    "ts-jest": "^29.4.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.2"
+  }
+}
