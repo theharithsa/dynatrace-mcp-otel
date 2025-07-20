@@ -17,7 +17,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { z, ZodRawShape, ZodTypeAny } from 'zod';
 import { version as VERSION } from '../package.json';
-
+import { sendToDynatraceLog } from './logging';
 import { createOAuthClient } from './authentication/dynatrace-clients';
 import { listVulnerabilities } from './capabilities/list-vulnerabilities';
 import { listProblems } from './capabilities/list-problems';
@@ -35,46 +35,44 @@ import { findMonitoredEntityByName } from './capabilities/find-monitored-entity-
 import { DynatraceEnv, getDynatraceEnv } from './getDynatraceEnv';
 
 let scopesBase = ['app-engine:apps:run', 'app-engine:functions:run'];
-const tracer = trace.getTracer('mcp-server-index');
+const tracer = trace.getTracer('dynatrace-mcp');
 
 const main = async () => {
-  let dynatraceEnv: DynatraceEnv;
-  try {
-    dynatraceEnv = getDynatraceEnv();
-  } catch (err) {
-    console.error((err as Error).message);
-    process.exit(1);
-  }
+    let dynatraceEnv: DynatraceEnv;
+    try {
+      dynatraceEnv = getDynatraceEnv();
+    } catch (err) {
 
-  const { oauthClient, oauthClientSecret, dtEnvironment, slackConnectionId } = dynatraceEnv;
+      process.exit(1);
+    }
 
-  console.error(`Starting Dynatrace MCP Server v${VERSION}...`);
+    const { oauthClient, oauthClientSecret, dtEnvironment, slackConnectionId } = dynatraceEnv;
+    console.error(`Starting Dynatrace MCP Server v${VERSION}...`);
 
-  const server = new McpServer(
-    {
-      name: 'Dynatrace MCP Server',
-      version: VERSION,
-    },
-    {
-      capabilities: {
-        tools: {},
+    const server = new McpServer(
+      {
+        name: 'Dynatrace MCP Server',
+        version: VERSION,
       },
-    },
-  );
-
+      {
+        capabilities: {
+          tools: {},
+        },
+      }
+    );
 
     const tool = (
       name: string,
       description: string,
       paramsSchema: ZodRawShape,
-      cb: (args: z.infer<z.ZodObject<ZodRawShape>>) => Promise<string>
+      cb: (args: z.infer<z.ZodObject<ZodRawShape>>, _extra?: any) => Promise<string>
     ) => {
       server.tool(name, description, paramsSchema, async (args, _extra) => {
 
         const span = tracer.startSpan(`Tool: ${name}`);
         return await context.with(trace.setSpan(context.active(), span), async () => {
           try {
-            const result = await cb(args);
+            const result = await cb(args, _extra);
             span.setStatus({ code: SpanStatusCode.OK });
             return {
               content: [
@@ -89,43 +87,43 @@ const main = async () => {
               ],
             };
           } catch (error: any) {
-  span.recordException(error);
-  span.setStatus({ code: SpanStatusCode.ERROR });
+            span.recordException(error);
+            span.setStatus({ code: SpanStatusCode.ERROR });
 
-  if (isClientRequestError(error)) {
-    const e: ClientRequestError = error;
-    let more = e.response.status === 403 ? 'Missing permission' : '';
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Client Request Error: ${e.message} (${e.response.status}) ${more}`,
-        } as {
-          [x: string]: unknown;
-          type: 'text';
-          text: string;
-        }
-      ],
-      isError: true,
-    };
-  }
+            if (isClientRequestError(error)) {
+              const e: ClientRequestError = error;
+              let more = e.response.status === 403 ? 'Missing permission' : '';
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Client Request Error: ${e.message} (${e.response.status}) ${more}`,
+                  } as {
+                    [x: string]: unknown;
+                    type: 'text';
+                    text: string;
+                  }
+                ],
+                isError: true,
+              };
+            }
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: `Error: ${error.message}`,
-      } as {
-        [x: string]: unknown;
-        type: 'text';
-        text: string;
-      }
-    ],
-    isError: true,
-  };
-} finally {
-  span.end();
-}
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Error: ${error.message}`,
+                } as {
+                  [x: string]: unknown;
+                  type: 'text';
+                  text: string;
+                }
+              ],
+              isError: true,
+            };
+          } finally {
+            span.end();
+          }
         });
       });
     };
@@ -170,10 +168,30 @@ const main = async () => {
           });
           resp += `\nWe recommend to take a look at ${dtEnvironment}/ui/apps/dynatrace.security.vulnerabilities to get a better overview of vulnerabilities.\n`;
           span.setStatus({ code: SpanStatusCode.OK });
+          
+          await sendToDynatraceLog({
+            tool: 'list_vulnerabilities',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: {}, // No args available in this scope
+            result: result,
+            isError: false,
+          });
+
           return resp;
         } catch (err: any) {
           span.recordException(err);
           span.setStatus({ code: SpanStatusCode.ERROR });
+          await sendToDynatraceLog({
+            tool: 'list_vulnerabilities',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: {}, // No args available in this scope
+            result: err.message,
+            isError: true,
+          });
           throw err;
         } finally {
           span.end();
@@ -242,10 +260,28 @@ const main = async () => {
           resp += `Tell the user to access the link ${dtEnvironment}/ui/apps/dynatrace.security.vulnerabilities/vulnerabilities/${result.securityProblemId} to get more insights into the vulnerability / security problem.\n`;
 
           span.setStatus({ code: SpanStatusCode.OK });
+          await sendToDynatraceLog({
+            tool: 'get_vulnerabilty_details',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { securityProblemId },
+            result: resp,
+            isError: false,
+          });
           return resp;
         } catch (err: any) {
           span.recordException(err);
           span.setStatus({ code: SpanStatusCode.ERROR });
+          await sendToDynatraceLog({
+            tool: 'get_vulnerabilty_details',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { securityProblemId },
+            result: err.message,
+            isError: true,
+          });
           throw err;
         } finally {
           span.end();
@@ -264,10 +300,28 @@ const main = async () => {
           );
           const result = await listProblems(dtClient);
           span.setStatus({ code: SpanStatusCode.OK });
+          await sendToDynatraceLog({
+            tool: 'list_problems',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: {}, // No args available in this scope
+            result: result,
+            isError: false,
+          });
           return result.length === 0 ? 'No problems found' : `Found these problems: ${result.join(',')}`;
         } catch (err: any) {
           span.recordException(err);
           span.setStatus({ code: SpanStatusCode.ERROR });
+          await sendToDynatraceLog({
+            tool: 'list_problems',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: {}, // No args available in this scope
+            result: err.message,
+            isError: true,
+          });
           throw err;
         } finally {
           span.end();
@@ -314,10 +368,28 @@ const main = async () => {
           resp += `Tell the user to access the link ${dtEnvironment}/ui/apps/dynatrace.davis.problems/problem/${result.problemId} to get more insights into the problem.\n`;
 
           span.setStatus({ code: SpanStatusCode.OK });
+          await sendToDynatraceLog({
+            tool: 'get_problem_details',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { problemId },
+            result: resp,
+            isError: false,
+          });
           return resp;
         } catch (err: any) {
           span.recordException(err);
           span.setStatus({ code: SpanStatusCode.ERROR });
+          await sendToDynatraceLog({
+            tool: 'get_problem_details',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { problemId },
+            result: err.message,
+            isError: true,
+          });
           throw err;
         } finally {
           span.end();
@@ -339,10 +411,28 @@ const main = async () => {
           );
           const entityResponse = await findMonitoredEntityByName(dtClient, entityName);
           span.setStatus({ code: SpanStatusCode.OK });
+          await sendToDynatraceLog({
+            tool: 'find_entity_by_name',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { entityName },
+            result: entityResponse,
+            isError: false,
+          });
           return entityResponse;
         } catch (err: any) {
           span.recordException(err);
           span.setStatus({ code: SpanStatusCode.ERROR });
+          await sendToDynatraceLog({
+            tool: 'find_entity_by_name',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { entityName },
+            result: err.message,
+            isError: true,
+          });
           throw err;
         } finally {
           span.end();
@@ -379,10 +469,28 @@ const main = async () => {
           }
 
           span.setStatus({ code: SpanStatusCode.OK });
+          await sendToDynatraceLog({
+            tool: 'get_entity_details',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { entityId },
+            result: resp,
+            isError: false,
+          });
           return resp;
         } catch (err: any) {
           span.recordException(err);
           span.setStatus({ code: SpanStatusCode.ERROR });
+          await sendToDynatraceLog({
+            tool: 'get_entity_details',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { entityId },
+            result: err.message,
+            isError: true,
+          });
           throw err;
         } finally {
           span.end();
@@ -404,10 +512,28 @@ const main = async () => {
           );
           const response = await sendSlackMessage(dtClient, slackConnectionId, channel, message);
           span.setStatus({ code: SpanStatusCode.OK });
+          await sendToDynatraceLog({
+            tool: 'send_slack_message',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { channel, message },
+            result: response,
+            isError: false,
+          });
           return `Message sent to Slack channel: ${JSON.stringify(response)}`;
         } catch (err: any) {
           span.recordException(err);
           span.setStatus({ code: SpanStatusCode.ERROR });
+          await sendToDynatraceLog({
+            tool: 'send_slack_message',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { channel, message },
+            result: err.message,
+            isError: true,
+          });
           throw err;
         } finally {
           span.end();
@@ -429,11 +555,28 @@ const main = async () => {
           );
           const logs = await getLogsForEntity(dtClient, entityName);
           span.setStatus({ code: SpanStatusCode.OK });
-
+          await sendToDynatraceLog({
+            tool: 'get_logs_for_entity',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { entityName },
+            result: logs,
+            isError: false,
+          });
           return `Logs:\n${JSON.stringify(logs?.map((logLine) => (logLine ? logLine.content : 'Empty log')))}`;
         } catch (err: any) {
           span.recordException(err);
           span.setStatus({ code: SpanStatusCode.ERROR });
+          await sendToDynatraceLog({
+            tool: 'get_logs_for_entity',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { entityName },
+            result: err.message,
+            isError: true,
+          });
           throw err;
         } finally {
           span.end();
@@ -465,10 +608,28 @@ const main = async () => {
             : `The DQL statement is invalid. Please adapt your statement.\n`;
 
           span.setStatus({ code: SpanStatusCode.OK });
+          await sendToDynatraceLog({
+            tool: 'verify_dql',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { dqlStatement },
+            result: resp,
+            isError: false,
+          });
           return resp;
         } catch (err: any) {
           span.recordException(err);
           span.setStatus({ code: SpanStatusCode.ERROR });
+          await sendToDynatraceLog({
+            tool: 'verify_dql',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { dqlStatement },
+            result: err.message,
+            isError: true,
+          });
           throw err;
         } finally {
           span.end();
@@ -502,10 +663,53 @@ const main = async () => {
           );
           const response = await executeDql(dtClient, dqlStatement);
           span.setStatus({ code: SpanStatusCode.OK });
+          await sendToDynatraceLog({
+            tool: 'execute_dql',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { dqlStatement },
+            result: response,
+            isError: false,
+          });
+          if (!response || response.length === 0) {
+            return 'No results found for the provided DQL statement.';
+          }
+          if (response.length > 100) {
+            return `DQL Response: Too many results (${response.length}) to display. Please refine your query.`;
+          }
+          if (response.length === 1) {
+            return `DQL Response: ${JSON.stringify(response[0])}`;
+          }
+          // If there are multiple results, return them as a JSON string
+          if (response.length > 10) {
+            return `DQL Response: ${response.length} results found. Displaying first 10:\n` + JSON.stringify(response.slice(0, 10));
+          }
+          // If there are less than 10 results, return them all
+          
+          await sendToDynatraceLog({
+            tool: 'execute_dql',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { dqlStatement },
+            result: response,
+            isError: false,
+          });
+
           return `DQL Response: ${JSON.stringify(response)}`;
         } catch (err: any) {
           span.recordException(err);
           span.setStatus({ code: SpanStatusCode.ERROR });
+          await sendToDynatraceLog({
+            tool: 'execute_dql',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { dqlStatement },
+            result: err.message,
+            isError: true,
+          });
           throw err;
         } finally {
           span.end();
@@ -529,10 +733,31 @@ const main = async () => {
           const ownershipInformation = await getOwnershipInformation(dtClient, entityIds);
           console.error(`Done!`);
           span.setStatus({ code: SpanStatusCode.OK });
+          if (!ownershipInformation || ownershipInformation.length === 0) {
+            return 'No ownership information found for the provided entity IDs.';
+          }
+          await sendToDynatraceLog({
+            tool: 'get_ownership',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { entityIds },
+            result: ownershipInformation,
+            isError: false,
+          });
           return 'Ownership information:\n' + JSON.stringify(ownershipInformation);
         } catch (err: any) {
           span.recordException(err);
           span.setStatus({ code: SpanStatusCode.ERROR });
+          await sendToDynatraceLog({
+            tool: 'get_ownership',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { entityIds },
+            result: err.message,
+            isError: true,
+          });
           throw err;
         } finally {
           span.end();
@@ -555,10 +780,28 @@ const main = async () => {
           );
           const events = await getEventsForCluster(dtClient, clusterId);
           span.setStatus({ code: SpanStatusCode.OK });
+          await sendToDynatraceLog({
+            tool: 'get_kubernetes_events',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { clusterId },
+            result: events,
+            isError: false,
+          });
           return `Kubernetes Events:\n${JSON.stringify(events)}`;
         } catch (err: any) {
           span.recordException(err);
           span.setStatus({ code: SpanStatusCode.ERROR });
+          await sendToDynatraceLog({
+            tool: 'get_kubernetes_events',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { clusterId },
+            result: err.message,
+            isError: true,
+          });
           throw err;
         } finally {
           span.end();
@@ -596,10 +839,28 @@ const main = async () => {
           }
 
           span.setStatus({ code: SpanStatusCode.OK });
+          await sendToDynatraceLog({
+            tool: 'create_workflow_for_notification',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { teamName, channel, problemType, isPrivate },
+            result: response,
+            isError: false,
+          });
           return resp;
         } catch (err: any) {
           span.recordException(err);
           span.setStatus({ code: SpanStatusCode.ERROR });
+          await sendToDynatraceLog({
+            tool: 'create_workflow_for_notification',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { teamName, channel, problemType, isPrivate },
+            result: err.message,
+            isError: true,
+          });
           throw err;
         } finally {
           span.end();
@@ -621,10 +882,28 @@ const main = async () => {
           );
           const response = await updateWorkflow(dtClient, workflowId, { isPrivate: false });
           span.setStatus({ code: SpanStatusCode.OK });
+          await sendToDynatraceLog({
+            tool: 'make_workflow_public',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { workflowId },
+            result: response,
+            isError: false,
+          });
           return `Workflow ${response.id} is now public!\nView it at: ${dtEnvironment}/ui/apps/dynatrace.automations/workflows/${response?.id}`;
         } catch (err: any) {
           span.recordException(err);
           span.setStatus({ code: SpanStatusCode.ERROR });
+          await sendToDynatraceLog({
+            tool: 'make_workflow_public',
+            traceId: span.spanContext().traceId,
+            spanId: span.spanContext().spanId,
+            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
+            args: { workflowId },
+            result: err.message,
+            isError: true,
+          });
           throw err;
         } finally {
           span.end();
@@ -633,12 +912,9 @@ const main = async () => {
     });
 
     const transport = new StdioServerTransport();
-    console.error('Connecting server to transport...');
+    console.log('Connecting server to transport...');
     await server.connect(transport);
-    console.error('Dynatrace MCP Server running on stdio');
-    rootSpan.setStatus({ code: SpanStatusCode.OK });
-    rootSpan.end();
-  });
+    console.log('Dynatrace MCP Server running on stdio');
 };
 
 main().catch((error) => {

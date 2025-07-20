@@ -419,3 +419,227 @@ fetch events, from:now() - 90d
     by:{cloud.provider}, interval:1d
 | fieldsAdd trend = if(compliance_score > lag(compliance_score, 1), "IMPROVING", "DECLINING")
 ```
+
+# 📈 Dynatrace DQL Timeseries Examples
+
+> Metrics on Grail enable you to pinpoint and retrieve any metric data using the Dynatrace Query Language. Below are practical `timeseries` examples to help you analyze CPU, memory, disk, and service metrics in real-time.
+
+---
+
+## Example 1: Average CPU usage across all hosts
+
+```dql
+timeseries usage=avg(dt.host.cpu.usage)
+```
+
+---
+
+## Example 2: Average CPU usage by host, limit to top 3 hosts
+
+```dql
+timeseries usage=avg(dt.host.cpu.usage), by:{dt.entity.host}
+| fieldsAdd entityName(dt.entity.host)
+| sort arrayAvg(usage) desc
+| limit 3
+```
+
+### Simplified Table View
+
+```dql
+timeseries usage=avg(dt.host.cpu.usage), by:{dt.entity.host}
+| fieldsAdd entityName(dt.entity.host)
+| sort arrayAvg(usage) desc
+| limit 3
+| fields dt.entity.host, dt.entity.host.name, usage=arrayAvg(usage)
+```
+
+---
+
+## Example 3: Average CPU usage by host IP Address
+
+```dql
+timeseries usage=avg(dt.host.cpu.usage),
+    filter: {in(
+      dt.entity.host,
+      classicEntitySelector("type(host),ipAddress(\"10.102.39.126\")")
+    )}
+```
+
+---
+
+## Example 4: Number of hosts sending CPU usage data
+
+```dql
+timeseries usage=avg(dt.host.cpu.usage), by:{dt.entity.host}
+| summarize count()
+```
+
+---
+
+## Example 5: Top hosts by bytes read with corresponding bytes written
+
+```dql
+timeseries by:{dt.entity.host}, {
+  bytes_read=sum(dt.host.disk.bytes_read),
+  bytes_written=sum(dt.host.disk.bytes_written)
+}
+| sort arrayAvg(bytes_read) desc
+| limit 3
+| fields
+    dt.entity.host,
+    entityName(dt.entity.host),
+    bytes_read=arrayAvg(bytes_read),
+    bytes_written=arrayAvg(bytes_written)
+```
+
+---
+
+## Example 6: Available CPU by Kubernetes Node
+
+```dql
+timeseries {
+  cpu_allocatable = min(dt.kubernetes.node.cpu_allocatable),
+  requests_cpu = max(dt.kubernetes.container.requests_cpu)
+},
+by:{dt.entity.kubernetes_cluster, dt.entity.kubernetes_node}
+| fieldsAdd  
+    entityName(dt.entity.kubernetes_cluster),
+    entityName(dt.entity.kubernetes_node)
+| fieldsAdd result = cpu_allocatable[] - requests_cpu[]
+| fieldsRemove cpu_allocatable, requests_cpu
+```
+
+---
+
+## Example 7: Average host CPU usage by host size
+
+```dql
+timeseries usage=avg(dt.host.cpu.usage), by:{dt.entity.host}
+| fieldsAdd usage=arrayAvg(usage)
+| fieldsAdd cpuCores = entityAttr(dt.entity.host, "cpuCores")
+| summarize by:{cpuCores}, avg(usage), count_hosts=count()
+```
+
+---
+
+## Example 8: Query multiple CPU usage metrics with a single query
+
+```dql
+timeseries idle=avg(dt.host.cpu.idle),
+    by:dt.entity.host,
+    filter: dt.entity.host == "HOST-EFAB6D2FE7274823"
+| append [
+    timeseries system=avg(dt.host.cpu.system),
+        by:dt.entity.host,
+        filter: dt.entity.host == "HOST-EFAB6D2FE7274823"
+]
+| append [
+    timeseries user=avg(dt.host.cpu.user),
+        by:dt.entity.host,
+        filter: dt.entity.host == "HOST-EFAB6D2FE7274823"
+]
+```
+
+---
+
+## Example 9: Connection failure rate by host
+
+```dql
+timeseries {
+  new = sum(dt.process.network.sessions.new),
+  {reset = sum(dt.process.network.sessions.reset), default:0},
+  {timeout = sum(dt.process.network.sessions.timeout), default:0}
+},
+by:{dt.entity.host}
+| fieldsAdd result = 100 * (reset[] + timeout[]) / new[]
+| filter arrayAvg(result) > 0
+| sort arrayAvg(result) desc
+```
+
+---
+
+## Example 10: Monitoring host availability
+
+```dql
+timeseries availability = sum(dt.host.availability, default:0),
+    nonempty:true,
+    filter:{availability.state == "up"}
+```
+
+---
+
+## Example 11: Readiness probe
+
+```dql
+timeseries
+    failure_count=sum(log.readiness_probe.failure_count, default:0),
+    success_count=sum(log.readiness_probe.success_count, default:0),
+    by:{dt.entity.host},
+    union:true
+```
+
+---
+
+## Example 12: Failure rate
+
+```dql
+timeseries sum(dt.service.request.failure_count, rate:1s),
+    filter:{startsWith(endpoint.name, "/api/accounts")}
+```
+
+---
+
+## Example 13: Capacity planning
+
+```dql
+timeseries avail=avg(dt.host.disk.avail), by:{dt.entity.host}, from:-24h
+| append [
+    timeseries avail.7d=avg(dt.host.disk.avail), by:{dt.entity.host}, shift:-7d
+]
+| filter startsWith(entityName(dt.entity.host), "prod-")
+```
+
+---
+
+## Example 14: Verify host availability and redundance
+
+```dql
+timeseries num_hosts = count(dt.host.cpu.usage),
+    by:{aws.availability_zone},
+    filter:{startsWith(aws.availability_zone, "us-east-1")}
+```
+
+---
+
+## Example 15: Performance optimization
+
+```dql
+timeseries p90 = percentile(dt.service.request.response_time, 90),
+    filter:{startsWith(endpoint.name, "/api/accounts")}
+```
+
+---
+
+## Example 16: Right-sizing deployments
+
+```dql
+timeseries avail=avg(dt.host.disk.avail),
+    by:{dt.entity.disk, dt.entity.host},
+    filter:{startsWith(dt.entity.host, "my-app-")}
+| fieldsAdd avail=arrayAvg(avail)
+| fieldsAdd disk_usage=if(avail>450000000000, "underused", else: "optimal")
+| limit 3
+```
+
+---
+
+## Example 17: Split CPU usage by Kubernetes annotations
+
+```dql
+timeseries cpu_usage = sum(dt.kubernetes.container.cpu_usage, rollup:max),
+    by:{dt.entity.cloud_application}
+| fieldsAdd annotations = entityAttr(dt.entity.cloud_application, "kubernetesAnnotations")
+| fieldsAdd component = annotations[`app.kubernetes.io/component`]
+| summarize cpu_usage = sum(cpu_usage[]),
+    by:{timeframe, interval, component}
+```
