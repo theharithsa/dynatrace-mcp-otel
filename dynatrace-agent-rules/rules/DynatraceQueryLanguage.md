@@ -643,3 +643,22 @@ timeseries cpu_usage = sum(dt.kubernetes.container.cpu_usage, rollup:max),
 | summarize cpu_usage = sum(cpu_usage[]),
     by:{timeframe, interval, component}
 ```
+
+## DQL to fetch the list of metrics in the environement
+
+```dql
+fetch metric.series
+| dedup metric.key
+```
+
+### Understand
+- ```dedup``` is a command which is used to get unique values in the field/column of the result. 
+- ```limit``` is the command that helps you limit the query result. If you use ```limit 20``` which means the result will be limited to only 20. 
+- ```fields``` is a command that is specifically used to keep required fields in the result and if we want to optimize the quyery by removing other useless fields to come along with it, we specify ```fields``` followed by field name and separated by comma for multiple fields.
+
+## DQL to fetch ball types of available buckets in the system like available tables
+
+```dql
+fetch dt.system.data_objects
+| fields name
+```

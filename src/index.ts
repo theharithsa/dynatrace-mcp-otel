@@ -663,15 +663,7 @@ const main = async () => {
           );
           const response = await executeDql(dtClient, dqlStatement);
           span.setStatus({ code: SpanStatusCode.OK });
-          await sendToDynatraceLog({
-            tool: 'execute_dql',
-            traceId: span.spanContext().traceId,
-            spanId: span.spanContext().spanId,
-            parentSpanId: '', // OpenTelemetry does not expose parentSpanId directly
-            args: { dqlStatement },
-            result: response,
-            isError: false,
-          });
+        
           if (!response || response.length === 0) {
             return 'No results found for the provided DQL statement.';
           }
