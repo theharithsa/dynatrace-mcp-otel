@@ -1,0 +1,1130 @@
+{
+  "version": 16,
+  "variables": [
+    {
+      "key": "Owner",
+      "type": "query",
+      "visible": true,
+      "input": "fetch dt.entity.host\n| fields id,entity.name,entity.type,tags,osVersion\n| expand tags\n| filter contains(tags,\"dt.owner\")\n| parse tags, \"\"\"'dt.owner:'LD:owner\"\"\"\n| fields owner",
+      "multiple": true,
+      "defaultValue": ["3420b2ac-f1cf-4b24-b62d-61ba1ba8ed05*"]
+    }
+  ],
+  "tiles": {
+    "1": {
+      "type": "data",
+      "title": "",
+      "query": "fetch bizevents\n| filter event.provider == \"dynatrace.biz.carbon\" and event.type == \"carbon.measurement\" and isNotNull(carbon.emissions)\n| lookup [fetch dt.entity.host\n  | fields id,entity.name,entity.type,tags,osVersion\n  | expand tags\n  | filter contains(tags,\"dt.owner\")\n  | parse tags, \"\"\"'dt.owner:'LD:owner\"\"\"], sourceField:dt.entity.host,lookupField:id\n| summarize totalCarbon = sum(carbon.emissions), by:{lookup.owner} \n| filter in(lookup.owner, $Owner)",
+      "davis": {
+        "enabled": false,
+        "davisVisualization": {
+          "isAvailable": true
+        }
+      },
+      "visualization": "donutChart",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "xAxisScaling": "analyzedTimeframe",
+          "gapPolicy": "connect",
+          "circleChartSettings": {
+            "groupingThresholdType": "relative",
+            "groupingThresholdValue": 0,
+            "valueType": "relative",
+            "showTotalValue": false
+          },
+          "categoryOverrides": {},
+          "categoricalBarChartSettings": {
+            "categoryAxis": ["lookup.owner"],
+            "categoryAxisLabel": "lookup.owner",
+            "valueAxis": ["totalCarbon"],
+            "valueAxisLabel": "totalCarbon",
+            "tooltipVariant": "single"
+          },
+          "hiddenLegendFields": [],
+          "truncationMode": "middle"
+        },
+        "singleValue": {
+          "showLabel": true,
+          "label": "timestamp",
+          "prefixIcon": "",
+          "recordField": "timestamp",
+          "autoscale": true,
+          "alignment": "center",
+          "colorThresholdTarget": "value",
+          "trend": {
+            "trendType": "auto",
+            "isVisible": false
+          }
+        },
+        "table": {
+          "rowDensity": "condensed",
+          "enableSparklines": false,
+          "hiddenColumns": [],
+          "lineWrapIds": [],
+          "columnWidths": {}
+        },
+        "honeycomb": {
+          "shape": "hexagon",
+          "legend": {
+            "hidden": false,
+            "position": "auto"
+          },
+          "colorMode": "color-palette",
+          "colorPalette": "blue",
+          "dataMappings": {
+            "value": "totalCarbon"
+          },
+          "displayedFields": ["lookup.owner"]
+        },
+        "histogram": {
+          "dataMappings": [
+            {
+              "valueAxis": "totalCarbon",
+              "rangeAxis": ""
+            }
+          ],
+          "variant": "single",
+          "displayedFields": ["lookup.owner"]
+        },
+        "recordView": {
+          "fieldsWidth": 231.3
+        },
+        "unitsOverrides": [
+          {
+            "identifier": "totalCost",
+            "unitCategory": "mass",
+            "baseUnit": "gram",
+            "displayUnit": "kilogram",
+            "decimals": 2,
+            "suffix": "",
+            "delimiter": false,
+            "added": 1722421671633
+          }
+        ]
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 1,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "3": {
+      "type": "data",
+      "title": "",
+      "query": "fetch bizevents\n| filter event.provider == \"dynatrace.biz.carbon\" and event.type == \"carbon.measurement\" and isNotNull(carbon.emissions)\n| lookup [fetch dt.entity.host\n  | fields id,entity.name,entity.type,tags,osVersion\n  | expand tags\n  | filter contains(tags,\"dt.owner\")\n  | parse tags, \"\"\"'dt.owner:'LD:owner\"\"\"], sourceField:dt.entity.host,lookupField:id\n| makeTimeseries totalCarbon = sum(carbon.emissions), by:{lookup.owner}, bins:50\n| filter in(lookup.owner, $Owner)",
+      "davis": {
+        "enabled": false,
+        "davisVisualization": {
+          "isAvailable": true
+        }
+      },
+      "visualization": "areaChart",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "xAxisScaling": "analyzedTimeframe",
+          "gapPolicy": "connect",
+          "circleChartSettings": {
+            "groupingThresholdType": "relative",
+            "groupingThresholdValue": 0,
+            "valueType": "relative",
+            "showTotalValue": true
+          },
+          "categoryOverrides": {},
+          "categoricalBarChartSettings": {
+            "categoryAxis": ["lookup.owner"],
+            "categoryAxisLabel": "lookup.owner",
+            "valueAxis": ["interval"],
+            "valueAxisLabel": "interval",
+            "tooltipVariant": "single"
+          },
+          "hiddenLegendFields": [],
+          "fieldMapping": {
+            "timestamp": "timeframe",
+            "leftAxisValues": ["totalCarbon"],
+            "leftAxisDimensions": ["lookup.owner"]
+          },
+          "valueRepresentation": "absolute",
+          "truncationMode": "middle",
+          "xAxisLabel": "timeframe",
+          "xAxisIsLabelVisible": false,
+          "leftYAxisSettings": {}
+        },
+        "singleValue": {
+          "showLabel": true,
+          "label": "timestamp",
+          "prefixIcon": "",
+          "recordField": "timestamp",
+          "autoscale": true,
+          "alignment": "center",
+          "colorThresholdTarget": "value",
+          "trend": {
+            "trendType": "auto",
+            "isVisible": true
+          }
+        },
+        "table": {
+          "rowDensity": "condensed",
+          "enableSparklines": false,
+          "hiddenColumns": [],
+          "lineWrapIds": [],
+          "columnWidths": {}
+        },
+        "honeycomb": {
+          "shape": "hexagon",
+          "legend": {
+            "hidden": false,
+            "position": "auto"
+          },
+          "colorMode": "color-palette",
+          "colorPalette": "blue",
+          "dataMappings": {
+            "value": "interval"
+          },
+          "displayedFields": ["lookup.owner"]
+        },
+        "histogram": {
+          "dataMappings": [
+            {
+              "valueAxis": "interval",
+              "rangeAxis": ""
+            }
+          ],
+          "variant": "single",
+          "displayedFields": ["lookup.owner"]
+        },
+        "recordView": {
+          "fieldsWidth": 231.3
+        },
+        "unitsOverrides": [
+          {
+            "identifier": "sum(cost.total)",
+            "unitCategory": "currency",
+            "baseUnit": "usd",
+            "displayUnit": null,
+            "decimals": 2,
+            "suffix": "",
+            "delimiter": true,
+            "added": 1722421671633
+          }
+        ]
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 1,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "4": {
+      "type": "data",
+      "title": "",
+      "query": "fetch bizevents\n| filter event.provider == \"dynatrace.biz.carbon\" and event.type == \"carbon.measurement\" and isNotNull(carbon.emissions)\n| lookup [fetch dt.entity.host\n  | fields id,entity.name,entity.type,tags,osVersion\n  | expand tags\n  | filter contains(tags,\"dt.owner\")\n  | parse tags, \"\"\"'dt.owner:'LD:owner\"\"\"], sourceField:dt.entity.host,lookupField:id\n| summarize totalCarbon = sum(carbon.emissions), by:{dt.entity.host, lookup.owner}\n| lookup [fetch bizevents, from: -10d, to:-5d\n  | filter event.provider == \"dynatrace.biz.carbon\" and event.type == \"carbon.measurement\" and isNotNull(carbon.emissions)\n  | summarize totalCarbon = sum(carbon.emissions), by:{dt.entity.host}\n], sourceField:dt.entity.host, lookupField:dt.entity.host, prefix:\"history.\"\n| fieldsAdd percentChange = ((toDouble(totalCarbon) - toDouble(history.totalCarbon)) / toDouble(history.totalCarbon)) * 100\n| fieldsAdd percentCheck = if(percentChange < 0, \"Decrease (good)\", else:{\"Increase (bad)\"})\n| filter in(lookup.owner, $Owner)",
+      "davis": {
+        "enabled": false,
+        "davisVisualization": {
+          "isAvailable": true
+        }
+      },
+      "visualization": "honeycomb",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "xAxisScaling": "analyzedTimeframe",
+          "gapPolicy": "connect",
+          "circleChartSettings": {
+            "groupingThresholdType": "relative",
+            "groupingThresholdValue": 0,
+            "valueType": "relative"
+          },
+          "categoryOverrides": {},
+          "categoricalBarChartSettings": {
+            "categoryAxis": [
+              "dt.entity.host",
+              "lookup.owner",
+              "history.dt.entity.host",
+              "percentCheck"
+            ],
+            "categoryAxisLabel": "dt.entity.host,lookup.owner,history.dt.entity.host,percentCheck",
+            "valueAxis": [
+              "totalCarbon",
+              "history.totalCarbon",
+              "percentChange"
+            ],
+            "valueAxisLabel": "totalCarbon,history.totalCarbon,percentChange",
+            "tooltipVariant": "single"
+          },
+          "hiddenLegendFields": [],
+          "truncationMode": "middle"
+        },
+        "singleValue": {
+          "showLabel": true,
+          "label": "lookup.owner",
+          "prefixIcon": "",
+          "recordField": "lookup.owner",
+          "autoscale": true,
+          "alignment": "center",
+          "colorThresholdTarget": "value",
+          "trend": {
+            "trendType": "auto",
+            "isVisible": false
+          }
+        },
+        "table": {
+          "rowDensity": "condensed",
+          "enableSparklines": false,
+          "hiddenColumns": [],
+          "lineWrapIds": [],
+          "columnWidths": {}
+        },
+        "honeycomb": {
+          "shape": "hexagon",
+          "legend": {
+            "hidden": false,
+            "position": "auto"
+          },
+          "colorMode": "custom-colors",
+          "colorPalette": "blue",
+          "dataMappings": {
+            "value": "percentCheck"
+          },
+          "displayedFields": [
+            "dt.entity.host",
+            "lookup.owner",
+            "history.dt.entity.host",
+            "percentCheck"
+          ],
+          "customColors": [
+            {
+              "id": 0,
+              "value": "Increase (bad)",
+              "comparator": "=",
+              "color": {
+                "Default": "var(--dt-colors-charts-loglevel-emergency-default, #ae132d)"
+              }
+            },
+            {
+              "id": 394920.0999999996,
+              "value": "Decrease (good)",
+              "comparator": "=",
+              "color": {
+                "Default": "var(--dt-colors-charts-categorical-color-09-default, #649438)"
+              }
+            }
+          ],
+          "min": null,
+          "max": null
+        },
+        "histogram": {
+          "dataMappings": [
+            {
+              "valueAxis": "totalCarbon",
+              "rangeAxis": ""
+            },
+            {
+              "valueAxis": "history.totalCarbon",
+              "rangeAxis": ""
+            },
+            {
+              "valueAxis": "percentChange",
+              "rangeAxis": ""
+            }
+          ],
+          "variant": "single",
+          "displayedFields": [
+            "dt.entity.host",
+            "lookup.owner",
+            "history.dt.entity.host",
+            "percentCheck"
+          ]
+        },
+        "autoSelectVisualization": false
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 1,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "5": {
+      "type": "data",
+      "title": "",
+      "query": "fetch bizevents\n| filter event.provider == \"dynatrace.biz.carbon\" and event.type == \"carbon.measurement\" and isNotNull(carbon.emissions)\n| lookup [fetch dt.entity.host\n  | fields id,entity.name,entity.type,tags,osVersion\n  | expand tags\n  | filter contains(tags,\"dt.owner\")\n  | parse tags, \"\"\"'dt.owner:'LD:owner\"\"\"], sourceField:dt.entity.host,lookupField:id\n| filter in(lookup.owner, {$Owner})  \n| makeTimeseries totalCarbon = sum(carbon.emissions), by:{lookup.owner}",
+      "davis": {
+        "enabled": true,
+        "componentState": {
+          "selectedAnalyzerName": "dt.statistics.ui.anomaly_detection.SeasonalBaselineAnomalyDetectionAnalyzer",
+          "inputData": {
+            "dt.statistics.ui.anomaly_detection.SeasonalBaselineAnomalyDetectionAnalyzer": {
+              "generalParameters": {
+                "timeframe": {
+                  "startTime": "now-5d",
+                  "endTime": "now"
+                },
+                "resolveDimensionalQueryData": true,
+                "logVerbosity": "INFO"
+              },
+              "tolerance": 4,
+              "alertCondition": "OUTSIDE",
+              "alertOnMissingData": false,
+              "violatingSamples": 3,
+              "slidingWindow": 5,
+              "dealertingSamples": 5,
+              "query": "fetch bizevents\n| filter event.provider == \"dynatrace.biz.carbon\" and event.type == \"carbon.measurement\" and isNotNull(carbon.emissions)\n| lookup [fetch dt.entity.host\n  | fields id,entity.name,entity.type,tags,osVersion\n  | expand tags\n  | filter contains(tags,\"dt.owner\")\n  | parse tags, \"\"\"'dt.owner:'LD:owner\"\"\"], sourceField:dt.entity.host,lookupField:id\n| filter in(lookup.owner, {\"nacho\",\"gtm\",\"DTU\"})  \n| makeTimeseries totalCarbon = sum(carbon.emissions), by:{lookup.owner}"
+            }
+          }
+        },
+        "davisVisualization": {
+          "isAvailable": true,
+          "settings": {
+            "visibleSections": "VISUALIZATION"
+          }
+        }
+      },
+      "visualization": "davis",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "xAxisScaling": "analyzedTimeframe",
+          "gapPolicy": "connect",
+          "circleChartSettings": {
+            "groupingThresholdType": "relative",
+            "groupingThresholdValue": 0,
+            "valueType": "relative",
+            "showTotalValue": true
+          },
+          "categoryOverrides": {},
+          "categoricalBarChartSettings": {
+            "categoryAxisLabel": "lookup.owner",
+            "valueAxisLabel": "interval",
+            "categoryAxis": ["lookup.owner"],
+            "valueAxis": ["interval"],
+            "tooltipVariant": "single"
+          },
+          "hiddenLegendFields": [],
+          "fieldMapping": {
+            "timestamp": "timeframe",
+            "leftAxisValues": ["sum(cost.total)"],
+            "leftAxisDimensions": ["lookup.owner"]
+          },
+          "truncationMode": "middle",
+          "valueRepresentation": "absolute"
+        },
+        "singleValue": {
+          "showLabel": true,
+          "label": "",
+          "prefixIcon": "",
+          "recordField": "timestamp",
+          "autoscale": true,
+          "alignment": "center",
+          "colorThresholdTarget": "value",
+          "trend": {
+            "trendType": "auto",
+            "isVisible": true
+          }
+        },
+        "table": {
+          "rowDensity": "condensed",
+          "enableSparklines": false,
+          "hiddenColumns": [],
+          "lineWrapIds": [],
+          "columnWidths": {}
+        },
+        "honeycomb": {
+          "shape": "hexagon",
+          "legend": {
+            "hidden": false,
+            "position": "auto"
+          },
+          "colorMode": "color-palette",
+          "colorPalette": "blue",
+          "dataMappings": {
+            "value": "interval"
+          },
+          "displayedFields": ["lookup.owner"]
+        },
+        "histogram": {
+          "dataMappings": [
+            {
+              "valueAxis": "interval",
+              "rangeAxis": ""
+            }
+          ],
+          "variant": "single",
+          "displayedFields": ["lookup.owner"]
+        },
+        "recordView": {
+          "fieldsWidth": 231.3
+        },
+        "unitsOverrides": [
+          {
+            "identifier": "sum(cost.total)",
+            "unitCategory": "currency",
+            "baseUnit": "usd",
+            "displayUnit": null,
+            "decimals": 2,
+            "suffix": "",
+            "delimiter": true,
+            "added": 1722421671633
+          }
+        ],
+        "autoSelectVisualization": false
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 1,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "6": {
+      "type": "data",
+      "title": "",
+      "query": "fetch bizevents\n| filter event.provider == \"dynatrace.biz.carbon\" and event.type == \"carbon.measurement\" and isNotNull(carbon.emissions)\n| lookup [fetch dt.entity.host\n  | fields id,entity.name,entity.type,tags,osVersion\n  | expand tags\n  | filter contains(tags,\"dt.owner\")\n  | parse tags, \"\"\"'dt.owner:'LD:owner\"\"\"], sourceField:dt.entity.host,lookupField:id\n| filter in(lookup.owner, {$Owner})  \n| makeTimeseries totalCarbon = sum(carbon.emissions), interval:1m",
+      "davis": {
+        "enabled": true,
+        "componentState": {
+          "selectedAnalyzerName": "dt.statistics.ui.ForecastAnalyzer",
+          "inputData": {
+            "dt.statistics.ui.ForecastAnalyzer": {
+              "generalParameters": {
+                "timeframe": {
+                  "startTime": "now-5d",
+                  "endTime": "now"
+                },
+                "resolveDimensionalQueryData": true,
+                "logVerbosity": "INFO"
+              },
+              "forecastHorizon": 100,
+              "forecastOffset": 1,
+              "query": "fetch bizevents\n| filter event.provider == \"dynatrace.biz.carbon\" and event.type == \"carbon.measurement\" and isNotNull(carbon.emissions)\n| lookup [fetch dt.entity.host\n  | fields id,entity.name,entity.type,tags,osVersion\n  | expand tags\n  | filter contains(tags,\"dt.owner\")\n  | parse tags, \"\"\"'dt.owner:'LD:owner\"\"\"], sourceField:dt.entity.host,lookupField:id\n| filter in(lookup.owner, {\"nacho\",\"gtm\",\"DTU\"})  \n| makeTimeseries totalCarbon = sum(carbon.emissions), interval:1m"
+            }
+          }
+        },
+        "davisVisualization": {
+          "isAvailable": true,
+          "settings": {
+            "visibleSections": "VISUALIZATION"
+          },
+          "selectedOutputs": ["-989773049", "1894595801"]
+        }
+      },
+      "visualization": "davis",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "xAxisScaling": "analyzedTimeframe",
+          "gapPolicy": "connect",
+          "circleChartSettings": {
+            "groupingThresholdType": "relative",
+            "groupingThresholdValue": 0,
+            "valueType": "relative",
+            "showTotalValue": true
+          },
+          "categoryOverrides": {},
+          "categoricalBarChartSettings": {
+            "categoryAxisLabel": "lookup.owner",
+            "valueAxisLabel": "interval",
+            "tooltipVariant": "single"
+          },
+          "hiddenLegendFields": [],
+          "fieldMapping": {
+            "timestamp": "timeframe",
+            "leftAxisValues": ["timeseries"],
+            "leftAxisDimensions": []
+          },
+          "truncationMode": "middle",
+          "valueRepresentation": "absolute"
+        },
+        "singleValue": {
+          "showLabel": true,
+          "label": "",
+          "prefixIcon": "",
+          "recordField": "timestamp",
+          "autoscale": true,
+          "alignment": "center",
+          "colorThresholdTarget": "value",
+          "trend": {
+            "trendType": "auto",
+            "isVisible": true
+          }
+        },
+        "table": {
+          "rowDensity": "condensed",
+          "enableSparklines": false,
+          "hiddenColumns": [],
+          "lineWrapIds": [],
+          "columnWidths": {}
+        },
+        "honeycomb": {
+          "shape": "hexagon",
+          "legend": {
+            "hidden": false,
+            "position": "auto"
+          },
+          "colorMode": "color-palette",
+          "colorPalette": "blue",
+          "dataMappings": {},
+          "displayedFields": []
+        },
+        "histogram": {
+          "dataMappings": [
+            {
+              "valueAxis": "interval",
+              "rangeAxis": ""
+            }
+          ],
+          "variant": "single",
+          "displayedFields": []
+        },
+        "recordView": {
+          "fieldsWidth": 231.3
+        },
+        "unitsOverrides": [
+          {
+            "identifier": "sum(cost.total)",
+            "unitCategory": "currency",
+            "baseUnit": "usd",
+            "displayUnit": null,
+            "decimals": 2,
+            "suffix": "",
+            "delimiter": true,
+            "added": 1722421671633
+          }
+        ],
+        "autoSelectVisualization": false
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 1,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "7": {
+      "type": "data",
+      "title": "",
+      "query": "fetch dt.entity.host\n| fields id,entity.name,entity.type,tags,osVersion\n| expand tags\n| filter contains(tags,\"dt.owner\")\n| parse tags, \"\"\"'dt.owner:'LD:owner\"\"\"\n| lookup [timeseries avg(dt.host.cpu.usage, default:0), by:{dt.entity.host} | fields interval, timeframe, `avg(dt.host.cpu.usage, default:0)`, dt.entity.host], sourceField:id, lookupField:dt.entity.host, prefix: \"cpu.\"\n| lookup [timeseries avg(dt.host.memory.usage, default:0), by:{dt.entity.host} | fields interval, timeframe, `avg(dt.host.memory.usage, default:0)`, dt.entity.host], sourceField:id, lookupField:dt.entity.host, prefix:\"memory.\"\n| lookup [fetch bizevents\n  | filter event.provider == \"dynatrace.biz.carbon\" and event.type == \"carbon.measurement\" and isNotNull(carbon.emissions)\n  | summarize totalCarbon = sum(carbon.emissions), by:{dt.entity.host}], sourceField: id, lookupField:dt.entity.host\n\n| fieldsAdd cpuAverage = arrayAvg(`cpu.avg(dt.host.cpu.usage, default:0)`), memoryAverage = arrayAvg(`memory.avg(dt.host.memory.usage, default:0)`)\n| fieldsRemove memory.interval, memory.timeframe\n| fields {id, alias:{`dt.entity.host`}}, {entity.name, alias:{`Host name`}}, {lookup.totalCarbon, alias:{`Total carbon (kg)`}}, {owner, alias:{`Owner`}}, { `cpu.avg(dt.host.cpu.usage, default:0)`, alias:{`CPU over time`}}, { cpuAverage, alias:{`CPU average`}}, { `memory.avg(dt.host.memory.usage, default:0)`, alias:{`Memory over time`}}, { memoryAverage, alias:{`Memory average`}}, cpu.timeframe, cpu.interval \n| filter in(Owner, $Owner)\n",
+      "davis": {
+        "enabled": false,
+        "davisVisualization": {
+          "isAvailable": true
+        }
+      },
+      "visualization": "table",
+      "visualizationSettings": {
+        "thresholds": [
+          {
+            "id": 1,
+            "field": "CPU average",
+            "title": "CPU threshold",
+            "isEnabled": true,
+            "rules": [
+              {
+                "id": 0,
+                "color": {
+                  "Default": "var(--dt-colors-charts-categorical-color-09-default, #649438)"
+                },
+                "comparator": "≥",
+                "label": "",
+                "value": 30
+              },
+              {
+                "id": 1,
+                "color": {
+                  "Default": "var(--dt-colors-charts-status-warning-default, #eca440)"
+                },
+                "comparator": "≥",
+                "label": "",
+                "value": 20
+              },
+              {
+                "id": 2,
+                "color": {
+                  "Default": "var(--dt-colors-charts-loglevel-emergency-default, #ae132d)"
+                },
+                "comparator": "≥",
+                "label": "",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "id": 2,
+            "field": "Memory average",
+            "title": "Memory threshold",
+            "isEnabled": true,
+            "rules": [
+              {
+                "id": 0,
+                "color": {
+                  "Default": "var(--dt-colors-charts-categorical-color-09-default, #649438)"
+                },
+                "comparator": "≥",
+                "label": "",
+                "value": 40
+              },
+              {
+                "id": 1,
+                "color": {
+                  "Default": "var(--dt-colors-charts-status-warning-default, #eca440)"
+                },
+                "comparator": "≥",
+                "label": "",
+                "value": 20
+              },
+              {
+                "id": 2,
+                "color": {
+                  "Default": "var(--dt-colors-charts-loglevel-emergency-default, #ae132d)"
+                },
+                "comparator": "≥",
+                "label": "",
+                "value": 0
+              }
+            ]
+          }
+        ],
+        "chartSettings": {
+          "xAxisScaling": "analyzedTimeframe",
+          "gapPolicy": "connect",
+          "circleChartSettings": {
+            "groupingThresholdType": "relative",
+            "groupingThresholdValue": 0,
+            "valueType": "relative"
+          },
+          "categoryOverrides": {},
+          "categoricalBarChartSettings": {
+            "categoryAxis": ["dt.entity.host", "Host name", "Owner"],
+            "valueAxis": [
+              "Total carbon (kg)",
+              "CPU average",
+              "Memory average",
+              "cpu.interval"
+            ],
+            "categoryAxisLabel": "dt.entity.host,Host name,Owner",
+            "valueAxisLabel": "Total carbon (kg),CPU average,Memory average,cpu.interval",
+            "tooltipVariant": "single"
+          },
+          "fieldMapping": {
+            "timestamp": "cpu.timeframe",
+            "leftAxisValues": ["CPU over time", "Memory over time"],
+            "leftAxisDimensions": [
+              "dt.entity.host",
+              "Host name",
+              "Total carbon (kg)",
+              "Owner",
+              "CPU average",
+              "Memory average"
+            ]
+          },
+          "hiddenLegendFields": ["entity"],
+          "bandChartSettings": {
+            "lower": "CPU over time",
+            "upper": "Memory over time",
+            "time": "cpu.timeframe"
+          },
+          "valueRepresentation": "absolute",
+          "truncationMode": "middle",
+          "xAxisLabel": "cpu.timeframe",
+          "xAxisIsLabelVisible": false,
+          "leftYAxisSettings": {}
+        },
+        "singleValue": {
+          "showLabel": true,
+          "label": "error",
+          "prefixIcon": "",
+          "recordField": "error",
+          "autoscale": true,
+          "alignment": "center",
+          "colorThresholdTarget": "value",
+          "trend": {
+            "trendType": "auto",
+            "isVisible": true
+          }
+        },
+        "table": {
+          "rowDensity": "comfortable",
+          "enableSparklines": true,
+          "hiddenColumns": [
+            ["dt.entity.host"],
+            ["cpu.timeframe"],
+            ["cpu.interval"]
+          ],
+          "lineWrapIds": [],
+          "columnWidths": {
+            "[\"CPU over time\"]": 367.25,
+            "[\"Memory over time\"]": 770.09375,
+            "[\"Host name\"]": 398.203125,
+            "[\"Host ID\"]": 277.234375
+          },
+          "colorThresholdTarget": "background",
+          "linewrapEnabled": false,
+          "monospacedFontEnabled": false,
+          "monospacedFontColumns": [],
+          "columnTypeOverrides": [
+            {
+              "id": 673109.1999999993,
+              "fields": ["CPU over time"],
+              "value": "sparkline"
+            },
+            {
+              "id": 683276,
+              "fields": ["Memory over time"],
+              "value": "sparkline"
+            }
+          ],
+          "sortBy": {
+            "columnId": "[\"Owner\"]",
+            "direction": "descending"
+          }
+        },
+        "honeycomb": {
+          "shape": "hexagon",
+          "legend": {
+            "hidden": false,
+            "position": "auto"
+          },
+          "colorMode": "color-palette",
+          "colorPalette": "blue",
+          "dataMappings": {
+            "value": "Total carbon (kg)"
+          },
+          "displayedFields": ["dt.entity.host", "Host name", "Owner"]
+        },
+        "histogram": {
+          "dataMappings": [
+            {
+              "valueAxis": "Total carbon (kg)",
+              "rangeAxis": ""
+            },
+            {
+              "valueAxis": "CPU average",
+              "rangeAxis": ""
+            },
+            {
+              "valueAxis": "Memory average",
+              "rangeAxis": ""
+            },
+            {
+              "valueAxis": "cpu.interval",
+              "rangeAxis": ""
+            }
+          ],
+          "variant": "single",
+          "displayedFields": ["dt.entity.host", "Host name", "Owner"]
+        },
+        "unitsOverrides": [
+          {
+            "identifier": "Total carbon (kg)",
+            "unitCategory": "mass",
+            "baseUnit": "gram",
+            "displayUnit": "kilogram",
+            "decimals": 2,
+            "suffix": "",
+            "delimiter": false,
+            "added": 1727945296800
+          }
+        ]
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 1,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "9": {
+      "type": "markdown",
+      "title": "",
+      "content": "# 👬 Team breakdown\n---"
+    },
+    "11": {
+      "type": "data",
+      "title": "",
+      "query": "fetch bizevents\n| filter event.provider == \"dynatrace.biz.carbon\" and event.type == \"carbon.measurement\" and isNotNull(carbon.emissions)\n| lookup [fetch dt.entity.host\n  | fields id,entity.name,entity.type,tags,osVersion\n  | expand tags\n  | filter contains(tags,\"dt.owner\")\n  | parse tags, \"\"\"'dt.owner:'LD:owner\"\"\"], sourceField:dt.entity.host,lookupField:id\n| filter in(lookup.owner, $Owner)  \n| makeTimeseries sparkline = sum(carbon.emissions)\n| fieldsAdd singlevalue = arraySum(sparkline)",
+      "davis": {
+        "enabled": false,
+        "davisVisualization": {
+          "isAvailable": true
+        }
+      },
+      "visualization": "singleValue",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "circleChartSettings": {
+            "groupingThresholdType": "relative",
+            "groupingThresholdValue": 0,
+            "valueType": "relative"
+          },
+          "categoryOverrides": {},
+          "hiddenLegendFields": [],
+          "fieldMapping": {
+            "timestamp": "timeframe",
+            "leftAxisValues": ["sparkline"],
+            "leftAxisDimensions": ["singlevalue"]
+          },
+          "categoricalBarChartSettings": {},
+          "valueRepresentation": "absolute",
+          "xAxisLabel": "timeframe",
+          "xAxisIsLabelVisible": false,
+          "leftYAxisSettings": {}
+        },
+        "singleValue": {
+          "showLabel": false,
+          "label": "Total spend",
+          "prefixIcon": "",
+          "recordField": "singlevalue",
+          "autoscale": true,
+          "sparklineSettings": {
+            "showTicks": true
+          },
+          "alignment": "center",
+          "trend": {
+            "isVisible": true,
+            "trendType": "auto",
+            "upward": {
+              "Default": "var(--dt-colors-charts-loglevel-emergency-default, #ae132d)"
+            },
+            "downward": {
+              "Default": "var(--dt-colors-charts-categorical-color-09-default, #649438)"
+            }
+          },
+          "colorThresholdTarget": "value"
+        },
+        "table": {
+          "rowDensity": "condensed",
+          "enableSparklines": false,
+          "hiddenColumns": [],
+          "lineWrapIds": [],
+          "columnWidths": {}
+        },
+        "honeycomb": {
+          "shape": "hexagon",
+          "legend": {
+            "hidden": false,
+            "position": "auto"
+          },
+          "colorMode": "color-palette",
+          "colorPalette": "blue",
+          "dataMappings": {},
+          "displayedFields": []
+        },
+        "histogram": {
+          "dataMappings": [
+            {
+              "valueAxis": "interval",
+              "rangeAxis": ""
+            },
+            {
+              "valueAxis": "singlevalue",
+              "rangeAxis": ""
+            }
+          ],
+          "variant": "single",
+          "displayedFields": []
+        },
+        "unitsOverrides": [
+          {
+            "identifier": "singlevalue",
+            "unitCategory": "mass",
+            "baseUnit": "gram",
+            "displayUnit": "kilogram",
+            "decimals": 2,
+            "suffix": "",
+            "delimiter": false,
+            "added": 1722432308269
+          }
+        ]
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 1,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "12": {
+      "type": "markdown",
+      "title": "",
+      "content": "## 🌳 Total carbon\n---\nFor all teams selected above, the total carbon emissions in kg."
+    },
+    "13": {
+      "type": "markdown",
+      "title": "",
+      "content": "## ⚠️ Anomaly detection\n---\nBased on the last 2 weeks worth of data - is the current carbon footprint tracking with what's \"normal\"?"
+    },
+    "14": {
+      "type": "markdown",
+      "title": "",
+      "content": "## 🔮 Future prediction\n---\nBased on the data we have collected - what direction does carbon appear to be trending?"
+    },
+    "15": {
+      "type": "markdown",
+      "title": "",
+      "content": "# 📈 Overall trends\n---"
+    },
+    "16": {
+      "type": "markdown",
+      "title": "",
+      "content": " "
+    },
+    "17": {
+      "type": "markdown",
+      "title": "",
+      "content": "## 📊 Carbon by team\n---\nBreakdown of the total carbon footprint by different teams (done by \"ownership\")."
+    },
+    "18": {
+      "type": "markdown",
+      "title": "",
+      "content": "## 🕞 Carbon breakdown over time\n---\nBreakdown of carbon by team over time."
+    },
+    "19": {
+      "type": "markdown",
+      "title": "",
+      "content": "## 🚦 Carbon increase KPI\n---\nHighlighting increases (🔴) or decreases (🟢) in the percentage change of carbon footprint per host (filtered by \"owner\" at the top)."
+    },
+    "20": {
+      "type": "markdown",
+      "title": "",
+      "content": " "
+    },
+    "21": {
+      "type": "markdown",
+      "title": "",
+      "content": "# 💻 Host breakdown\n---\nA list of hosts in the selected teams, with details on usage over time - highlighting where hosts may be underutilized/oversized."
+    }
+  },
+  "layouts": {
+    "1": {
+      "x": 0,
+      "y": 15,
+      "w": 5,
+      "h": 8
+    },
+    "3": {
+      "x": 6,
+      "y": 15,
+      "w": 7,
+      "h": 8
+    },
+    "4": {
+      "x": 14,
+      "y": 15,
+      "w": 7,
+      "h": 8
+    },
+    "5": {
+      "x": 6,
+      "y": 4,
+      "w": 7,
+      "h": 6
+    },
+    "6": {
+      "x": 14,
+      "y": 4,
+      "w": 7,
+      "h": 6
+    },
+    "7": {
+      "x": 0,
+      "y": 26,
+      "w": 21,
+      "h": 8
+    },
+    "9": {
+      "x": 0,
+      "y": 11,
+      "w": 21,
+      "h": 2
+    },
+    "11": {
+      "x": 0,
+      "y": 4,
+      "w": 5,
+      "h": 6
+    },
+    "12": {
+      "x": 0,
+      "y": 2,
+      "w": 5,
+      "h": 2
+    },
+    "13": {
+      "x": 6,
+      "y": 2,
+      "w": 7,
+      "h": 2
+    },
+    "14": {
+      "x": 14,
+      "y": 2,
+      "w": 7,
+      "h": 2
+    },
+    "15": {
+      "x": 0,
+      "y": 0,
+      "w": 21,
+      "h": 2
+    },
+    "16": {
+      "x": 0,
+      "y": 10,
+      "w": 21,
+      "h": 1
+    },
+    "17": {
+      "x": 0,
+      "y": 13,
+      "w": 5,
+      "h": 2
+    },
+    "18": {
+      "x": 6,
+      "y": 13,
+      "w": 7,
+      "h": 2
+    },
+    "19": {
+      "x": 14,
+      "y": 13,
+      "w": 7,
+      "h": 2
+    },
+    "20": {
+      "x": 0,
+      "y": 23,
+      "w": 20,
+      "h": 1
+    },
+    "21": {
+      "x": 0,
+      "y": 24,
+      "w": 21,
+      "h": 2
+    }
+  },
+  "importedWithCode": false,
+  "settings": {
+    "defaultTimeframe": {
+      "value": {
+        "from": "now()-5d",
+        "to": "now()"
+      },
+      "enabled": true
+    }
+  }
+}

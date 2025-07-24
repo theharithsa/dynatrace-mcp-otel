@@ -46,6 +46,7 @@
   "dependencies": {
     "@dynatrace-sdk/client-automation": "^5.3.0",
     "@dynatrace-sdk/client-classic-environment-v2": "^3.6.8",
+    "@dynatrace-sdk/client-document": "^1.24.4",
     "@dynatrace-sdk/client-platform-management-service": "^1.6.3",
     "@dynatrace-sdk/client-query": "^1.18.1",
     "@dynatrace-sdk/shared-errors": "^1.0.0",
@@ -55,8 +56,10 @@
     "@opentelemetry/exporter-trace-otlp-proto": "^0.203.0",
     "@opentelemetry/resources": "^1.30.1",
     "@opentelemetry/sdk-node": "^0.203.0",
+    "axios": "^1.11.0",
     "dotenv": "^16.4.7",
     "dt-app": "^0.140.1",
+    "form-data": "^4.0.4",
     "node-fetch": "^3.3.2",
     "zod-to-json-schema": "^3.24.5"
   },

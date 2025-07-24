@@ -1,0 +1,569 @@
+{
+  "version": 15,
+  "variables": [
+    {
+      "key": "Cluster",
+      "type": "query",
+      "visible": true,
+      "input": "fetch dt.entity.kubernetes_cluster\n| fields id, entity.name\n| fieldsAdd identifier = splitString(id, \"-\")[1]\n| fieldsAdd combinedId = concat(entity.name, \":\", identifier)\n| summarize filters = collectDistinct(combinedId)\n| expand filters",
+      "multiple": false
+    },
+    {
+      "key": "Namespace",
+      "type": "query",
+      "visible": true,
+      "input": "fetch dt.entity.cloud_application_namespace\n| fields id, entity.name, {clustered_by[dt.entity.kubernetes_cluster], alias:{kubernetes_cluster}}\n| fieldsAdd cluster = splitString(kubernetes_cluster, \"-\")[1]\n| filter cluster == splitString($Cluster,\":\")[1]\n| fieldsAdd identifier = splitString(id, \"-\")[1]\n| fieldsAdd combinedId = concat(entity.name, \":\", identifier)\n| summarize filters = collectDistinct(combinedId)\n| expand filters",
+      "multiple": false
+    }
+  ],
+  "tiles": {
+    "0": {
+      "type": "data",
+      "title": "",
+      "query": "fetch dt.entity.container_group_instance\n\n| fields entity.name, id, {contains[dt.entity.process_group_instance], alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}}\n\n| filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1])\n| filter isNotNull(process_instance)\n| expand process_instance\n\n| lookup [timeseries process_cpu = avg(dt.process.cpu.usage, default:0), by:{dt.entity.process_group_instance}, interval:1h\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1]) | expand process_instance], sourceField:dt.entity.process_group_instance, lookupField:process_instance\n          | filter isNotNull(lookup.process_instance)], sourceField:process_instance, lookupField:dt.entity.process_group_instance, prefix:\"process.\"\n\n| lookup [timeseries host_cpu = avg(dt.host.cpu.usage, default:0), by:{dt.entity.host}, interval:1h\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1]) | expand process_instance], sourceField:dt.entity.host, lookupField:host\n          | filter isNotNull( lookup.host)], sourceField:host, lookupField:dt.entity.host, prefix:\"host.\"\n\n| fields entity.name, {id, alias:{dt.entity.container_group_instance}}, {process_instance, alias:{dt.entity.process_group_instance}}, {namespace, alias:{dt.entity.cloud_application_namespace}}, {host,alias:{dt.entity.host}}, process.timeframe, process.interval, process.process_cpu, host.timeframe, host.interval, host.host_cpu\n\n| lookup [fetch bizevents | filter event.type == \"carbon.measurement\"\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1]) | expand process_instance], sourceField:dt.entity.host, lookupField:host\n          | filter isNotNull(lookup.host)\n          | makeTimeseries emissions = sum(carbon.emissions, default:0), electric = sum(energy.measurement.total, default:0), by:{ lookup.host}, interval:1h], sourceField:dt.entity.host, lookupField:lookup.host, prefix:\"carbon.\"\n\n| fieldsAdd carbon_per_process = process.process_cpu[] / host.host_cpu[] * carbon.emissions[]\n| fieldsAdd total_carbon = arraySum(carbon_per_process)\n\n| summarize all_carbon = sum(total_carbon)",
+      "davis": {
+        "enabled": false,
+        "davisVisualization": {
+          "isAvailable": true
+        }
+      },
+      "visualization": "singleValue",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "circleChartSettings": {
+            "groupingThresholdType": "relative",
+            "groupingThresholdValue": 0,
+            "valueType": "relative"
+          },
+          "categoryOverrides": {},
+          "categoricalBarChartSettings": {
+            "categoryAxisLabel": "entity.name",
+            "valueAxisLabel": "process.interval"
+          },
+          "hiddenLegendFields": [
+            "entity",
+            "process.lookup.entity",
+            "host.lookup.entity"
+          ]
+        },
+        "singleValue": {
+          "showLabel": true,
+          "label": "Total Carbon (g)",
+          "prefixIcon": "FactoryFilledIcon",
+          "recordField": "all_carbon",
+          "autoscale": true,
+          "alignment": "center",
+          "colorThresholdTarget": "value",
+          "trend": {
+            "trendType": "auto",
+            "isVisible": true
+          },
+          "isIconVisible": true
+        },
+        "table": {
+          "rowDensity": "condensed",
+          "enableSparklines": false,
+          "hiddenColumns": [],
+          "lineWrapIds": [],
+          "columnWidths": {}
+        },
+        "honeycomb": {
+          "shape": "square",
+          "dataMappings": {},
+          "displayedFields": [],
+          "legend": {
+            "hidden": false,
+            "position": "auto"
+          },
+          "colorMode": "color-palette",
+          "colorPalette": "blue"
+        },
+        "histogram": {
+          "dataMappings": [
+            {
+              "valueAxis": "all_carbon",
+              "rangeAxis": ""
+            }
+          ],
+          "variant": "single",
+          "displayedFields": []
+        },
+        "unitsOverrides": [
+          {
+            "identifier": "all_carbon",
+            "unitCategory": "mass",
+            "baseUnit": "gram",
+            "displayUnit": "gram",
+            "decimals": 2,
+            "suffix": "",
+            "delimiter": true,
+            "added": 1714146082580
+          }
+        ]
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "1": {
+      "type": "data",
+      "title": "",
+      "query": "fetch dt.entity.container_group_instance\n\n| fields entity.name, id, {contains[dt.entity.process_group_instance], alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}}\n\n| filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1])\n| filter isNotNull(process_instance)\n| expand process_instance\n\n| lookup [timeseries process_cpu = avg(dt.process.cpu.usage, default:0), by:{dt.entity.process_group_instance}, interval:1h\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1]) | expand process_instance], sourceField:dt.entity.process_group_instance, lookupField:process_instance\n          | filter isNotNull(lookup.process_instance)], sourceField:process_instance, lookupField:dt.entity.process_group_instance, prefix:\"process.\"\n\n| lookup [timeseries host_cpu = avg(dt.host.cpu.usage, default:0), by:{dt.entity.host}, interval:1h\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1]) | expand process_instance], sourceField:dt.entity.host, lookupField:host\n          | filter isNotNull( lookup.host)], sourceField:host, lookupField:dt.entity.host, prefix:\"host.\"\n\n| fields entity.name, {id, alias:{dt.entity.container_group_instance}}, {process_instance, alias:{dt.entity.process_group_instance}}, {namespace, alias:{dt.entity.cloud_application_namespace}}, {host,alias:{dt.entity.host}}, process.timeframe, process.interval, process.process_cpu, host.timeframe, host.interval, host.host_cpu\n\n| lookup [fetch bizevents | filter event.type == \"carbon.measurement\"\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1]) | expand process_instance], sourceField:dt.entity.host, lookupField:host\n          | filter isNotNull(lookup.host)\n          | makeTimeseries emissions = sum(carbon.emissions, default:0), electric = sum(energy.measurement.total, default:0), by:{ lookup.host}, interval:1h], sourceField:dt.entity.host, lookupField:lookup.host, prefix:\"carbon.\"\n\n| fieldsAdd electric_per_process = process.process_cpu[] / host.host_cpu[] * carbon.electric[]\n| fieldsAdd total_electric = arraySum(electric_per_process)\n\n| summarize all_electric = sum(total_electric)",
+      "davis": {
+        "enabled": false,
+        "davisVisualization": {
+          "isAvailable": true
+        }
+      },
+      "visualization": "singleValue",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "circleChartSettings": {
+            "groupingThresholdType": "relative",
+            "groupingThresholdValue": 0,
+            "valueType": "relative"
+          },
+          "categoryOverrides": {},
+          "categoricalBarChartSettings": {}
+        },
+        "singleValue": {
+          "showLabel": true,
+          "label": "Total Electric (W)",
+          "prefixIcon": "EpicIcon",
+          "recordField": "all_electric",
+          "autoscale": true,
+          "alignment": "center",
+          "colorThresholdTarget": "value",
+          "trend": {
+            "trendType": "auto",
+            "isVisible": true
+          },
+          "isIconVisible": true
+        },
+        "table": {
+          "rowDensity": "condensed",
+          "enableSparklines": false,
+          "hiddenColumns": [],
+          "lineWrapIds": [],
+          "columnWidths": {}
+        },
+        "honeycomb": {
+          "shape": "square",
+          "dataMappings": {
+            "value": "all_electric"
+          },
+          "displayedFields": [null],
+          "legend": {
+            "hidden": false,
+            "position": "auto"
+          },
+          "colorMode": "color-palette",
+          "colorPalette": "blue"
+        },
+        "histogram": {
+          "dataMappings": [
+            {
+              "valueAxis": "all_electric",
+              "rangeAxis": ""
+            }
+          ],
+          "variant": "single",
+          "displayedFields": []
+        },
+        "unitsOverrides": [
+          {
+            "identifier": "all_electric",
+            "unitCategory": "electricity",
+            "baseUnit": "watt",
+            "displayUnit": "watt",
+            "decimals": 2,
+            "suffix": "",
+            "delimiter": true,
+            "added": 1714146082580
+          }
+        ]
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "2": {
+      "type": "data",
+      "title": "Carbon (g) over time - baselined by Davis AI",
+      "query": "fetch dt.entity.container_group_instance\n\n| fields {entity.name, id, {contains[dt.entity.process_group_instance], alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}}}\n\n| filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1])\n| filter isNotNull(process_instance)\n| expand process_instance\n\n| lookup [timeseries process_cpu = avg(dt.process.cpu.usage, default:0), by:{dt.entity.process_group_instance}, interval:1h\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1]) | expand process_instance], sourceField:dt.entity.process_group_instance, lookupField:process_instance\n          | filter isNotNull(lookup.process_instance)], sourceField:process_instance, lookupField:dt.entity.process_group_instance, prefix:\"process.\"\n\n| lookup [timeseries host_cpu = avg(dt.host.cpu.usage, default:0), by:{dt.entity.host}, interval:1h\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1]) | expand process_instance], sourceField:dt.entity.host, lookupField:host\n          | filter isNotNull( lookup.host)], sourceField:host, lookupField:dt.entity.host, prefix:\"host.\"\n\n| fields entity.name, {id, alias:{dt.entity.container_group_instance}}, {process_instance, alias:{dt.entity.process_group_instance}}, {namespace, alias:{dt.entity.cloud_application_namespace}}, {host,alias:{dt.entity.host}}, process.timeframe, process.interval, process.process_cpu, host.timeframe, host.interval, host.host_cpu\n\n| lookup [fetch bizevents | filter event.type == \"carbon.measurement\"\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1]) | expand process_instance], sourceField:dt.entity.host, lookupField:host\n          | filter isNotNull(lookup.host)\n          | makeTimeseries {emissions = sum(carbon.emissions), electric = sum(energy.measurement.total)}, by:{ lookup.host}, interval:1h], sourceField:dt.entity.host, lookupField:lookup.host, prefix:\"carbon.\"\n\n| fieldsAdd carbon_per_process = process.process_cpu[] / host.host_cpu[] * carbon.emissions[]\n//| fieldsAdd carbon_per_process = arrayRemoveNulls(carbon_per_process)\n| fieldsAdd carbon_per_process = if(isNull(carbon_per_process[]), carbon_per_process[1], else:{carbon_per_process[]})\n\n| fieldsAdd total_carbon = arraySum(carbon_per_process)\n\n//| summarize all_carbon = sum(total_carbon)\n| summarize {carbon=sum(carbon_per_process[])}, by: { carbon.timeframe, carbon.interval}",
+      "davis": {
+        "enabled": true,
+        "componentState": {
+          "selectedAnalyzerName": "dt.statistics.ui.anomaly_detection.AutoAdaptiveAnomalyDetectionAnalyzer",
+          "inputData": {
+            "dt.statistics.ui.anomaly_detection.AutoAdaptiveAnomalyDetectionAnalyzer": {
+              "generalParameters": {
+                "timeframe": {
+                  "startTime": "now-24h",
+                  "endTime": "now"
+                },
+                "resolveDimensionalQueryData": true,
+                "logVerbosity": "INFO"
+              },
+              "numberOfSignalFluctuations": 1,
+              "alertCondition": "ABOVE",
+              "alertOnMissingData": false,
+              "violatingSamples": 3,
+              "slidingWindow": 5,
+              "dealertingSamples": 5,
+              "query": "fetch dt.entity.container_group_instance\n\n| fields {entity.name, id, {contains[dt.entity.process_group_instance], alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}}}\n\n| filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString(\"easytrade:2E858F63FDF7306D\", \":\")[1])\n| filter isNotNull(process_instance)\n| expand process_instance\n\n| lookup [timeseries process_cpu = avg(dt.process.cpu.usage, default:0), by:{dt.entity.process_group_instance}, interval:1h\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString(\"easytrade:2E858F63FDF7306D\", \":\")[1]) | expand process_instance], sourceField:dt.entity.process_group_instance, lookupField:process_instance\n          | filter isNotNull(lookup.process_instance)], sourceField:process_instance, lookupField:dt.entity.process_group_instance, prefix:\"process.\"\n\n| lookup [timeseries host_cpu = avg(dt.host.cpu.usage, default:0), by:{dt.entity.host}, interval:1h\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString(\"easytrade:2E858F63FDF7306D\", \":\")[1]) | expand process_instance], sourceField:dt.entity.host, lookupField:host\n          | filter isNotNull( lookup.host)], sourceField:host, lookupField:dt.entity.host, prefix:\"host.\"\n\n| fields entity.name, {id, alias:{dt.entity.container_group_instance}}, {process_instance, alias:{dt.entity.process_group_instance}}, {namespace, alias:{dt.entity.cloud_application_namespace}}, {host,alias:{dt.entity.host}}, process.timeframe, process.interval, process.process_cpu, host.timeframe, host.interval, host.host_cpu\n\n| lookup [fetch bizevents | filter event.type == \"carbon.measurement\"\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString(\"easytrade:2E858F63FDF7306D\", \":\")[1]) | expand process_instance], sourceField:dt.entity.host, lookupField:host\n          | filter isNotNull(lookup.host)\n          | makeTimeseries {emissions = sum(carbon.emissions), electric = sum(energy.measurement.total)}, by:{ lookup.host}, interval:1h], sourceField:dt.entity.host, lookupField:lookup.host, prefix:\"carbon.\"\n\n| fieldsAdd carbon_per_process = process.process_cpu[] / host.host_cpu[] * carbon.emissions[]\n//| fieldsAdd carbon_per_process = arrayRemoveNulls(carbon_per_process)\n| fieldsAdd carbon_per_process = if(isNull(carbon_per_process[]), carbon_per_process[1], else:{carbon_per_process[]})\n\n| fieldsAdd total_carbon = arraySum(carbon_per_process)\n\n//| summarize all_carbon = sum(total_carbon)\n| summarize {carbon=sum(carbon_per_process[])}, by: { carbon.timeframe, carbon.interval}"
+            }
+          }
+        },
+        "davisVisualization": {
+          "isAvailable": true,
+          "settings": {
+            "visibleSections": "VISUALIZATION"
+          }
+        }
+      },
+      "visualization": "davis",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "circleChartSettings": {
+            "groupingThresholdType": "relative",
+            "groupingThresholdValue": 0,
+            "valueType": "relative"
+          },
+          "categoryOverrides": {},
+          "categoricalBarChartSettings": {},
+          "fieldMapping": {
+            "timestamp": "carbon.timeframe",
+            "leftAxisValues": ["carbon"],
+            "leftAxisDimensions": []
+          },
+          "hiddenLegendFields": [],
+          "valueRepresentation": "absolute"
+        },
+        "singleValue": {
+          "showLabel": true,
+          "label": "",
+          "prefixIcon": "",
+          "recordField": "all_carbon",
+          "autoscale": true,
+          "alignment": "center",
+          "colorThresholdTarget": "value",
+          "trend": {
+            "trendType": "auto",
+            "isVisible": true
+          }
+        },
+        "table": {
+          "rowDensity": "condensed",
+          "enableSparklines": false,
+          "hiddenColumns": [],
+          "lineWrapIds": [],
+          "columnWidths": {}
+        },
+        "honeycomb": {
+          "shape": "square",
+          "dataMappings": {},
+          "displayedFields": [],
+          "legend": {
+            "hidden": false,
+            "position": "auto"
+          },
+          "colorMode": "color-palette",
+          "colorPalette": "blue"
+        },
+        "histogram": {
+          "dataMappings": [
+            {
+              "valueAxis": "carbon.interval",
+              "rangeAxis": ""
+            }
+          ],
+          "variant": "single",
+          "displayedFields": []
+        },
+        "unitsOverrides": [
+          {
+            "identifier": "all_carbon",
+            "unitCategory": "mass",
+            "baseUnit": "gram",
+            "displayUnit": "gram",
+            "decimals": 2,
+            "suffix": "",
+            "delimiter": false,
+            "added": 1714146082580
+          }
+        ],
+        "autoSelectVisualization": false
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "3": {
+      "type": "data",
+      "title": "Electric (W) over time - baselined by Davis AI",
+      "query": "fetch dt.entity.container_group_instance\n\n| fields entity.name, id, {contains[dt.entity.process_group_instance], alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}}\n\n| filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1])\n| filter isNotNull(process_instance)\n| expand process_instance\n\n| lookup [timeseries process_cpu = avg(dt.process.cpu.usage, default:0), by:{dt.entity.process_group_instance}, interval:1h\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1]) | expand process_instance], sourceField:dt.entity.process_group_instance, lookupField:process_instance\n          | filter isNotNull(lookup.process_instance)], sourceField:process_instance, lookupField:dt.entity.process_group_instance, prefix:\"process.\"\n\n| lookup [timeseries host_cpu = avg(dt.host.cpu.usage, default:0), by:{dt.entity.host}, interval:1h\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1]) | expand process_instance], sourceField:dt.entity.host, lookupField:host\n          | filter isNotNull( lookup.host)], sourceField:host, lookupField:dt.entity.host, prefix:\"host.\"\n\n| fields entity.name, {id, alias:{dt.entity.container_group_instance}}, {process_instance, alias:{dt.entity.process_group_instance}}, {namespace, alias:{dt.entity.cloud_application_namespace}}, {host,alias:{dt.entity.host}}, process.timeframe, process.interval, process.process_cpu, host.timeframe, host.interval, host.host_cpu\n\n| lookup [fetch bizevents | filter event.type == \"carbon.measurement\"\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString($Namespace, \":\")[1]) | expand process_instance], sourceField:dt.entity.host, lookupField:host\n          | filter isNotNull(lookup.host)\n          | makeTimeseries {emissions = sum(carbon.emissions), electric = sum(energy.measurement.total)}, by:{ lookup.host}, interval:1h], sourceField:dt.entity.host, lookupField:lookup.host, prefix:\"carbon.\"\n\n| fieldsAdd electric_per_process = process.process_cpu[] / host.host_cpu[] * carbon.electric[]\n| fieldsAdd electric_per_process = if(isNull(electric_per_process[]), electric_per_process[1], else:{electric_per_process[]})\n| fieldsAdd total_electric = arraySum(electric_per_process)\n\n| summarize {electric=sum(electric_per_process[])}, by: { carbon.timeframe, carbon.interval}",
+      "davis": {
+        "enabled": true,
+        "componentState": {
+          "selectedAnalyzerName": "dt.statistics.ui.anomaly_detection.AutoAdaptiveAnomalyDetectionAnalyzer",
+          "inputData": {
+            "dt.statistics.ui.anomaly_detection.AutoAdaptiveAnomalyDetectionAnalyzer": {
+              "generalParameters": {
+                "timeframe": {
+                  "startTime": "now-24h",
+                  "endTime": "now"
+                },
+                "resolveDimensionalQueryData": true,
+                "logVerbosity": "INFO"
+              },
+              "numberOfSignalFluctuations": 1,
+              "alertCondition": "ABOVE",
+              "alertOnMissingData": false,
+              "violatingSamples": 3,
+              "slidingWindow": 5,
+              "dealertingSamples": 5,
+              "query": "fetch dt.entity.container_group_instance\n\n| fields entity.name, id, {contains[dt.entity.process_group_instance], alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}}\n\n| filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString(\"easytrade:2E858F63FDF7306D\", \":\")[1])\n| filter isNotNull(process_instance)\n| expand process_instance\n\n| lookup [timeseries process_cpu = avg(dt.process.cpu.usage, default:0), by:{dt.entity.process_group_instance}, interval:1h\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString(\"easytrade:2E858F63FDF7306D\", \":\")[1]) | expand process_instance], sourceField:dt.entity.process_group_instance, lookupField:process_instance\n          | filter isNotNull(lookup.process_instance)], sourceField:process_instance, lookupField:dt.entity.process_group_instance, prefix:\"process.\"\n\n| lookup [timeseries host_cpu = avg(dt.host.cpu.usage, default:0), by:{dt.entity.host}, interval:1h\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString(\"easytrade:2E858F63FDF7306D\", \":\")[1]) | expand process_instance], sourceField:dt.entity.host, lookupField:host\n          | filter isNotNull( lookup.host)], sourceField:host, lookupField:dt.entity.host, prefix:\"host.\"\n\n| fields entity.name, {id, alias:{dt.entity.container_group_instance}}, {process_instance, alias:{dt.entity.process_group_instance}}, {namespace, alias:{dt.entity.cloud_application_namespace}}, {host,alias:{dt.entity.host}}, process.timeframe, process.interval, process.process_cpu, host.timeframe, host.interval, host.host_cpu\n\n| lookup [fetch bizevents | filter event.type == \"carbon.measurement\"\n          | lookup [fetch dt.entity.container_group_instance | fields entity.name, id, {contains[dt.entity.process_group_instance],alias:{process_instance}}, {belongs_to[dt.entity.cloud_application_namespace],alias:{namespace}}, {belongs_to[dt.entity.host], alias:{host}} | filter namespace == concat(\"CLOUD_APPLICATION_NAMESPACE-\", splitString(\"easytrade:2E858F63FDF7306D\", \":\")[1]) | expand process_instance], sourceField:dt.entity.host, lookupField:host\n          | filter isNotNull(lookup.host)\n          | makeTimeseries {emissions = sum(carbon.emissions), electric = sum(energy.measurement.total)}, by:{ lookup.host}, interval:1h], sourceField:dt.entity.host, lookupField:lookup.host, prefix:\"carbon.\"\n\n| fieldsAdd electric_per_process = process.process_cpu[] / host.host_cpu[] * carbon.electric[]\n| fieldsAdd electric_per_process = if(isNull(electric_per_process[]), electric_per_process[1], else:{electric_per_process[]})\n| fieldsAdd total_electric = arraySum(electric_per_process)\n\n| summarize {electric=sum(electric_per_process[])}, by: { carbon.timeframe, carbon.interval}"
+            }
+          }
+        },
+        "davisVisualization": {
+          "isAvailable": true,
+          "settings": {
+            "visibleSections": "VISUALIZATION"
+          }
+        }
+      },
+      "visualization": "davis",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "xAxisScaling": "analyzedTimeframe",
+          "gapPolicy": "connect",
+          "circleChartSettings": {
+            "groupingThresholdType": "relative",
+            "groupingThresholdValue": 0,
+            "valueType": "relative"
+          },
+          "categoryOverrides": {},
+          "categoricalBarChartSettings": {
+            "categoryAxis": [
+              "entity.name",
+              "dt.entity.container_group_instance",
+              "dt.entity.process_group_instance",
+              "dt.entity.cloud_application_namespace",
+              "dt.entity.host",
+              "carbon.lookup.host"
+            ],
+            "valueAxis": [
+              "process.interval",
+              "host.interval",
+              "carbon.interval"
+            ],
+            "categoryAxisLabel": "entity.name,dt.entity.container_group_instance,dt.entity.process_group_instance,dt.entity.cloud_application_namespace,dt.entity.host,carbon.lookup.host",
+            "valueAxisLabel": "process.interval,host.interval,carbon.interval",
+            "tooltipVariant": "single"
+          },
+          "fieldMapping": {
+            "timestamp": "process.timeframe",
+            "leftAxisValues": [
+              "process.process_cpu",
+              "host.host_cpu",
+              "carbon.emissions",
+              "carbon.electric"
+            ],
+            "leftAxisDimensions": [
+              "entity.name",
+              "dt.entity.container_group_instance",
+              "dt.entity.process_group_instance",
+              "dt.entity.cloud_application_namespace",
+              "dt.entity.host",
+              "carbon.lookup.host"
+            ]
+          },
+          "hiddenLegendFields": [],
+          "valueRepresentation": "absolute",
+          "bandChartSettings": {
+            "lower": "process.process_cpu",
+            "upper": "host.host_cpu",
+            "line": "carbon.emissions",
+            "time": "process.timeframe"
+          },
+          "truncationMode": "middle"
+        },
+        "singleValue": {
+          "showLabel": true,
+          "label": "",
+          "prefixIcon": "",
+          "recordField": "all_electric",
+          "autoscale": true,
+          "alignment": "center",
+          "colorThresholdTarget": "value",
+          "trend": {
+            "trendType": "auto",
+            "isVisible": true
+          }
+        },
+        "table": {
+          "rowDensity": "condensed",
+          "enableSparklines": false,
+          "hiddenColumns": [],
+          "lineWrapIds": [],
+          "columnWidths": {}
+        },
+        "honeycomb": {
+          "shape": "square",
+          "dataMappings": {
+            "value": "process.interval"
+          },
+          "displayedFields": [
+            "entity.name",
+            "dt.entity.container_group_instance",
+            "dt.entity.process_group_instance",
+            "dt.entity.cloud_application_namespace",
+            "dt.entity.host",
+            "carbon.lookup.host"
+          ],
+          "legend": {
+            "hidden": false,
+            "position": "auto"
+          },
+          "colorMode": "color-palette",
+          "colorPalette": "blue"
+        },
+        "histogram": {
+          "dataMappings": [
+            {
+              "valueAxis": "process.interval",
+              "rangeAxis": ""
+            },
+            {
+              "valueAxis": "host.interval",
+              "rangeAxis": ""
+            },
+            {
+              "valueAxis": "carbon.interval",
+              "rangeAxis": ""
+            }
+          ],
+          "variant": "single",
+          "displayedFields": [
+            "entity.name",
+            "dt.entity.container_group_instance",
+            "dt.entity.process_group_instance",
+            "dt.entity.cloud_application_namespace",
+            "dt.entity.host",
+            "carbon.lookup.host"
+          ]
+        },
+        "unitsOverrides": [
+          {
+            "identifier": "electric",
+            "unitCategory": "electricity",
+            "baseUnit": "watt",
+            "displayUnit": "watt",
+            "decimals": 2,
+            "suffix": "",
+            "delimiter": false,
+            "added": 1714146082580
+          }
+        ],
+        "autoSelectVisualization": false
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "4": {
+      "type": "markdown",
+      "title": "",
+      "content": "Dynatrace calculates Carbon emissions at the Host level based on factors like utilisation (CPU, memory etc.), CPU architecture and the data center PUE value. Using the information and metrics from the Dynatrace topology (Smartscape), this can be distributed across components running on the Host, in this case for all processes running in a certain Namespace."
+    },
+    "6": {
+      "type": "markdown",
+      "title": "",
+      "content": "Whilst the total values are interesting and can be used for reporting, charting these values over time can tell teams when there have been changes and action needs to be taken. In addition to graphing this over time, the chart is powered by **🧠 Davis AI** which will highlight if the values you're seeing are \"normal,\" based on historical data."
+    },
+    "7": {
+      "type": "markdown",
+      "title": "",
+      "content": "###### ⬆️ Use the filters at the top to choose a different Kubernetes Cluster or Namespace\n---"
+    }
+  },
+  "layouts": {
+    "0": {
+      "x": 0,
+      "y": 3,
+      "w": 7,
+      "h": 3
+    },
+    "1": {
+      "x": 8,
+      "y": 3,
+      "w": 7,
+      "h": 3
+    },
+    "2": {
+      "x": 0,
+      "y": 8,
+      "w": 7,
+      "h": 9
+    },
+    "3": {
+      "x": 8,
+      "y": 8,
+      "w": 7,
+      "h": 9
+    },
+    "4": {
+      "x": 0,
+      "y": 1,
+      "w": 15,
+      "h": 2
+    },
+    "6": {
+      "x": 0,
+      "y": 6,
+      "w": 15,
+      "h": 2
+    },
+    "7": {
+      "x": 0,
+      "y": 0,
+      "w": 15,
+      "h": 1
+    }
+  },
+  "importedWithCode": false,
+  "settings": {
+    "defaultTimeframe": {
+      "value": {
+        "from": "now()-3d",
+        "to": "now()"
+      },
+      "enabled": true
+    }
+  }
+}
