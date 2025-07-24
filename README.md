@@ -11,6 +11,7 @@ Bring real-time observability data directly into your development workflow.
 - Fix issues in the context from monitored exceptions, logs, and anomalies.
 - More context on security level issues
 - Natural language to query log data
+- For more skills manifest, visit [here](./SkillManifest.md)
 
 ## Capabilities
 
@@ -21,6 +22,13 @@ Bring real-time observability data directly into your development workflow.
 - Set up notification Workflow (via Dynatrace [AutomationEngine](https://docs.dynatrace.com/docs/discover-dynatrace/platform/automationengine))
 - Get more information about a monitored entity
 - Get Ownership of an entity
+- Bulk create dashboards from all JSON files in your /dashboards folder (auto-names each dashboard).
+- Bulk delete dashboards/documents by passing an array of document IDs.
+- Share dashboards/documents environment-wide (all users in the Dynatrace environment).
+- Direct-share dashboards/documents with specific users or groups (recipients and type from environment variables).
+- Delete direct shares by their share ID.
+- Full OpenTelemetry tracing and detailed logging for all dashboard/document operations.
+- Keep an eye on [CHANGELOG.md](./CHANGELOG.md), more updates to come. 
 
 ## Quickstart
 
@@ -265,7 +273,130 @@ Third, create a `.env` file in this repository (you can copy from `.env.template
 
 Last but not least, switch to Agent Mode in CoPilot and reload tools.
 
-## Notes
+## Added Changes
+### 🆕 **Dashboard & Document Management**
 
-This product is not officially supported by Dynatrace.
-Please contact us via [GitHub Issues](https://github.com/dynatrace-oss/dynatrace-mcp/issues) if you have feature requests, questions, or need help.
+This MCP server now lets you **manage dashboards/documents directly from your agent, IDE, or automation workflow**.
+
+#### **New Capabilities:**
+
+* **Batch Dashboard Creation**
+
+  * Automatically create Dynatrace dashboards for every JSON file in your `/dashboards` folder.
+  * Each dashboard name is auto-extracted from the JSON.
+  * Errors are logged; summary shows all results (success/failure per file).
+
+* **Bulk Dashboard/Document Deletion**
+
+  * Delete multiple dashboards/documents at once using the `bulk_delete_dashboards` tool.
+
+* **Document Sharing**
+
+  * **Environment-wide Share:** Share a document with all users in the environment (`share_document_env`).
+  * **Direct Share:** Share a document directly with one or more users/groups. Recipient IDs and types are configurable via environment variables for automation.
+
+* **Direct Share Deletion**
+
+  * Delete a direct share by ID with full OTEL tracing.
+
+* **Comprehensive Tracing & Logging**
+
+  * All operations (create, delete, share) are fully traced via OpenTelemetry and logged for observability.
+
+---
+
+### **Usage Examples**
+
+**Batch Create All Dashboards:**
+
+```bash
+# Will create dashboards for every .json file in /dashboards
+create_dashboard
+```
+
+**Bulk Delete Dashboards:**
+
+```json
+# Tool input (in Copilot/Agent)
+{
+  "tool": "bulk_delete_dashboards",
+  "args": { "documentIds": ["docId1", "docId2", "..."] }
+}
+```
+
+**Share Dashboard with Environment:**
+
+```json
+{
+  "tool": "share_document_env",
+  "args": { "documentId": "<your-dashboard-id>", "access": "read" }
+}
+```
+
+**Direct Share Dashboard:**
+
+* Set environment variables:
+
+  ```
+  DT_SHARE_RECIPIENTS=comma,separated,ids
+  DT_SHARE_TYPE=group  # or "user"
+  ```
+* Then call:
+
+  ```json
+  {
+    "tool": "direct_share_document",
+    "args": { "documentId": "<your-dashboard-id>", "access": "read" }
+  }
+  ```
+
+**Delete Direct Share:**
+
+```json
+{
+  "tool": "delete_direct_share",
+  "args": { "shareId": "<your-direct-share-id>" }
+}
+```
+
+---
+
+### **Environment Variables for Document Sharing**
+
+* `DT_SHARE_RECIPIENTS` — Comma-separated user or group IDs for direct share
+* `DT_SHARE_TYPE` — Either `group` or `user`
+
+---
+
+### **Changelog (Major Additions)**
+
+* **\[2025-07-25]**
+
+  * Batch dashboard creation from folder
+  * Bulk dashboard/document deletion
+  * Environment and direct document sharing
+  * Direct share deletion
+  * Enhanced OpenTelemetry tracing and error logging everywhere
+
+---
+
+### **Quickstart (Extended)**
+
+You can use these new skills/capabilities via any MCP-compatible IDE/agent/chat:
+
+* **Create dashboards in bulk:**
+  Run the `create_dashboard` skill—auto-discovers all JSON files and creates dashboards.
+* **Delete dashboards in bulk:**
+  Pass one or more document IDs to the `bulk_delete_dashboards` tool.
+* **Share dashboards after creation:**
+  Pass the document ID to either `share_document_env` or `direct_share_document`.
+
+---
+
+### **Pro Tip**
+
+Combine these skills for full dashboard lifecycle automation. For example:
+
+1. Create dashboards from `/dashboards`.
+2. Share each dashboard with your team (or groups) right after creation.
+3. Clean up with bulk delete when needed.

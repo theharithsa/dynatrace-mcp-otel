@@ -36,8 +36,12 @@ import { DynatraceEnv, getDynatraceEnv } from './getDynatraceEnv';
 
 // Adding New Tools
 import { createDashboard } from './capabilities/create-dashboard';
-import { shareDocumentWithEnv } from './capabilities/share-document-with-env';
-import { directShareDocument } from './capabilities/direct-share-docs';
+import { shareDocumentWithEnv } from './capabilities/share_document_env';
+import { directShareDocument } from './capabilities/direct_share_document';
+import { bulkDeleteDashboards } from './capabilities/bulk-delete-documents';
+
+import fs from 'fs/promises';
+import path from 'path';
 
 
 
@@ -910,56 +914,88 @@ const main = async () => {
     });
   });
 
-  // This will create dashboards for all the JSOn inside /dashboards folder
-  tool(
-    'create_dashboard',
-    'Create a Dynatrace dashboard from the default dashboard JSON file. The dashboard name is auto-extracted from the JSON.',
-    {},
-    async () => {
-      const span = tracer.startSpan('create_dashboard');
-      return await context.with(trace.setSpan(context.active(), span), async () => {
-        try {
-          const path = require('path');
-          const filePath = path.join(__dirname, '..', 'dashboards', 'Insightify_ Incident_MTTR_Snapshot.json');
+  // This will create dashboards for all the JSONs inside /dashboards folder
+tool(
+  'create_dashboard',
+  'Create Dynatrace dashboards for every JSON file in the /dashboards folder. Each dashboard name is auto-extracted from the JSON.',
+  {},
+  async () => {
+    const span = tracer.startSpan('create_dashboard');
+    return await context.with(trace.setSpan(context.active(), span), async () => {
+      const dashboardDir = path.join(__dirname, '..', 'dashboards');
+      let files: string[] = [];
+      let summary: any[] = [];
 
-          // Pass traceId to capability!
-          const result = await createDashboard(
-            filePath,
-            span.spanContext().traceId // <-- Pass traceId
-          );
+      try {
+        files = await fs.readdir(dashboardDir);
+        const jsonFiles = files.filter(f => f.endsWith('.json'));
 
-          span.setStatus({ code: SpanStatusCode.OK });
-
-          await sendToDynatraceLog({
-            tool: 'create_dashboard',
-            traceId: span.spanContext().traceId,
-            spanId: span.spanContext().spanId,
-            parentSpanId: '',
-            args: { filePath },
-            result,
-            isError: false,
+        for (const file of jsonFiles) {
+          const filePath = path.join(dashboardDir, file);
+          let result, status = 'success', error = undefined;
+          try {
+            result = await createDashboard(
+              filePath,
+              span.spanContext().traceId // <-- Pass traceId
+            );
+            await sendToDynatraceLog({
+              tool: 'create_dashboard',
+              traceId: span.spanContext().traceId,
+              spanId: span.spanContext().spanId,
+              parentSpanId: '',
+              args: { filePath },
+              result,
+              isError: false,
+            });
+          } catch (err: any) {
+            status = 'failed';
+            error = err?.message || String(err);
+            await sendToDynatraceLog({
+              tool: 'create_dashboard',
+              traceId: span.spanContext().traceId,
+              spanId: span.spanContext().spanId,
+              parentSpanId: '',
+              args: { filePath },
+              result: error,
+              isError: true,
+            });
+          }
+          summary.push({
+            file,
+            status,
+            dashboardId: result?.id,
+            dashboardName: result?.name,
+            error
           });
-
-          return `Dashboard created!\nID: ${result?.id}\nName: ${result?.name || "N/A"}`;
-        } catch (err: any) {
-          span.recordException(err);
-          span.setStatus({ code: SpanStatusCode.ERROR });
-          await sendToDynatraceLog({
-            tool: 'create_dashboard',
-            traceId: span.spanContext().traceId,
-            spanId: span.spanContext().spanId,
-            parentSpanId: '',
-            args: {},
-            result: err.message,
-            isError: true,
-          });
-          throw err;
-        } finally {
-          span.end();
         }
-      });
-    }
-  );
+
+        span.setStatus({ code: SpanStatusCode.OK });
+        return (
+          'Dashboard creation summary:\n' +
+          summary.map(s =>
+            `${s.file}: ${s.status}${s.dashboardId ? ' | ID: ' + s.dashboardId : ''}${s.dashboardName ? ' | Name: ' + s.dashboardName : ''}${s.error ? ' | Error: ' + s.error : ''}`
+          ).join('\n')
+        );
+
+      } catch (err: any) {
+        span.recordException(err);
+        span.setStatus({ code: SpanStatusCode.ERROR });
+        await sendToDynatraceLog({
+          tool: 'create_dashboard',
+          traceId: span.spanContext().traceId,
+          spanId: span.spanContext().spanId,
+          parentSpanId: '',
+          args: { dashboardDir },
+          result: err.message,
+          isError: true,
+        });
+        throw err;
+      } finally {
+        span.end();
+      }
+    });
+  }
+);
 
   // Env Share is usefull to send share id as a slack message to certain group of users. 
   tool(
@@ -1015,6 +1051,36 @@ tool(
         const result = await directShareDocument(dtClient, documentId, access, span.spanContext().traceId);
         span.setStatus({ code: SpanStatusCode.OK });
         return `Direct-shared document ${documentId} as ${access} with recipients from env.`;
+      } catch (err) {
+        span.recordException(err as any);
+        span.setStatus({ code: SpanStatusCode.ERROR });
+        throw err;
+      } finally {
+        span.end();
+      }
+    });
+  }
+);
+
+tool(
+  'bulk_delete_dashboards',
+  'Bulk delete dashboards/documents by a list of document IDs.',
+  {
+    documentIds: z.array(z.string()).describe('List of document IDs to delete'),
+  },
+  async ({ documentIds }) => {
+    const span = tracer.startSpan('bulk_delete_dashboards');
+    return await context.with(trace.setSpan(context.active(), span), async () => {
+      try {
+        const dtClient = await createOAuthClient(
+          oauthClient,
+          oauthClientSecret,
+          dtEnvironment,
+          scopesBase.concat('document:documents:delete')
+        );
+        const result = await bulkDeleteDashboards(dtClient, documentIds, span.spanContext().traceId);
+        span.setStatus({ code: SpanStatusCode.OK });
+        return `Deleted documents: ${documentIds.join(', ')}`;
       } catch (err) {
         span.recordException(err as any);
         span.setStatus({ code: SpanStatusCode.ERROR });
