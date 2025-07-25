@@ -39,6 +39,7 @@ import { createDashboard } from './capabilities/create-dashboard';
 import { shareDocumentWithEnv } from './capabilities/share_document_env';
 import { directShareDocument } from './capabilities/direct_share_document';
 import { bulkDeleteDashboards } from './capabilities/bulk-delete-documents';
+import { executeTypescript } from './capabilities/execute-typescript';
 
 import fs from 'fs/promises';
 import path from 'path';
@@ -1081,6 +1082,33 @@ tool(
         const result = await bulkDeleteDashboards(dtClient, documentIds, span.spanContext().traceId);
         span.setStatus({ code: SpanStatusCode.OK });
         return `Deleted documents: ${documentIds.join(', ')}`;
+      } catch (err) {
+        span.recordException(err as any);
+        span.setStatus({ code: SpanStatusCode.ERROR });
+        throw err;
+      } finally {
+        span.end();
+      }
+    });
+  }
+);
+
+tool(
+  'execute_typescript',
+  'Executes TypeScript code using Dynatrace Function Executor API.',
+  {
+    sourceCode: z.string().describe('The source code to run. Must be in `export default async function ({...})` format.'),
+    payload: z.record(z.any()).describe('The payload object to pass as input to the function.'),
+  },
+  async ({ sourceCode, payload, traceId }) => {
+    const tracer = trace.getTracer('dynatrace-mcp');
+    const span = tracer.startSpan('execute_typescript');
+
+    return await context.with(trace.setSpan(context.active(), span), async () => {
+      try {
+        const result = await executeTypescript(sourceCode, payload, traceId || span.spanContext().traceId);
+        span.setStatus({ code: SpanStatusCode.OK });
+        return JSON.stringify(result);
       } catch (err) {
         span.recordException(err as any);
         span.setStatus({ code: SpanStatusCode.ERROR });

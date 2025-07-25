@@ -1,6 +1,6 @@
 {
   "name": "@theharithsa/dynatrace-mcp-server",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Model Context Protocol (MCP) server for Dynatrace, modified version by Vishruth Harithsa (Working as a part of Dynatrace Customer Success Team)",
   "keywords": [
     "Dynatrace",
