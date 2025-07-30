@@ -147,54 +147,24 @@ and set up the following environment variables in order for this MCP to work:
 
 In addition, depending on the features you use, the following variables can be configured:
 
-- `SLACK_CONNECTION_ID` (string) - connection ID of a [Slack Connection](https://docs.dynatrace.com/docs/analyze-explore-automate/workflows/actions/slack)
+- `SLACK_CONNECTION_ID` (string, optional) - Slack Connection ID from Dynatrace Slack App configuration. Required for `send_slack_message` functionality.
 
-## ✨ Example prompts ✨
+### Slack Integration Setup
 
-Use these example prompts as a starting point. Just copy them into your IDE or agent setup, adapt them to your services/stack/architecture,
-and extend them as needed. They’re here to help you imagine how real-time observability and automation work together in the MCP context in your IDE.
+To use the `send_slack_message` functionality, you need to:
 
-**Find open vulnerabilities on production, setup alert.**
+1. **Install Slack App in Dynatrace:**
+   - Go to your Dynatrace environment
+   - Navigate to **Apps** → **Slack** (or search for "Slack" in the Hub)
+   - Install and configure the Slack connector
 
-```
-I have this code snippet here in my IDE, where I get a dependency vulnerability warning for my code.
-Check if I see any open vulnerability/cve on production.
-Analyze a specific production problem.
-Setup a workflow that sends Slack alerts to the #devops-alerts channel when availability problems occur.
-```
+2. **Create Slack Connection:**
+   - Set up a connection with your Slack workspace
+   - Copy the connection ID from the Slack connector settings
+   - Add the connection ID to your `.env` file as `SLACK_CONNECTION_ID`
 
-**Debug intermittent 503 errors.**
-
-```
-Our load balancer is intermittently returning 503 errors during peak traffic.
-Pull all recent problems detected for our front-end services and
-run a query to correlate error rates with service instance health indicators.
-I suspect we have circuit breakers triggering, but need confirmation from the telemetry data.
-```
-
-**Correlate memory issue with logs.**
-
-```
-There's a problem with high memory usage on one of our hosts.
-Get the problem details and then fetch related logs to help understand
-what's causing the memory spike? Which file in this repo is this related to?
-```
-
-**Trace request flow analysis.**
-
-```
-Our users are experiencing slow checkout processes.
-Can you execute a DQL query to show me the full request trace for our checkout flow,
-so I can identify which service is causing the bottleneck?
-```
-
-**Analyze Kubernetes cluster events.**
-
-```
-Our application deployments seem to be failing intermittently.
-Can you fetch recent events from our "production-cluster"
-to help identify what might be causing these deployment issues?
-```
+3. **Required OAuth Scope:**
+   - `app-settings:objects:read` - needed for accessing Slack connection settings
 
 ## Troubleshooting
 
@@ -400,3 +370,24 @@ Combine these skills for full dashboard lifecycle automation. For example:
 1. Create dashboards from `/dashboards`.
 2. Share each dashboard with your team (or groups) right after creation.
 3. Clean up with bulk delete when needed.
+
+## Available Tools
+
+### send_slack_notification
+
+Send a notification message to Slack using a webhook URL.
+
+**Parameters:**
+- `message` (string, required): The message to send to Slack
+- `channel` (string, optional): Optional channel to send to (if webhook supports it)
+- `username` (string, optional): Optional username to display as sender
+- `emoji` (string, optional): Optional emoji icon for the message
+
+**Example:**
+```json
+{
+  "message": "Deployment completed successfully!",
+  "username": "Dynatrace Bot",
+  "emoji": ":rocket:"
+}
+```

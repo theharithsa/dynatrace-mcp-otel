@@ -45,16 +45,5 @@
 
 ---
 
-## **How to Use the New Capabilities**
-
-* **Create All Dashboards:**
-  Run the `create_dashboard` tool—will process all `.json` files in `/dashboards` folder.
-* **Bulk Delete:**
-  Use the `bulk_delete_dashboards` tool, passing an array of document IDs.
-* **Share a Dashboard:**
-
-  * For environment-wide sharing, use the `share_document_env` tool.
-  * For direct user/group sharing, use the `direct_share_document` tool (recipients set via env).
-* **Trace & Log Everything:**
-  All tools are now OTEL traced and send results and errors to Dynatrace logging.
+## Unreleased Changes
 
