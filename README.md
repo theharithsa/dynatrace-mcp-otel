@@ -371,23 +371,59 @@ Combine these skills for full dashboard lifecycle automation. For example:
 2. Share each dashboard with your team (or groups) right after creation.
 3. Clean up with bulk delete when needed.
 
-## Available Tools
+## Features
 
-### send_slack_notification
+- **Dynatrace Integration**: Seamless connection to Dynatrace environments
+- **MCP Protocol Support**: Full Model-Context-Protocol server implementation
+- **OAuth Authentication**: Secure authentication using Dynatrace OAuth clients
+- **Slack Integration**: Automated reporting and notifications to designated Slack channels
+- **Automated Analysis**: Comprehensive code analysis, security scanning, and health monitoring
+- **Multi-Channel Reporting**: Organized reporting across different team channels (#team-bugs, #team-security, #team-ops, #team-service-health)
 
-Send a notification message to Slack using a webhook URL.
+## Slack Integration
 
-**Parameters:**
-- `message` (string, required): The message to send to Slack
-- `channel` (string, optional): Optional channel to send to (if webhook supports it)
-- `username` (string, optional): Optional username to display as sender
-- `emoji` (string, optional): Optional emoji icon for the message
+The MCP server now supports automated Slack reporting for various analysis and monitoring tasks:
 
-**Example:**
-```json
-{
-  "message": "Deployment completed successfully!",
-  "username": "Dynatrace Bot",
-  "emoji": ":rocket:"
-}
-```
+### Supported Channels
+- `#team-bugs`: Bug analysis and code quality reports
+- `#team-security`: Security vulnerability assessments  
+- `#team-ops`: Environment health checks and resource monitoring
+- `#team-service-health`: Service performance analysis and root cause investigations
+
+> **Important**: These Slack channels must already exist in your workspace for the integration to work. If your team uses different channel names, you can modify the channel names in the prompt when requesting analysis (e.g., change `#team-bugs` to `#dev-issues` or any other existing channel name in your workspace).
+
+### Analysis Capabilities
+- **Bug Analysis**: Automated code review with line-by-line bug identification and severity assessment
+- **Security Scanning**: Comprehensive vulnerability detection with remediation recommendations
+- **Health Monitoring**: CPU, memory, and disk usage analysis across all hosts (7-day analysis)
+- **Service Monitoring**: Performance tracking, response time analysis, and failure rate monitoring for dynatrace-mcp-server
+
+### Report Features
+- Visual formatting with proper Slack markdown
+- Direct links to Dynatrace dashboards and environments
+- Severity classifications (Critical, High, Medium, Low)
+- Timestamp attribution and analyst identification
+- Actionable remediation steps and recommendations
+
+### Channel Customization
+When using the analysis prompts, you can specify different channel names that exist in your Slack workspace. Simply replace the default channel names (e.g., `#team-bugs`, `#team-security`) with your preferred channels in the prompt text.
+
+## Required Scopes
+
+The following Dynatrace OAuth scopes are required for full functionality:
+
+- `app-engine:apps:run` - For application execution
+- `environment-api:entities:read` - For entity data access
+- `environment-api:metrics:read` - For metrics data access
+- `environment-api:problems:read` - For problem analysis
+- `environment-api:events:read` - For event data access
+- `environment-api:logs:read` - For log analysis
+- `settings:objects:read` - For configuration access
+- `DataExport` - For data export capabilities
+- `InstallerDownload` - For installer access
+- `storage:events:read` - For event storage access
+- `storage:metrics:read` - For metrics storage access
+- `storage:logs:read` - For log storage access
+- `storage:bizevents:read` - For business events access
+
+> **Note**: Slack integration requires additional configuration of Slack webhook URLs or bot tokens for posting to channels. All referenced Slack channels must exist in your workspace before using the automated reporting features.
