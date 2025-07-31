@@ -220,6 +220,7 @@ jobs:
   publish:
     needs: [check-version, test, debug-info]
     runs-on: ubuntu-latest
+    environment: NPM Deploy  # Add this line to use your GitHub environment
     if: needs.check-version.outputs.should-publish == 'true'
     steps:
       - name: 🚀 Publishing to NPM
@@ -230,6 +231,7 @@ jobs:
           echo "Target branch: ${{ needs.check-version.outputs.target-branch }}"
           echo "Event: ${{ github.event_name }}"
           echo "Action: ${{ github.event.action }}"
+          echo "Environment: NPM Deploy"
 
       - name: Checkout code
         uses: actions/checkout@v4
