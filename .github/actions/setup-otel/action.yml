@@ -34,7 +34,7 @@ runs:
         echo "🔧 Installing OpenTelemetry packages..."
         
         # Create a temporary package.json for OTel dependencies
-        cat > /tmp/otel-package.json << 'EOF'
+        cat > /tmp/package.json << 'EOF'
         {
           "name": "github-actions-otel",
           "version": "1.0.0",
@@ -48,7 +48,7 @@ runs:
         }
         EOF
         
-        # Install OTel packages globally
+        # Install OTel packages in /tmp
         cd /tmp
         npm install --no-package-lock --no-save
         
@@ -62,6 +62,8 @@ runs:
 
         async function sendTrace(endpoint, token, serviceName, traceName, attributes = {}) {
           try {
+            console.log('🚀 Initializing OpenTelemetry SDK...');
+            
             // Initialize SDK similar to your otel.ts
             const sdk = new NodeSDK({
               resource: new Resource({
@@ -95,13 +97,13 @@ runs:
                 }
               });
 
-              // Simulate some work
+              // Simulate some work and then complete
               setTimeout(() => {
                 span.setStatus({ code: 1 }); // OK
                 span.end();
                 console.log('✅ Span sent successfully');
                 resolve();
-              }, 100);
+              }, 500);
             });
 
             // Force flush and shutdown
@@ -110,6 +112,7 @@ runs:
             
           } catch (error) {
             console.error('❌ Error sending trace:', error.message);
+            console.error('Stack trace:', error.stack);
             throw error;
           }
         }
@@ -117,6 +120,13 @@ runs:
         // CLI interface
         if (require.main === module) {
           const [endpoint, token, serviceName, traceName, attributesJson] = process.argv.slice(2);
+          
+          if (!endpoint || !token || !serviceName || !traceName) {
+            console.error('❌ Missing required parameters');
+            console.error('Usage: node send-trace.js <endpoint> <token> <serviceName> <traceName> [attributesJson]');
+            process.exit(1);
+          }
+          
           const attributes = attributesJson ? JSON.parse(attributesJson) : {};
           
           sendTrace(endpoint, token, serviceName, traceName, attributes)
@@ -215,12 +225,17 @@ runs:
         export GITHUB_REF="${{ github.ref }}"
         
         # Send connectivity test trace using Node.js and proper OTel libraries
-        node send-trace.js \
+        echo "📡 Sending connectivity test trace..."
+        if node send-trace.js \
           "$OTEL_ENDPOINT" \
           "${{ inputs.dynatrace-api-token }}" \
           "dynatrace-mcp-server-build" \
           "github-connectivity-test" \
-          '{"test.type":"connectivity","build.type":"'$BUILD_TYPE'"}'
+          '{"test.type":"connectivity","build.type":"'$BUILD_TYPE'"}'; then
+          echo "✅ Connectivity test trace sent successfully"
+        else
+          echo "⚠️ Connectivity test trace failed"
+        fi
         
         # Send initial job start log to Dynatrace (this works)
         if [ -n "${{ inputs.dynatrace-log-url }}" ] && [ -n "${{ inputs.dynatrace-api-token }}" ]; then
@@ -279,6 +294,7 @@ runs:
         export GITHUB_REF="${{ github.ref }}"
         
         # Send job start trace
+        echo "📡 Sending job start trace..."
         if node send-trace.js \
           "$OTEL_EXPORTER_OTLP_ENDPOINT" \
           "$DYNATRACE_API_TOKEN" \
@@ -292,22 +308,6 @@ runs:
         
         # Store job span info for later completion
         echo "GITHUB_JOB_START_TIME_NS=$(($(date +%s) * 1000000000))" >> $GITHUB_ENV
-        fi
-        
-        # Send initial job start log to Dynatrace (this is working)
-        if [ -n "${{ inputs.dynatrace-log-url }}" ] && [ -n "${{ inputs.dynatrace-api-token }}" ]; then
-          JOB_START_LOG="Starting GitHub Actions job: ${{ inputs.job-name }} for workflow ${{ github.workflow }} with trace ID: $TRACE_ID"
-          LOG_TIMESTAMP=$(date +%s%3N)
-          
-          JOB_LOG_PAYLOAD=$(cat << EOF
-          [{
-            "content": "$JOB_START_LOG",
-            "timestamp": $LOG_TIMESTAMP,
-            "level": "INFO",
-            "service": "dynatrace-mcp-server-build",
-            "trace_id": "$TRACE_ID",
-            "span_id": "$TEST_SPAN_ID",
-            "github.workflow": "${{ github.workflow }}",
             "github.job": "${{ inputs.job-name }}",
             "github.run_id": "${{ github.run_id }}",
             "github.actor": "${{ github.actor }}",
