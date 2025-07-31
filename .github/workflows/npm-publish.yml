@@ -2,9 +2,9 @@ name: Publish to NPM
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, dev]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, dev]
 
 jobs:
   check-version:
@@ -84,14 +84,14 @@ jobs:
   publish:
     needs: [check-version, test]
     runs-on: ubuntu-latest
-    if: needs.check-version.outputs.version-changed == 'true' && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: needs.check-version.outputs.version-changed == 'true' && github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     steps:
       - name: Debug conditions
         run: |
           echo "Version changed: ${{ needs.check-version.outputs.version-changed }}"
           echo "Event name: ${{ github.event_name }}"
           echo "Ref: ${{ github.ref }}"
-          echo "Should publish: ${{ needs.check-version.outputs.version-changed == 'true' && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}"
+          echo "Should publish: ${{ needs.check-version.outputs.version-changed == 'true' && github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}"
 
       - name: Checkout code
         uses: actions/checkout@v4
