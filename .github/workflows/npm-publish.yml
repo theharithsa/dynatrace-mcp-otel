@@ -5,18 +5,38 @@ on:
     branches: [main, master, dev]
   pull_request:
     branches: [main, master, dev]
+  workflow_dispatch:  # Allow manual trigger
+    inputs:
+      force_publish:
+        description: 'Force publish even if version unchanged'
+        required: false
+        default: 'false'
+        type: boolean
 
 jobs:
+  debug-info:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug GitHub Context
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "SHA: ${{ github.sha }}"
+
   check-version:
     runs-on: ubuntu-latest
     outputs:
       version-changed: ${{ steps.version-check.outputs.changed }}
       new-version: ${{ steps.version-check.outputs.version }}
+      should-publish: ${{ steps.version-check.outputs.should_publish }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch full history to compare versions
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -26,36 +46,66 @@ jobs:
       - name: Check if version changed
         id: version-check
         run: |
-          # Get current version from package.json
+          # Get current version
           CURRENT_VERSION=$(node -p "require('./package.json').version")
-          echo "Current version: $CURRENT_VERSION"
+          echo "📦 Current version: $CURRENT_VERSION"
           
-          # Check if this is the first commit or if package.json existed before
-          if git rev-parse HEAD~1 >/dev/null 2>&1 && git show HEAD~1:package.json >/dev/null 2>&1; then
-            # Get previous version from package.json
-            PREVIOUS_VERSION=$(git show HEAD~1:package.json | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8')).version")
-            echo "Previous version: $PREVIOUS_VERSION"
-            
-            if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
-              echo "✅ Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
-              echo "changed=true" >> $GITHUB_OUTPUT
-            else
-              echo "❌ Version unchanged: $CURRENT_VERSION"
-              echo "changed=false" >> $GITHUB_OUTPUT
-            fi
+          # Initialize variables
+          VERSION_CHANGED="false"
+          SHOULD_PUBLISH="false"
+          
+          # Check for manual force publish
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.force_publish }}" = "true" ]; then
+            echo "🔧 Manual force publish triggered"
+            VERSION_CHANGED="true"
+            SHOULD_PUBLISH="true"
           else
-            echo "✅ First commit or new package.json, treating as version change"
-            echo "changed=true" >> $GITHUB_OUTPUT
+            # Check if we can compare with previous commit
+            if git show HEAD~1:package.json > /tmp/prev_package.json 2>/dev/null; then
+              PREVIOUS_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/prev_package.json', 'utf8')).version")
+              echo "📦 Previous version: $PREVIOUS_VERSION"
+              
+              if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+                echo "✅ Version changed: $PREVIOUS_VERSION → $CURRENT_VERSION"
+                VERSION_CHANGED="true"
+              else
+                echo "❌ Version unchanged: $CURRENT_VERSION"
+                VERSION_CHANGED="false"
+              fi
+            else
+              echo "🆕 No previous version found (first commit or new file)"
+              VERSION_CHANGED="true"
+            fi
+            
+            # Check if we should publish based on conditions
+            if [ "$VERSION_CHANGED" = "true" ] && [ "${{ github.event_name }}" = "push" ]; then
+              case "${{ github.ref }}" in
+                "refs/heads/main"|"refs/heads/master"|"refs/heads/dev")
+                  echo "✅ Publishing conditions met"
+                  SHOULD_PUBLISH="true"
+                  ;;
+                *)
+                  echo "❌ Wrong branch for publishing: ${{ github.ref }}"
+                  SHOULD_PUBLISH="false"
+                  ;;
+              esac
+            else
+              echo "❌ Publishing conditions not met"
+              SHOULD_PUBLISH="false"
+            fi
           fi
           
+          # Set outputs
+          echo "changed=$VERSION_CHANGED" >> $GITHUB_OUTPUT
           echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-
-      - name: Debug outputs
-        run: |
-          echo "Version changed: ${{ steps.version-check.outputs.changed }}"
-          echo "New version: ${{ steps.version-check.outputs.version }}"
-          echo "Event name: ${{ github.event_name }}"
-          echo "Ref: ${{ github.ref }}"
+          echo "should_publish=$SHOULD_PUBLISH" >> $GITHUB_OUTPUT
+          
+          # Final summary
+          echo "🎯 Final decision:"
+          echo "   Version changed: $VERSION_CHANGED"
+          echo "   Should publish: $SHOULD_PUBLISH"
+          echo "   Event: ${{ github.event_name }}"
+          echo "   Branch: ${{ github.ref }}"
 
   test:
     runs-on: ubuntu-latest
@@ -82,16 +132,15 @@ jobs:
         run: npx tsc --noEmit
 
   publish:
-    needs: [check-version, test]
+    needs: [check-version, test, debug-info]
     runs-on: ubuntu-latest
-    if: needs.check-version.outputs.version-changed == 'true' && github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: needs.check-version.outputs.should-publish == 'true'
     steps:
-      - name: Debug conditions
+      - name: 🚀 Publishing to NPM
         run: |
+          echo "🎉 All conditions met - proceeding with publish!"
+          echo "Version: ${{ needs.check-version.outputs.new-version }}"
           echo "Version changed: ${{ needs.check-version.outputs.version-changed }}"
-          echo "Event name: ${{ github.event_name }}"
-          echo "Ref: ${{ github.ref }}"
-          echo "Should publish: ${{ needs.check-version.outputs.version-changed == 'true' && github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}"
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -109,8 +158,15 @@ jobs:
       - name: Build project
         run: npm run build
 
+      - name: Verify package contents
+        run: |
+          echo "📦 Package contents that will be published:"
+          npm pack --dry-run
+
       - name: Publish to NPM
-        run: npm publish
+        run: |
+          echo "🚀 Publishing version ${{ needs.check-version.outputs.new-version }} to NPM..."
+          npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -122,15 +178,34 @@ jobs:
           tag_name: v${{ needs.check-version.outputs.new-version }}
           release_name: Release v${{ needs.check-version.outputs.new-version }}
           body: |
-            ## Changes
+            ## 🎉 New Release: v${{ needs.check-version.outputs.new-version }}
             
-            Version ${{ needs.check-version.outputs.new-version }} has been published to NPM.
+            This version has been automatically published to NPM.
             
-            ### Installation
+            ### 📦 Installation
             ```bash
             npm install dynatrace-mcp-server@${{ needs.check-version.outputs.new-version }}
             ```
             
+            ### 📋 Changes
             See [CHANGELOG.md](CHANGELOG.md) for detailed changes.
           draft: false
           prerelease: false
+
+  publish-skipped:
+    needs: [check-version, debug-info]
+    runs-on: ubuntu-latest
+    if: needs.check-version.outputs.should-publish != 'true'
+    steps:
+      - name: ⏭️ Publish Skipped
+        run: |
+          echo "❌ Publish was skipped. Reasons:"
+          echo "   Version changed: ${{ needs.check-version.outputs.version-changed }}"
+          echo "   Should publish: ${{ needs.check-version.outputs.should-publish }}"
+          echo "   Event type: ${{ github.event_name }}"
+          echo "   Branch: ${{ github.ref }}"
+          echo ""
+          echo "💡 To trigger a publish:"
+          echo "   1. Increment version: npm version patch/minor/major"
+          echo "   2. Push to dev/main/master branch"
+          echo "   3. Or trigger workflow manually with force_publish=true"
