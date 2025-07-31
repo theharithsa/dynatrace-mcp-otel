@@ -43,62 +43,17 @@ runs:
         echo "🔄 Starting step: ${{ inputs.step-name }}"
         echo "📋 Span ID: $SPAN_ID"
         echo "🏗️ Build type: $BUILD_TYPE"
+        echo "🔗 Trace ID: $GITHUB_TRACE_ID"
+        echo "🔗 Parent Span ID: $GITHUB_JOB_SPAN_ID"
         
         # Create log file for capturing command output
         LOG_FILE="/tmp/step_${{ inputs.step-name }}_$(date +%s).log"
         
-        # Send start span trace
-        START_TRACE_PAYLOAD=$(cat << EOF
-        {
-          "resourceSpans": [
-            {
-              "resource": {
-                "attributes": [
-                  {"key": "service.name", "value": {"stringValue": "dynatrace-mcp-server-build"}},
-                  {"key": "github.workflow", "value": {"stringValue": "${{ github.workflow }}"}},
-                  {"key": "github.job", "value": {"stringValue": "${{ github.job }}"}},
-                  {"key": "build.type", "value": {"stringValue": "$BUILD_TYPE"}},
-                  {"key": "branch.name", "value": {"stringValue": "${{ github.ref_name }}"}},
-                  {"key": "ci.provider", "value": {"stringValue": "github-actions"}},
-                  {"key": "project.name", "value": {"stringValue": "dynatrace-mcp-server"}}
-                ]
-              },
-              "instrumentationLibrarySpans": [
-                {
-                  "instrumentationLibrary": {
-                    "name": "github-actions-otel"
-                  },
-                  "spans": [
-                    {
-                      "traceId": "$GITHUB_TRACE_ID",
-                      "spanId": "$SPAN_ID",
-                      "parentSpanId": "$GITHUB_JOB_SPAN_ID",
-                      "name": "step-${{ inputs.step-name }}",
-                      "kind": "SPAN_KIND_INTERNAL",
-                      "startTimeUnixNano": "$START_TIME_NS",
-                      "attributes": [
-                        {"key": "step.name", "value": {"stringValue": "${{ inputs.step-name }}"}},
-                        {"key": "github.step", "value": {"stringValue": "${{ inputs.step-name }}"}}
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-        EOF
-        )
-        
-        echo "📡 Sending start span trace..."
-        send-trace "$OTEL_EXPORTER_OTLP_ENDPOINT" "$DYNATRACE_API_TOKEN" "$START_TRACE_PAYLOAD"
-        
-        # Send initial log about step starting
+        # Send initial log about step starting (this works)
         if [ -n "${{ inputs.dynatrace-log-url }}" ] && [ -n "${{ inputs.dynatrace-api-token }}" ]; then
           START_LOG="Starting step: ${{ inputs.step-name }} in workflow ${{ github.workflow }}"
           echo "$START_LOG" | tee -a "$LOG_FILE"
           
-          # Send start log to Dynatrace
           LOG_TIMESTAMP=$(date +%s%3N)
           START_LOG_PAYLOAD=$(cat << EOF
           [{
@@ -129,6 +84,68 @@ runs:
             -d "$START_LOG_PAYLOAD" > /dev/null 2>&1 || true
         fi
         
+        # Send start span trace using proper OTLP format
+        START_TRACE_PAYLOAD=$(cat << EOF
+        {
+          "resourceSpans": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "dynatrace-mcp-server-build"
+                    }
+                  },
+                  {
+                    "key": "build.type",
+                    "value": {
+                      "stringValue": "$BUILD_TYPE"
+                    }
+                  }
+                ]
+              },
+              "scopeSpans": [
+                {
+                  "scope": {
+                    "name": "github-actions-otel",
+                    "version": "1.0.0"
+                  },
+                  "spans": [
+                    {
+                      "traceId": "$GITHUB_TRACE_ID",
+                      "spanId": "$SPAN_ID",
+                      "parentSpanId": "$GITHUB_JOB_SPAN_ID",
+                      "name": "step-${{ inputs.step-name }}",
+                      "kind": 3,
+                      "startTimeUnixNano": "$START_TIME_NS",
+                      "attributes": [
+                        {
+                          "key": "step.name",
+                          "value": {
+                            "stringValue": "${{ inputs.step-name }}"
+                          }
+                        },
+                        {
+                          "key": "github.step",
+                          "value": {
+                            "stringValue": "${{ inputs.step-name }}"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        EOF
+        )
+        
+        echo "📡 Sending start span trace..."
+        send-trace "$OTEL_EXPORTER_OTLP_ENDPOINT" "$DYNATRACE_API_TOKEN" "$START_TRACE_PAYLOAD" || echo "⚠️ Start trace failed"
+        
         # Execute command with output capture
         set +e
         ${{ inputs.command }} 2>&1 | tee -a "$LOG_FILE"
@@ -140,17 +157,18 @@ runs:
         END_TIMESTAMP=$(date +%s%N)
         DURATION=$(( (END_TIMESTAMP - START_TIMESTAMP) / 1000000 ))
         
-        # Send completion span trace with simplified payload
+        # Determine status
         if [ $EXIT_CODE -eq 0 ]; then
-          SPAN_STATUS="STATUS_CODE_OK"
+          SPAN_STATUS_CODE=1
           LOG_LEVEL="INFO"
           echo "✅ Step completed successfully (build: $BUILD_TYPE)"
         else
-          SPAN_STATUS="STATUS_CODE_ERROR"
+          SPAN_STATUS_CODE=2
           LOG_LEVEL="ERROR"
           echo "❌ Step failed with exit code: $EXIT_CODE (build: $BUILD_TYPE)"
         fi
         
+        # Send completion span trace
         COMPLETION_TRACE_PAYLOAD=$(cat << EOF
         {
           "resourceSpans": [
@@ -165,9 +183,9 @@ runs:
                   }
                 ]
               },
-              "instrumentationLibrarySpans": [
+              "scopeSpans": [
                 {
-                  "instrumentationLibrary": {
+                  "scope": {
                     "name": "github-actions-otel",
                     "version": "1.0.0"
                   },
@@ -177,11 +195,11 @@ runs:
                       "spanId": "$SPAN_ID",
                       "parentSpanId": "$GITHUB_JOB_SPAN_ID",
                       "name": "step-${{ inputs.step-name }}",
-                      "kind": "SPAN_KIND_INTERNAL",
+                      "kind": 3,
                       "startTimeUnixNano": "$START_TIME_NS",
                       "endTimeUnixNano": "$END_TIME_NS",
                       "status": {
-                        "code": "$SPAN_STATUS"
+                        "code": $SPAN_STATUS_CODE
                       },
                       "attributes": [
                         {
@@ -194,6 +212,12 @@ runs:
                           "key": "step.exit_code", 
                           "value": {
                             "intValue": $EXIT_CODE
+                          }
+                        },
+                        {
+                          "key": "step.duration_ms",
+                          "value": {
+                            "intValue": $DURATION
                           }
                         }
                       ]
@@ -208,15 +232,13 @@ runs:
         )
         
         echo "📡 Sending completion span trace..."
-        send-trace "$OTEL_EXPORTER_OTLP_ENDPOINT" "$DYNATRACE_API_TOKEN" "$COMPLETION_TRACE_PAYLOAD"
+        send-trace "$OTEL_EXPORTER_OTLP_ENDPOINT" "$DYNATRACE_API_TOKEN" "$COMPLETION_TRACE_PAYLOAD" || echo "⚠️ Completion trace failed"
         
-        # Send command output logs to Dynatrace if configured
+        # Send command output logs to Dynatrace (this works)
         if [ -n "${{ inputs.dynatrace-log-url }}" ] && [ -n "${{ inputs.dynatrace-api-token }}" ] && [ -f "$LOG_FILE" ]; then
-          # Read log content and properly escape for JSON
           LOG_CONTENT=$(cat "$LOG_FILE" | jq -Rs .)
-          
-          # Send final log with command output
           LOG_TIMESTAMP=$(date +%s%3N)
+          
           FINAL_LOG_PAYLOAD=$(cat << EOF
           [{
             "content": $LOG_CONTENT,
@@ -248,8 +270,6 @@ runs:
             -d "$FINAL_LOG_PAYLOAD" > /dev/null 2>&1 || true
           
           echo "📝 Step output sent to Dynatrace logs"
-          
-          # Clean up log file
           rm -f "$LOG_FILE"
         fi
         
