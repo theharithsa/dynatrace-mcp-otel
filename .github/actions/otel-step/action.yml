@@ -140,13 +140,13 @@ runs:
         END_TIMESTAMP=$(date +%s%N)
         DURATION=$(( (END_TIMESTAMP - START_TIMESTAMP) / 1000000 ))
         
-        # Send completion span trace
+        # Send completion span trace with simplified payload
         if [ $EXIT_CODE -eq 0 ]; then
-          SPAN_STATUS="OK"
+          SPAN_STATUS="STATUS_CODE_OK"
           LOG_LEVEL="INFO"
           echo "✅ Step completed successfully (build: $BUILD_TYPE)"
         else
-          SPAN_STATUS="ERROR"
+          SPAN_STATUS="STATUS_CODE_ERROR"
           LOG_LEVEL="ERROR"
           echo "❌ Step failed with exit code: $EXIT_CODE (build: $BUILD_TYPE)"
         fi
@@ -157,19 +157,19 @@ runs:
             {
               "resource": {
                 "attributes": [
-                  {"key": "service.name", "value": {"stringValue": "dynatrace-mcp-server-build"}},
-                  {"key": "github.workflow", "value": {"stringValue": "${{ github.workflow }}"}},
-                  {"key": "github.job", "value": {"stringValue": "${{ github.job }}"}},
-                  {"key": "build.type", "value": {"stringValue": "$BUILD_TYPE"}},
-                  {"key": "branch.name", "value": {"stringValue": "${{ github.ref_name }}"}},
-                  {"key": "ci.provider", "value": {"stringValue": "github-actions"}},
-                  {"key": "project.name", "value": {"stringValue": "dynatrace-mcp-server"}}
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "dynatrace-mcp-server-build"
+                    }
+                  }
                 ]
               },
               "instrumentationLibrarySpans": [
                 {
                   "instrumentationLibrary": {
-                    "name": "github-actions-otel"
+                    "name": "github-actions-otel",
+                    "version": "1.0.0"
                   },
                   "spans": [
                     {
@@ -184,11 +184,18 @@ runs:
                         "code": "$SPAN_STATUS"
                       },
                       "attributes": [
-                        {"key": "step.name", "value": {"stringValue": "${{ inputs.step-name }}"}},
-                        {"key": "step.exit_code", "value": {"intValue": $EXIT_CODE}},
-                        {"key": "step.duration_ms", "value": {"intValue": $DURATION}},
-                        {"key": "step.status", "value": {"stringValue": "$SPAN_STATUS"}},
-                        {"key": "github.step", "value": {"stringValue": "${{ inputs.step-name }}"}}
+                        {
+                          "key": "step.name",
+                          "value": {
+                            "stringValue": "${{ inputs.step-name }}"
+                          }
+                        },
+                        {
+                          "key": "step.exit_code", 
+                          "value": {
+                            "intValue": $EXIT_CODE
+                          }
+                        }
                       ]
                     }
                   ]

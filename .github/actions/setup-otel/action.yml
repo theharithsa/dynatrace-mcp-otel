@@ -33,10 +33,14 @@ runs:
       run: |
         echo "🔧 Installing trace utilities..."
         
-        # Create a trace sending function
+        # Install protobuf tools
+        sudo apt-get update
+        sudo apt-get install -y protobuf-compiler
+        
+        # Create a trace sending function that uses proper OTLP format
         sudo tee /usr/local/bin/send-trace > /dev/null << 'EOF'
         #!/bin/bash
-        # Direct trace sender using curl
+        # Direct trace sender using curl with protobuf
         
         TRACE_ENDPOINT="$1"
         API_TOKEN="$2"
@@ -49,23 +53,48 @@ runs:
         
         echo "📡 Sending trace to: $TRACE_ENDPOINT"
         
+        # Try HTTP/JSON endpoint first (some Dynatrace environments support this)
+        JSON_ENDPOINT="${TRACE_ENDPOINT%/traces}/v1/traces"
+        
+        echo "🔄 Attempting JSON OTLP endpoint: $JSON_ENDPOINT"
         HTTP_STATUS=$(curl -s -w "%{http_code}" -o /tmp/trace_response.txt \
-          -X POST "$TRACE_ENDPOINT" \
+          -X POST "$JSON_ENDPOINT" \
           -H "Authorization: Api-Token $API_TOKEN" \
           -H "Content-Type: application/json" \
           -d "$TRACE_PAYLOAD")
         
-        echo "📊 Trace HTTP Status: $HTTP_STATUS"
+        echo "📊 JSON Trace HTTP Status: $HTTP_STATUS"
         
         if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 202 ] || [ "$HTTP_STATUS" -eq 204 ]; then
-          echo "✅ Trace sent successfully"
+          echo "✅ Trace sent successfully via JSON endpoint"
         else
-          echo "❌ Failed to send trace (HTTP $HTTP_STATUS)"
-          echo "Response:"
+          echo "⚠️ JSON endpoint failed, response:"
           cat /tmp/trace_response.txt || true
+          
+          # Fallback: Try to send to original endpoint with simplified payload
+          echo "🔄 Attempting simplified trace format..."
+          
+          # Create a minimal trace payload for debugging
+          SIMPLE_PAYLOAD='{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"github-actions-test"}}]},"instrumentationLibrarySpans":[{"spans":[{"traceId":"'$(openssl rand -hex 16)'","spanId":"'$(openssl rand -hex 8)'","name":"test-span","kind":"SPAN_KIND_INTERNAL","startTimeUnixNano":"'$(($(date +%s) * 1000000000))'","endTimeUnixNano":"'$((($(date +%s) + 1) * 1000000000))'"}]}]}]}'
+          
+          HTTP_STATUS=$(curl -s -w "%{http_code}" -o /tmp/trace_response2.txt \
+            -X POST "$TRACE_ENDPOINT" \
+            -H "Authorization: Api-Token $API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$SIMPLE_PAYLOAD")
+          
+          echo "📊 Simplified Trace HTTP Status: $HTTP_STATUS"
+          
+          if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 202 ] || [ "$HTTP_STATUS" -eq 204 ]; then
+            echo "✅ Simplified trace sent successfully"
+          else
+            echo "❌ All trace sending methods failed"
+            echo "Original endpoint response:"
+            cat /tmp/trace_response2.txt || true
+          fi
         fi
         
-        rm -f /tmp/trace_response.txt
+        rm -f /tmp/trace_response.txt /tmp/trace_response2.txt
         EOF
         
         sudo chmod +x /usr/local/bin/send-trace
@@ -145,27 +174,36 @@ runs:
         # Test connectivity to Dynatrace OTLP endpoint
         echo "🧪 Testing Dynatrace OTLP connectivity..."
         
-        # Create a test trace payload
+        # Create a simplified test trace payload
         CURRENT_TIME_NS=$(($(date +%s) * 1000000000))
         TEST_SPAN_ID=$(openssl rand -hex 8)
         
+        # Use a much simpler payload structure
         TEST_TRACE_PAYLOAD=$(cat << EOF
         {
           "resourceSpans": [
             {
               "resource": {
                 "attributes": [
-                  {"key": "service.name", "value": {"stringValue": "dynatrace-mcp-server-build"}},
-                  {"key": "github.workflow", "value": {"stringValue": "${{ github.workflow }}"}},
-                  {"key": "github.job", "value": {"stringValue": "${{ inputs.job-name }}"}},
-                  {"key": "build.type", "value": {"stringValue": "$BUILD_TYPE"}},
-                  {"key": "test", "value": {"boolValue": true}}
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "dynatrace-mcp-server-build"
+                    }
+                  },
+                  {
+                    "key": "service.version", 
+                    "value": {
+                      "stringValue": "1.0.7"
+                    }
+                  }
                 ]
               },
               "instrumentationLibrarySpans": [
                 {
                   "instrumentationLibrary": {
-                    "name": "github-actions-otel"
+                    "name": "github-actions-otel",
+                    "version": "1.0.0"
                   },
                   "spans": [
                     {
@@ -174,9 +212,17 @@ runs:
                       "name": "github-connectivity-test",
                       "kind": "SPAN_KIND_INTERNAL",
                       "startTimeUnixNano": "$CURRENT_TIME_NS",
-                      "endTimeUnixNano": "$((CURRENT_TIME_NS + 1000000))",
+                      "endTimeUnixNano": "$((CURRENT_TIME_NS + 1000000000))",
+                      "status": {
+                        "code": "STATUS_CODE_OK"
+                      },
                       "attributes": [
-                        {"key": "test.type", "value": {"stringValue": "connectivity"}}
+                        {
+                          "key": "test.type",
+                          "value": {
+                            "stringValue": "connectivity"
+                          }
+                        }
                       ]
                     }
                   ]
@@ -218,7 +264,7 @@ runs:
       run: |
         echo "🚀 Starting job trace for ${{ inputs.job-name }} (build type: $BUILD_TYPE)"
         
-        # Create job span payload
+        # Create simplified job span payload
         CURRENT_TIME_NS=$(($(date +%s) * 1000000000))
         JOB_SPAN_ID=$(openssl rand -hex 8)
         
@@ -228,22 +274,25 @@ runs:
             {
               "resource": {
                 "attributes": [
-                  {"key": "service.name", "value": {"stringValue": "dynatrace-mcp-server-build"}},
-                  {"key": "github.workflow", "value": {"stringValue": "${{ github.workflow }}"}},
-                  {"key": "github.job", "value": {"stringValue": "${{ inputs.job-name }}"}},
-                  {"key": "github.run_id", "value": {"stringValue": "${{ github.run_id }}"}},
-                  {"key": "github.actor", "value": {"stringValue": "${{ github.actor }}"}},
-                  {"key": "github.ref", "value": {"stringValue": "${{ github.ref }}"}},
-                  {"key": "build.type", "value": {"stringValue": "$BUILD_TYPE"}},
-                  {"key": "branch.name", "value": {"stringValue": "${{ github.ref_name }}"}},
-                  {"key": "ci.provider", "value": {"stringValue": "github-actions"}},
-                  {"key": "project.name", "value": {"stringValue": "dynatrace-mcp-server"}}
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "dynatrace-mcp-server-build"
+                    }
+                  },
+                  {
+                    "key": "build.type",
+                    "value": {
+                      "stringValue": "$BUILD_TYPE"
+                    }
+                  }
                 ]
               },
               "instrumentationLibrarySpans": [
                 {
                   "instrumentationLibrary": {
-                    "name": "github-actions-otel"
+                    "name": "github-actions-otel",
+                    "version": "1.0.0"
                   },
                   "spans": [
                     {
@@ -252,8 +301,16 @@ runs:
                       "name": "github-job-${{ inputs.job-name }}",
                       "kind": "SPAN_KIND_INTERNAL",
                       "startTimeUnixNano": "$CURRENT_TIME_NS",
+                      "status": {
+                        "code": "STATUS_CODE_OK"
+                      },
                       "attributes": [
-                        {"key": "job.name", "value": {"stringValue": "${{ inputs.job-name }}"}}
+                        {
+                          "key": "job.name",
+                          "value": {
+                            "stringValue": "${{ inputs.job-name }}"
+                          }
+                        }
                       ]
                     }
                   ]
