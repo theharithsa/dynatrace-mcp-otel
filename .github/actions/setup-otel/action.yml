@@ -120,6 +120,25 @@ runs:
       id: init-trace
       shell: bash
       run: |
+        # Debug input parameters
+        echo "🔍 Input parameters:"
+        echo "  otel-endpoint: ${{ inputs.otel-endpoint }}"
+        echo "  dynatrace-log-url: ${{ inputs.dynatrace-log-url }}"
+        echo "  dynatrace-api-token: ${DYNATRACE_API_TOKEN:+SET}"
+        
+        # Validate required inputs
+        if [ -z "${{ inputs.otel-endpoint }}" ] || [ "${{ inputs.otel-endpoint }}" = "https://your-tenant.live.dynatrace.com/api/v2/otlp/v1/traces" ]; then
+          echo "❌ OTEL endpoint not properly configured!"
+          echo "Please set OTEL_EXPORTER_OTLP_ENDPOINT in your environment variables"
+          exit 1
+        fi
+        
+        if [ -z "${{ inputs.dynatrace-api-token }}" ]; then
+          echo "❌ Dynatrace API token not provided!"
+          echo "Please set DYNATRACE_API_TOKEN in your environment secrets"
+          exit 1
+        fi
+        
         # Generate a unique trace ID for this job
         TRACE_ID=$(openssl rand -hex 16)
         echo "trace-id=$TRACE_ID" >> $GITHUB_OUTPUT
@@ -167,6 +186,28 @@ runs:
         echo "📝 Log URL: ${{ inputs.dynatrace-log-url }}"
         echo "🏗️ Build type: $BUILD_TYPE"
         echo "🌿 Branch: ${{ github.ref_name }}"
+        
+        # Test connectivity to Dynatrace
+        if [ -n "${{ inputs.dynatrace-log-url }}" ] && [ -n "${{ inputs.dynatrace-api-token }}" ]; then
+          echo "🧪 Testing Dynatrace connectivity..."
+          
+          TEST_LOG_PAYLOAD='[{"content":"GitHub Actions OTel test log","timestamp":'$(date +%s%3N)',"level":"INFO","service":"dynatrace-mcp-server-build","trace_id":"'$TRACE_ID'","span_id":"'$(openssl rand -hex 8)'","test":true}]'
+          
+          HTTP_STATUS=$(curl -s -w "%{http_code}" -o /tmp/test_response.txt \
+            -X POST "${{ inputs.dynatrace-log-url }}" \
+            -H "Authorization: Api-Token ${{ inputs.dynatrace-api-token }}" \
+            -H "Content-Type: application/json" \
+            -d "$TEST_LOG_PAYLOAD")
+          
+          if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 204 ]; then
+            echo "✅ Dynatrace connectivity test successful (HTTP $HTTP_STATUS)"
+          else
+            echo "⚠️ Dynatrace connectivity test failed (HTTP $HTTP_STATUS)"
+            cat /tmp/test_response.txt || true
+          fi
+          
+          rm -f /tmp/test_response.txt
+        fi
         
         # Send initial job start log to Dynatrace
         if [ -n "${{ inputs.dynatrace-log-url }}" ] && [ -n "${{ inputs.dynatrace-api-token }}" ]; then

@@ -23,9 +23,21 @@ permissions:
 jobs:
   debug-info:
     runs-on: ubuntu-latest
+    environment: NPM Deploy  # Add environment access
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Debug Environment Variables
+        run: |
+          echo "🔍 Checking environment variables..."
+          echo "OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-'NOT SET'}"
+          echo "DYNATRACE_API_TOKEN: ${DYNATRACE_API_TOKEN:+SET}"
+          echo "DYNATRACE_LOG_INGEST_URL: ${DYNATRACE_LOG_INGEST_URL:-'NOT SET'}"
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          DYNATRACE_API_TOKEN: ${{ secrets.DYNATRACE_API_TOKEN }}
+          DYNATRACE_LOG_INGEST_URL: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
 
       - name: Setup OpenTelemetry
         uses: ./.github/actions/setup-otel
@@ -55,6 +67,7 @@ jobs:
 
   check-version:
     runs-on: ubuntu-latest
+    environment: NPM Deploy  # Add environment access
     outputs:
       version-changed: ${{ steps.version-check.outputs.changed }}
       new-version: ${{ steps.version-check.outputs.version }}
@@ -66,6 +79,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Debug Environment Variables
+        run: |
+          echo "🔍 Checking environment variables..."
+          echo "OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-'NOT SET'}"
+          echo "DYNATRACE_API_TOKEN: ${DYNATRACE_API_TOKEN:+SET}"
+          echo "DYNATRACE_LOG_INGEST_URL: ${DYNATRACE_LOG_INGEST_URL:-'NOT SET'}"
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          DYNATRACE_API_TOKEN: ${{ secrets.DYNATRACE_API_TOKEN }}
+          DYNATRACE_LOG_INGEST_URL: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
 
       - name: Setup OpenTelemetry
         uses: ./.github/actions/setup-otel
@@ -217,6 +241,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    environment: NPM Deploy  # Add environment access
     if: |
       !(github.event_name == 'pull_request' && 
         github.event.action == 'closed' && 
@@ -224,6 +249,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Debug Environment Variables
+        run: |
+          echo "🔍 Checking environment variables..."
+          echo "OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-'NOT SET'}"
+          echo "DYNATRACE_API_TOKEN: ${DYNATRACE_API_TOKEN:+SET}"
+          echo "DYNATRACE_LOG_INGEST_URL: ${DYNATRACE_LOG_INGEST_URL:-'NOT SET'}"
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          DYNATRACE_API_TOKEN: ${{ secrets.DYNATRACE_API_TOKEN }}
+          DYNATRACE_LOG_INGEST_URL: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
 
       - name: Setup OpenTelemetry
         uses: ./.github/actions/setup-otel
@@ -268,7 +304,7 @@ jobs:
   publish:
     needs: [check-version, test, debug-info]
     runs-on: ubuntu-latest
-    environment: NPM Deploy
+    environment: NPM Deploy  # Already has environment access
     if: needs.check-version.outputs.should-publish == 'true'
     steps:
       - name: Checkout code
@@ -418,10 +454,22 @@ jobs:
   publish-skipped:
     needs: [check-version, debug-info]
     runs-on: ubuntu-latest
+    environment: NPM Deploy  # Add environment access
     if: needs.check-version.outputs.should-publish != 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Debug Environment Variables
+        run: |
+          echo "🔍 Checking environment variables..."
+          echo "OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-'NOT SET'}"
+          echo "DYNATRACE_API_TOKEN: ${DYNATRACE_API_TOKEN:+SET}"
+          echo "DYNATRACE_LOG_INGEST_URL: ${DYNATRACE_LOG_INGEST_URL:-'NOT SET'}"
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          DYNATRACE_API_TOKEN: ${{ secrets.DYNATRACE_API_TOKEN }}
+          DYNATRACE_LOG_INGEST_URL: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
 
       - name: Setup OpenTelemetry
         uses: ./.github/actions/setup-otel
