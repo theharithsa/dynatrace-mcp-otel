@@ -243,6 +243,56 @@ Third, create a `.env` file in this repository (you can copy from `.env.template
 
 Last but not least, switch to Agent Mode in CoPilot and reload tools.
 
+## Installation
+
+### From NPM (Recommended)
+
+```bash
+npm install -g dynatrace-mcp-server
+```
+
+### From Source
+
+```bash
+git clone https://github.com/your-username/dynatrace-mcp-otel.git
+cd dynatrace-mcp-otel
+npm install
+npm run build
+npm start
+```
+
+## Usage
+
+After installation, you can start the server:
+
+```bash
+# If installed globally
+dynatrace-mcp-server
+
+# If running from source
+npm start
+```
+
+## Publishing
+
+This package is automatically published to NPM when:
+1. Changes are pushed to the main branch
+2. The version in `package.json` is incremented
+
+To publish a new version:
+1. Update the version in `package.json`:
+   ```bash
+   npm version patch  # for bug fixes
+   npm version minor  # for new features
+   npm version major  # for breaking changes
+   ```
+2. Push to main branch:
+   ```bash
+   git push origin main --tags
+   ```
+
+The GitHub Action will automatically build, test, and publish to NPM.
+
 ## Added Changes
 ### 🆕 **Dashboard & Document Management**
 

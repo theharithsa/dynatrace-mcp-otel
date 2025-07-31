@@ -48,20 +48,29 @@
 ## Unreleased Changes
 
 ### Added
-- Slack integration for automated reporting and notifications to team channels
-- Comprehensive bug analysis and reporting with customizable channel targeting
-- Security vulnerability assessment with automated Slack reporting
-- Environment health check monitoring with 7-day resource utilization analysis
-- Service health monitoring and root cause analysis for dynatrace-mcp-server
-- Automated prompt-based analysis capabilities for code review, security scanning, and performance monitoring
-- Real-time Slack message formatting with visual appeal and structured reporting
-- Direct dashboard links integration in Slack reports with environment-specific URLs
-- Timestamp and analyst attribution in report footers
-- Customizable Slack channel names for different team workflows
-- Multi-channel reporting support (#team-bugs, #team-security, #team-ops, #team-service-health)
+
+* Slack integration for automated reporting and notifications to team channels
+* Comprehensive bug analysis and reporting with customizable channel targeting
+* Security vulnerability assessment with automated Slack reporting
+* Environment health check monitoring with 7-day resource utilization analysis
+* Service health monitoring and root cause analysis for dynatrace-mcp-server
+* Automated prompt-based analysis capabilities for code review, security scanning, and performance monitoring
+* Real-time Slack message formatting with visual appeal and structured reporting
+* Direct dashboard links integration in Slack reports with environment-specific URLs
+* Timestamp and analyst attribution in report footers
+* Customizable Slack channel names for different team workflows
+* Multi-channel reporting support (#team-bugs, #team-security, #team-ops, #team-service-health)
+* Automated NPM publishing via GitHub Actions
+* Version change detection for conditional deployment
+* NPM package configuration with proper metadata
+* GitHub Release creation on successful NPM publish
+* Comprehensive .npmignore for clean package distribution
 
 ### Changed
-- Enhanced MCP server capabilities to support multi-channel Slack reporting
-- Improved analysis workflows with automated execution and comprehensive reporting
-- Updated documentation to clarify Slack channel requirements and customization options
+
+* Enhanced MCP server capabilities to support multi-channel Slack reporting
+* Improved analysis workflows with automated execution and comprehensive reporting
+* Updated documentation to clarify Slack channel requirements and customization options
+* Updated README.md with NPM installation instructions
+* Enhanced package.json with publishing scripts and metadata
 
