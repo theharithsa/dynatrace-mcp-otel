@@ -1,0 +1,35 @@
+# Source files
+src/
+tsconfig.json
+.env*
+
+# Development files
+.github/
+node_modules/
+*.log
+*.tgz
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Testing
+coverage/
+.nyc_output/
+test/
+tests/
+__tests__/
+
+# Build tools
+*.config.js
+*.config.ts

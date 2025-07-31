@@ -147,54 +147,24 @@ and set up the following environment variables in order for this MCP to work:
 
 In addition, depending on the features you use, the following variables can be configured:
 
-- `SLACK_CONNECTION_ID` (string) - connection ID of a [Slack Connection](https://docs.dynatrace.com/docs/analyze-explore-automate/workflows/actions/slack)
+- `SLACK_CONNECTION_ID` (string, optional) - Slack Connection ID from Dynatrace Slack App configuration. Required for `send_slack_message` functionality.
 
-## ✨ Example prompts ✨
+### Slack Integration Setup
 
-Use these example prompts as a starting point. Just copy them into your IDE or agent setup, adapt them to your services/stack/architecture,
-and extend them as needed. They’re here to help you imagine how real-time observability and automation work together in the MCP context in your IDE.
+To use the `send_slack_message` functionality, you need to:
 
-**Find open vulnerabilities on production, setup alert.**
+1. **Install Slack App in Dynatrace:**
+   - Go to your Dynatrace environment
+   - Navigate to **Apps** → **Slack** (or search for "Slack" in the Hub)
+   - Install and configure the Slack connector
 
-```
-I have this code snippet here in my IDE, where I get a dependency vulnerability warning for my code.
-Check if I see any open vulnerability/cve on production.
-Analyze a specific production problem.
-Setup a workflow that sends Slack alerts to the #devops-alerts channel when availability problems occur.
-```
+2. **Create Slack Connection:**
+   - Set up a connection with your Slack workspace
+   - Copy the connection ID from the Slack connector settings
+   - Add the connection ID to your `.env` file as `SLACK_CONNECTION_ID`
 
-**Debug intermittent 503 errors.**
-
-```
-Our load balancer is intermittently returning 503 errors during peak traffic.
-Pull all recent problems detected for our front-end services and
-run a query to correlate error rates with service instance health indicators.
-I suspect we have circuit breakers triggering, but need confirmation from the telemetry data.
-```
-
-**Correlate memory issue with logs.**
-
-```
-There's a problem with high memory usage on one of our hosts.
-Get the problem details and then fetch related logs to help understand
-what's causing the memory spike? Which file in this repo is this related to?
-```
-
-**Trace request flow analysis.**
-
-```
-Our users are experiencing slow checkout processes.
-Can you execute a DQL query to show me the full request trace for our checkout flow,
-so I can identify which service is causing the bottleneck?
-```
-
-**Analyze Kubernetes cluster events.**
-
-```
-Our application deployments seem to be failing intermittently.
-Can you fetch recent events from our "production-cluster"
-to help identify what might be causing these deployment issues?
-```
+3. **Required OAuth Scope:**
+   - `app-settings:objects:read` - needed for accessing Slack connection settings
 
 ## Troubleshooting
 
@@ -272,6 +242,56 @@ Second, add the MCP to `.vscode/mcp.json`:
 Third, create a `.env` file in this repository (you can copy from `.env.template`) and configure environment variables as [described above](#environment-variables).
 
 Last but not least, switch to Agent Mode in CoPilot and reload tools.
+
+## Installation
+
+### From NPM (Recommended)
+
+```bash
+npm install -g dynatrace-mcp-server
+```
+
+### From Source
+
+```bash
+git clone https://github.com/your-username/dynatrace-mcp-otel.git
+cd dynatrace-mcp-otel
+npm install
+npm run build
+npm start
+```
+
+## Usage
+
+After installation, you can start the server:
+
+```bash
+# If installed globally
+dynatrace-mcp-server
+
+# If running from source
+npm start
+```
+
+## Publishing
+
+This package is automatically published to NPM when:
+1. Changes are pushed to the main branch
+2. The version in `package.json` is incremented
+
+To publish a new version:
+1. Update the version in `package.json`:
+   ```bash
+   npm version patch  # for bug fixes
+   npm version minor  # for new features
+   npm version major  # for breaking changes
+   ```
+2. Push to main branch:
+   ```bash
+   git push origin main --tags
+   ```
+
+The GitHub Action will automatically build, test, and publish to NPM.
 
 ## Added Changes
 ### 🆕 **Dashboard & Document Management**
@@ -400,3 +420,60 @@ Combine these skills for full dashboard lifecycle automation. For example:
 1. Create dashboards from `/dashboards`.
 2. Share each dashboard with your team (or groups) right after creation.
 3. Clean up with bulk delete when needed.
+
+## Features
+
+- **Dynatrace Integration**: Seamless connection to Dynatrace environments
+- **MCP Protocol Support**: Full Model-Context-Protocol server implementation
+- **OAuth Authentication**: Secure authentication using Dynatrace OAuth clients
+- **Slack Integration**: Automated reporting and notifications to designated Slack channels
+- **Automated Analysis**: Comprehensive code analysis, security scanning, and health monitoring
+- **Multi-Channel Reporting**: Organized reporting across different team channels (#team-bugs, #team-security, #team-ops, #team-service-health)
+
+## Slack Integration
+
+The MCP server now supports automated Slack reporting for various analysis and monitoring tasks:
+
+### Supported Channels
+- `#team-bugs`: Bug analysis and code quality reports
+- `#team-security`: Security vulnerability assessments  
+- `#team-ops`: Environment health checks and resource monitoring
+- `#team-service-health`: Service performance analysis and root cause investigations
+
+> **Important**: These Slack channels must already exist in your workspace for the integration to work. If your team uses different channel names, you can modify the channel names in the prompt when requesting analysis (e.g., change `#team-bugs` to `#dev-issues` or any other existing channel name in your workspace).
+
+### Analysis Capabilities
+- **Bug Analysis**: Automated code review with line-by-line bug identification and severity assessment
+- **Security Scanning**: Comprehensive vulnerability detection with remediation recommendations
+- **Health Monitoring**: CPU, memory, and disk usage analysis across all hosts (7-day analysis)
+- **Service Monitoring**: Performance tracking, response time analysis, and failure rate monitoring for dynatrace-mcp-server
+
+### Report Features
+- Visual formatting with proper Slack markdown
+- Direct links to Dynatrace dashboards and environments
+- Severity classifications (Critical, High, Medium, Low)
+- Timestamp attribution and analyst identification
+- Actionable remediation steps and recommendations
+
+### Channel Customization
+When using the analysis prompts, you can specify different channel names that exist in your Slack workspace. Simply replace the default channel names (e.g., `#team-bugs`, `#team-security`) with your preferred channels in the prompt text.
+
+## Required Scopes
+
+The following Dynatrace OAuth scopes are required for full functionality:
+
+- `app-engine:apps:run` - For application execution
+- `environment-api:entities:read` - For entity data access
+- `environment-api:metrics:read` - For metrics data access
+- `environment-api:problems:read` - For problem analysis
+- `environment-api:events:read` - For event data access
+- `environment-api:logs:read` - For log analysis
+- `settings:objects:read` - For configuration access
+- `DataExport` - For data export capabilities
+- `InstallerDownload` - For installer access
+- `storage:events:read` - For event storage access
+- `storage:metrics:read` - For metrics storage access
+- `storage:logs:read` - For log storage access
+- `storage:bizevents:read` - For business events access
+
+> **Note**: Slack integration requires additional configuration of Slack webhook URLs or bot tokens for posting to channels. All referenced Slack channels must exist in your workspace before using the automated reporting features.

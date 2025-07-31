@@ -563,7 +563,7 @@ by:{dt.entity.host}
 ```dql
 timeseries availability = sum(dt.host.availability, default:0),
     nonempty:true,
-    filter:{availability.state == "up"}
+    filter: {availability.state == "up"}
 ```
 
 ---
@@ -662,3 +662,286 @@ fetch metric.series
 fetch dt.system.data_objects
 | fields name
 ```
+
+## Response time of a service
+
+```dql
+timeseries { percentile(dt.service.request.response_time, 90), value.A = avg(dt.service.request.response_time, scalar: true) }, filter: { matchesValue(entityAttr(dt.entity.service, "entity.name"), "<service name>") }
+```
+
+## For failure count for a service or for overall services
+
+```dql
+timeseries { count(dt.service.request.failure_count), value.A = sum(dt.service.request.failure_count, scalar: true) }, filter: { matchesValue(entityAttr(dt.entity.service, "entity.name"), "<service-name>") }
+```
+
+### Instructions
+- In the above queries if we remove the filter block then this will give the aggregated time or failure count for all the services in env. 
+- `count` and `percentile` are aggregation. Available aggregation for response time is `min`, `max`, `avg` and for failure count we have `count` and `sum`. 
+- If percentile is used then `90` specifies above gives 90th percentile info similarly for 0 to 100th percentile we can use numbers.
+- `value.A` is the scalar value. For your consideration you should take this and for spike you can consider the graph. 
+- Response time values from Dynatrace are in milliseconds (ms). For example, a value of 5000 means 5 seconds.
+- When setting thresholds, remember to use milliseconds: 100ms = 100, 1s = 1000, 5s = 5000.
+
+---
+
+## Incident Reporting Patterns for #team-incidents
+
+**1. Critical Service Degradation Query:**
+```dql
+timeseries {
+    response_time = percentile(dt.service.request.response_time, 90),
+    error_rate = sum(dt.service.request.failure_count) / sum(dt.service.request.count) * 100,
+    throughput = count(dt.service.request.count)
+}, 
+filter: {
+    matchesValue(entityAttr(dt.entity.service, "entity.name"), "critical-service")
+    AND dt.service.request.response_time > 5000000
+},
+from:now()-1h
+```
+
+**2. Service Health Score Query:**
+```dql
+timeseries {
+    availability = countIf(dt.service.availability.state == "AVAILABLE") / count() * 100,
+    performance_score = 100 - (sum(dt.service.request.failure_count) / sum(dt.service.request.count) * 100),
+    response_score = 100 - (countIf(dt.service.request.response_time > 5000000) / count() * 100)
+},
+by:{dt.entity.service},
+from:now()-24h
+| fieldsAdd health_score = (availability[] + performance_score[] + response_score[]) / 3
+| filter arrayAvg(health_score) < 90
+```
+
+**3. Incident Detection Query:**
+```dql
+fetch problems
+| filter severity in ["AVAILABILITY", "ERROR", "PERFORMANCE"]
+| filter status == "OPEN"
+| summarize 
+    incident_count = count(),
+    affected_users = sum(impactedEntities),
+    by:{severity}
+| sort incident_count desc
+```
+
+**4. Service Dependencies Impact:**
+```dql
+fetch service.dependencies
+| filter impacted_service.response_time > 5000000
+| summarize 
+    affected_services = countDistinct(dependent_service.id),
+    total_impact = sum(impacted_service.failure_count),
+    by:{root_cause_service}
+| sort total_impact desc
+```
+
+**5. Real-time Alert Query:**
+```dql
+timeseries {
+    error_spike = sum(dt.service.request.failure_count),
+    latency_spike = avg(dt.service.request.response_time)
+},
+by:{dt.entity.service},
+from:now()-5m
+| filter error_spike[] > 100 OR latency_spike[] > 10000000
+| fieldsAdd 
+    service_name = entityName(dt.entity.service),
+    alert_level = if(error_spike[] > 500 OR latency_spike[] > 30000000, "CRITICAL", "WARNING")
+```
+
+### **Best Practices for #team-incidents Reporting**
+
+1. **Severity Classification:**
+   - Critical: Immediate action (SLA: 15 minutes)
+   - High: Action within 1 hour
+   - Medium: Action within 4 hours
+   - Low: Action within 24 hours
+
+2. **Report Components:**
+   - Incident timestamp and duration
+   - Affected services and components
+   - User impact metrics
+   - Root cause indicators
+   - Auto-remediation status
+
+3. **Alert Thresholds:**
+   - Response Time: > 5s (Warning), > 10s (Critical)
+   - Error Rate: > 1% (Warning), > 5% (Critical)
+   - Service Health Score: < 90% (Warning), < 80% (Critical)
+   - Availability: < 99.9% (Warning), < 99% (Critical)
+
+4. **Query Optimization:**
+   - Use appropriate time windows (5m for real-time, 1h for analysis)
+   - Include relevant context (service names, environment)
+   - Focus on actionable metrics
+   - Include historical comparison
+
+
+
+
+Instruction: Beautify Slack Webhook Messages
+
+Objective:
+Whenever sending a message to Slack via webhook, format the content to make it visually appealing and easy to read. Use Slack’s message formatting features to enhance clarity and engagement.
+
+Formatting Guidelines:
+	1.	Use Blocks:
+Structure the message using Slack’s blocks (sections, dividers, context) instead of plain text whenever possible.
+	2.	Highlight Key Information:
+	•	Use *bold* for headings or important info.
+	•	Use _italic_ for emphasis.
+	•	Use `inline code` for technical or code snippets.
+	3.	Add Emojis:
+Sprinkle relevant emojis to add warmth and highlight key points, but avoid overdoing it.
+	4.	Bulleted or Numbered Lists:
+For multiple items, use lists for clarity:
+
+• Item one
+• Item two
+• Item three
+
+or use Markdown 1., 2., 3. for numbered steps.
+
+	5.	Use Dividers:
+Separate sections with Slack’s divider block ({"type": "divider"}) for better visual separation.
+	6.	Linking:
+When mentioning URLs, use Slack’s format:
+<https://example.com|Descriptive text>
+to avoid raw links.
+	7.	User Mentions:
+When possible, mention users with <@user_id> or channels with <#channel_id>.
+	8.	Use Context Blocks:
+For small-print info (timestamps, authors, notes), use context blocks.
+	9.	Color (Attachments):
+For legacy attachments, use the color property to add a colored border (e.g., green for success, red for errors).
+	10.	Compact Where Needed:
+Avoid overly verbose messages. Summarize key points and add “Read more” links for details if necessary.
+
+⸻
+
+Example Beautified Slack Message (JSON)
+
+{
+  "blocks": [
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*:rocket: Deployment Complete!*\n\n*Project:* _MyApp_\n*Status:* :white_check_mark: Success\n*Duration:* `2m 15s`"
+      }
+    },
+    { "type": "divider" },
+    {
+      "type": "section",
+      "fields": [
+        { "type": "mrkdwn", "text": "*Triggered by:*\n<@U123456>" },
+        { "type": "mrkdwn", "text": "*Branch:*\n`main`" }
+      ]
+    },
+    {
+      "type": "context",
+      "elements": [
+        { "type": "mrkdwn", "text": "See details: <https://myapp.com/deploy/12345|View build logs>" }
+      ]
+    }
+  ]
+}
+
+
+⸻
+
+Final AI/Copilot Instruction (Copy-paste this for your Copilot):
+
+When generating Slack messages for webhooks, always format using Slack’s Block Kit. Use sections, dividers, context, and fields to structure content. Highlight important information using bold, italics, and emojis for clarity. Use lists for multiple items, add links and mentions in Slack format, and keep messages concise but informative. Make every message visually appealing, readable, and friendly.
+
+
+# Getting Host metrics
+
+## CPU Usage
+
+```dql
+timeseries {avg(dt.host.cpu.usage), value.A = avg(dt.host.cpu.usage, scalar: true), filter: { matchesValue(entityAttr(dt.entity.host, "entity.name"), "<host_name>") }
+```
+
+## Memory Usage
+
+```dql
+timeseries { avg(dt.host.memory.usage), value.A = avg(dt.host.memory.usage, scalar: true) }, filter: { matchesValue(entityAttr(dt.entity.host, "entity.name"), "<host_name>") }
+```
+
+---
+
+## 7-Day CPU Usage Analysis
+
+```dql
+timeseries usage=avg(dt.host.cpu.usage),
+    by:{dt.entity.host},
+    from:now()-7d
+| fieldsAdd 
+    host_name = entityName(dt.entity.host),
+    avg_usage = arrayAvg(usage)
+| sort avg_usage desc
+| fields host_name, avg_usage, usage
+```
+
+This query will:
+- Calculate average CPU usage for each host over the last 7 days
+- Show the host name for better readability
+- Include both the average value and the full timeseries data
+- Sort results by highest average CPU usage
+
+For a specific host, you can add a filter:
+
+```dql
+timeseries usage=avg(dt.host.cpu.usage),
+    by:{dt.entity.host},
+    from:now()-7d,
+    filter: {matchesValue(entityAttr(dt.entity.host, "entity.name"), "your-host-name")}
+```
+
+---
+
+## Memory Usage Analysis
+
+```dql
+timeseries memory_usage=avg(dt.host.memory.usage),
+    by:{dt.entity.host},
+    from:now()-7d
+| fieldsAdd 
+    host_name = entityName(dt.entity.host),
+    avg_memory = arrayAvg(memory_usage)
+| sort avg_memory desc
+| fields host_name, avg_memory, memory_usage
+```
+
+This query will:
+- Calculate average memory usage percentage for each host over the last 7 days
+- Show the host name for better readability
+- Include both the average memory usage and the full timeseries data
+- Sort results by highest average memory usage
+
+For combined CPU and Memory analysis:
+
+```dql
+timeseries {
+    cpu=avg(dt.host.cpu.usage),
+    memory=avg(dt.host.memory.usage)
+},
+    by:{dt.entity.host},
+    from:now()-7d
+| fieldsAdd 
+    host_name = entityName(dt.entity.host),
+    avg_cpu = arrayAvg(cpu),
+    avg_memory = arrayAvg(memory)
+| sort avg_memory desc
+| fields host_name, avg_cpu, avg_memory, cpu, memory
+```
+
+This combined query shows:
+- Both CPU and memory metrics for each host
+- Average values for quick analysis
+- Full timeseries data for detailed investigation
+- Results sorted by memory usage (change to `sort avg_cpu desc` to sort by CPU)
+

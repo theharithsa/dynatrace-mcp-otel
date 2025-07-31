@@ -45,16 +45,44 @@
 
 ---
 
-## **How to Use the New Capabilities**
+## Unreleased Changes
 
-* **Create All Dashboards:**
-  Run the `create_dashboard` tool—will process all `.json` files in `/dashboards` folder.
-* **Bulk Delete:**
-  Use the `bulk_delete_dashboards` tool, passing an array of document IDs.
-* **Share a Dashboard:**
+### Added
 
-  * For environment-wide sharing, use the `share_document_env` tool.
-  * For direct user/group sharing, use the `direct_share_document` tool (recipients set via env).
-* **Trace & Log Everything:**
-  All tools are now OTEL traced and send results and errors to Dynatrace logging.
+* Slack integration for automated reporting and notifications to team channels
+* Comprehensive bug analysis and reporting with customizable channel targeting
+* Security vulnerability assessment with automated Slack reporting
+* Environment health check monitoring with 7-day resource utilization analysis
+* Service health monitoring and root cause analysis for dynatrace-mcp-server
+* Automated prompt-based analysis capabilities for code review, security scanning, and performance monitoring
+* Real-time Slack message formatting with visual appeal and structured reporting
+* Direct dashboard links integration in Slack reports with environment-specific URLs
+* Timestamp and analyst attribution in report footers
+* Customizable Slack channel names for different team workflows
+* Multi-channel reporting support (#team-bugs, #team-security, #team-ops, #team-service-health)
+* Automated NPM publishing via GitHub Actions
+* Version change detection for conditional deployment
+* NPM package configuration with proper metadata
+* GitHub Release creation on successful NPM publish
+* Comprehensive .npmignore for clean package distribution
+* Dual-package publishing strategy for dev and production releases
+* Dev branch publishes as `dynatrace-mcp-server-dev` on PR events and direct pushes
+* Main branch publishes as `dynatrace-mcp-server` ONLY when PR is merged (not on direct push)
+* Dynamic package naming based on target branch
+* Branch-specific release tagging and GitHub releases
+* PR merge detection for production releases
+
+### Changed
+
+* Enhanced MCP server capabilities to support multi-channel Slack reporting
+* Improved analysis workflows with automated execution and comprehensive reporting
+* Updated documentation to clarify Slack channel requirements and customization options
+* Updated README.md with NPM installation instructions
+* Enhanced package.json with publishing scripts and metadata
+* Enhanced GitHub workflow with branch-specific publishing logic
+* Updated workflow to handle different publishing rules per branch
+* Improved debugging output for publish decisions
+* Enhanced GitHub workflow with strict PR merge requirements for main branch
+* Updated workflow to prevent direct push publishing to main branch
+* Dev branch allows both PR and push publishing
 

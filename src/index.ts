@@ -1093,6 +1093,11 @@ tool(
   }
 );
 
+interface ExecuteTypescriptError extends Error {
+  code?: string;
+  details?: unknown;
+}
+
 tool(
   'execute_typescript',
   'Executes TypeScript code using Dynatrace Function Executor API.',
@@ -1100,26 +1105,30 @@ tool(
     sourceCode: z.string().describe('The source code to run. Must be in `export default async function ({...})` format.'),
     payload: z.record(z.any()).describe('The payload object to pass as input to the function.'),
   },
-  async ({ sourceCode, payload, traceId }) => {
-    const tracer = trace.getTracer('dynatrace-mcp');
+  async ({ sourceCode, payload }) => {
     const span = tracer.startSpan('execute_typescript');
-
     return await context.with(trace.setSpan(context.active(), span), async () => {
       try {
-        const result = await executeTypescript(sourceCode, payload, traceId || span.spanContext().traceId);
+        const result = await executeTypescript(sourceCode, payload, span.spanContext().traceId);
         span.setStatus({ code: SpanStatusCode.OK });
         return JSON.stringify(result);
       } catch (err) {
-        span.recordException(err as any);
+        const typedError = err as ExecuteTypescriptError;
+        span.recordException(typedError);
+        span.setAttributes({
+          'error.type': typedError.name,
+          'error.message': typedError.message,
+          'error.code': typedError.code || 'UNKNOWN',
+          'error.details': JSON.stringify(typedError.details || {})
+        });
         span.setStatus({ code: SpanStatusCode.ERROR });
-        throw err;
+        throw typedError;
       } finally {
-        span.end();
+        await Promise.resolve(span.end());
       }
     });
   }
 );
-
 
   const transport = new StdioServerTransport();
   console.log('Connecting server to transport...');
