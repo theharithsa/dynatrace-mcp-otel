@@ -14,6 +14,12 @@ on:
         default: 'false'
         type: boolean
 
+# Add permissions for GitHub token
+permissions:
+  contents: write  # Required for creating releases
+  packages: write  # Optional, for GitHub Packages
+  pull-requests: read  # Required for PR events
+
 jobs:
   debug-info:
     runs-on: ubuntu-latest
@@ -220,7 +226,7 @@ jobs:
   publish:
     needs: [check-version, test, debug-info]
     runs-on: ubuntu-latest
-    environment: NPM Deploy  # Add this line to use your GitHub environment
+    environment: NPM Deploy
     if: needs.check-version.outputs.should-publish == 'true'
     steps:
       - name: 🚀 Publishing to NPM
@@ -302,29 +308,28 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Create GitHub Release
-        uses: actions/create-release@v1
+      - name: Create GitHub Release (Optional)
+        if: success()
+        run: |
+          echo "🏷️ Creating GitHub release..."
+          gh release create "v${{ needs.check-version.outputs.new-version }}-${{ needs.check-version.outputs.target-branch }}" \
+            --title "${{ needs.check-version.outputs.target-branch == 'dev' && 'Dev Release' || 'Production Release' }} v${{ needs.check-version.outputs.new-version }}" \
+            --notes "Package: \`${{ needs.check-version.outputs.package-name }}\`
+
+          Install: \`npm install ${{ needs.check-version.outputs.package-name }}@${{ needs.check-version.outputs.new-version }}\`" \
+            ${{ needs.check-version.outputs.target-branch == 'dev' && '--prerelease' || '' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ needs.check-version.outputs.new-version }}-${{ needs.check-version.outputs.target-branch }}
-          release_name: ${{ needs.check-version.outputs.target-branch == 'dev' && 'Dev Release' || 'Production Release' }} v${{ needs.check-version.outputs.new-version }}
-          body: |
-            ## 🎉 ${{ needs.check-version.outputs.target-branch == 'dev' && 'Dev Release' || 'Production Release' }}: v${{ needs.check-version.outputs.new-version }}
-            
-            **Package**: `${{ needs.check-version.outputs.package-name }}`
-            **Branch**: `${{ needs.check-version.outputs.target-branch }}`
-            **Trigger**: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && 'PR Merge' || github.event_name }}
-            
-            ### 📦 Installation
-            ```bash
-            npm install ${{ needs.check-version.outputs.package-name }}@${{ needs.check-version.outputs.new-version }}
-            ```
-            
-            ### 📋 Changes
-            See [CHANGELOG.md](CHANGELOG.md) for detailed changes.
-          draft: false
-          prerelease: ${{ needs.check-version.outputs.target-branch == 'dev' }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Release creation status
+        run: |
+          if [ "${{ steps.create-release.outcome }}" = "success" ]; then
+            echo "✅ GitHub release created successfully"
+          else
+            echo "⚠️ GitHub release creation failed, but NPM publish succeeded"
+            echo "You can manually create a release from the GitHub UI"
+          fi
 
   publish-skipped:
     needs: [check-version, debug-info]
