@@ -1,0 +1,71 @@
+name: 'Send Logs to Dynatrace'
+description: 'Send logs to Dynatrace with trace correlation'
+inputs:
+  log-content:
+    description: 'Log content to send'
+    required: true
+  log-level:
+    description: 'Log level (INFO, ERROR, WARN, DEBUG)'
+    required: false
+    default: 'INFO'
+  step-name:
+    description: 'Name of the step generating the log'
+    required: true
+  trace-id:
+    description: 'Trace ID for correlation'
+    required: true
+  span-id:
+    description: 'Span ID for correlation'
+    required: true
+  dynatrace-log-url:
+    description: 'Dynatrace log ingest URL'
+    required: true
+  dynatrace-api-token:
+    description: 'Dynatrace API token'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Send logs to Dynatrace
+      shell: bash
+      run: |
+        # Prepare log payload with trace correlation
+        LOG_TIMESTAMP=$(date +%s%3N)
+        
+        # Create JSON payload for Dynatrace log ingest
+        LOG_PAYLOAD=$(cat << EOF
+        [{
+          "content": "${{ inputs.log-content }}",
+          "timestamp": $LOG_TIMESTAMP,
+          "level": "${{ inputs.log-level }}",
+          "service": "dynatrace-mcp-server-build",
+          "trace_id": "${{ inputs.trace-id }}",
+          "span_id": "${{ inputs.span-id }}",
+          "github.workflow": "${{ github.workflow }}",
+          "github.job": "${{ github.job }}",
+          "github.step": "${{ inputs.step-name }}",
+          "github.run_id": "${{ github.run_id }}",
+          "github.actor": "${{ github.actor }}",
+          "github.ref": "${{ github.ref }}",
+          "build.type": "$BUILD_TYPE",
+          "branch.name": "${{ github.ref_name }}",
+          "ci.provider": "github-actions",
+          "project.name": "dynatrace-mcp-server"
+        }]
+        EOF
+        )
+        
+        # Send logs to Dynatrace
+        HTTP_STATUS=$(curl -s -w "%{http_code}" -o /tmp/log_response.txt \
+          -X POST "${{ inputs.dynatrace-log-url }}" \
+          -H "Authorization: Api-Token ${{ inputs.dynatrace-api-token }}" \
+          -H "Content-Type: application/json" \
+          -d "$LOG_PAYLOAD")
+        
+        if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 204 ]; then
+          echo "✅ Logs sent to Dynatrace successfully"
+        else
+          echo "⚠️ Failed to send logs to Dynatrace (HTTP $HTTP_STATUS)"
+          cat /tmp/log_response.txt || true
+        fi

@@ -1,0 +1,141 @@
+name: 'Setup OpenTelemetry'
+description: 'Initialize OpenTelemetry tracing for GitHub Actions'
+inputs:
+  job-name:
+    description: 'Name of the job for trace naming'
+    required: true
+  otel-endpoint:
+    description: 'OTEL endpoint (OTEL_EXPORTER_OTLP_ENDPOINT)'
+    required: false
+    default: 'https://your-tenant.live.dynatrace.com/api/v2/otlp/v1/traces'
+  dynatrace-api-token:
+    description: 'Dynatrace API token (DYNATRACE_API_TOKEN)'
+    required: false
+  dynatrace-log-url:
+    description: 'Dynatrace log ingest URL (DYNATRACE_LOG_INGEST_URL)'
+    required: false
+outputs:
+  trace-id:
+    description: 'Generated trace ID for this job'
+    value: ${{ steps.init-trace.outputs.trace-id }}
+  otel-endpoint:
+    description: 'OTel endpoint URL'
+    value: ${{ steps.init-trace.outputs.otel-endpoint }}
+  build-type:
+    description: 'Build type (dev or prod)'
+    value: ${{ steps.init-trace.outputs.build-type }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install OpenTelemetry CLI
+      shell: bash
+      run: |
+        # Install otel-cli for trace management
+        curl -L https://github.com/equinix-labs/otel-cli/releases/latest/download/otel-cli_linux_amd64.tar.gz | tar xz
+        sudo mv otel-cli /usr/local/bin/
+        chmod +x /usr/local/bin/otel-cli
+        echo "✅ OpenTelemetry CLI installed"
+
+    - name: Initialize trace and logging
+      id: init-trace
+      shell: bash
+      run: |
+        # Generate a unique trace ID for this job
+        TRACE_ID=$(openssl rand -hex 16)
+        echo "trace-id=$TRACE_ID" >> $GITHUB_OUTPUT
+        
+        # Determine build type based on branch
+        BUILD_TYPE="prod"
+        case "${{ github.ref }}" in
+          "refs/heads/dev")
+            BUILD_TYPE="dev"
+            ;;
+          "refs/heads/main"|"refs/heads/master")
+            BUILD_TYPE="prod"
+            ;;
+          *)
+            # For PRs, check the base branch
+            case "${{ github.base_ref }}" in
+              "dev")
+                BUILD_TYPE="dev"
+                ;;
+              "main"|"master")
+                BUILD_TYPE="prod"
+                ;;
+            esac
+            ;;
+        esac
+        
+        echo "build-type=$BUILD_TYPE" >> $GITHUB_OUTPUT
+        
+        # Set up OTel environment variables using exact .env names
+        OTEL_ENDPOINT="${{ inputs.otel-endpoint }}"
+        echo "otel-endpoint=$OTEL_ENDPOINT" >> $GITHUB_OUTPUT
+        
+        # Export environment variables for subsequent steps (matching .env file names)
+        echo "OTEL_EXPORTER_OTLP_ENDPOINT=$OTEL_ENDPOINT" >> $GITHUB_ENV
+        echo "OTEL_EXPORTER_OTLP_HEADERS=Authorization=Api-Token ${{ inputs.dynatrace-api-token }}" >> $GITHUB_ENV
+        echo "OTEL_SERVICE_NAME=dynatrace-mcp-server-build" >> $GITHUB_ENV
+        echo "DYNATRACE_API_TOKEN=${{ inputs.dynatrace-api-token }}" >> $GITHUB_ENV
+        echo "DYNATRACE_LOG_INGEST_URL=${{ inputs.dynatrace-log-url }}" >> $GITHUB_ENV
+        echo "OTEL_RESOURCE_ATTRIBUTES=github.workflow=${{ github.workflow }},github.job=${{ inputs.job-name }},github.run_id=${{ github.run_id }},github.actor=${{ github.actor }},build.type=$BUILD_TYPE,branch.name=${{ github.ref_name }},branch.ref=${{ github.ref }}" >> $GITHUB_ENV
+        echo "GITHUB_TRACE_ID=$TRACE_ID" >> $GITHUB_ENV
+        echo "BUILD_TYPE=$BUILD_TYPE" >> $GITHUB_ENV
+        
+        echo "🔧 OTel initialized with trace ID: $TRACE_ID"
+        echo "📡 Endpoint: $OTEL_ENDPOINT"
+        echo "📝 Log URL: ${{ inputs.dynatrace-log-url }}"
+        echo "🏗️ Build type: $BUILD_TYPE"
+        echo "🌿 Branch: ${{ github.ref_name }}"
+        
+        # Send initial job start log to Dynatrace
+        if [ -n "${{ inputs.dynatrace-log-url }}" ] && [ -n "${{ inputs.dynatrace-api-token }}" ]; then
+          JOB_START_LOG="Starting GitHub Actions job: ${{ inputs.job-name }} for workflow ${{ github.workflow }}"
+          LOG_TIMESTAMP=$(date +%s%3N)
+          
+          JOB_LOG_PAYLOAD=$(cat << EOF
+          [{
+            "content": "$JOB_START_LOG",
+            "timestamp": $LOG_TIMESTAMP,
+            "level": "INFO",
+            "service": "dynatrace-mcp-server-build",
+            "trace_id": "$TRACE_ID",
+            "span_id": "$(openssl rand -hex 8)",
+            "github.workflow": "${{ github.workflow }}",
+            "github.job": "${{ inputs.job-name }}",
+            "github.run_id": "${{ github.run_id }}",
+            "github.actor": "${{ github.actor }}",
+            "github.ref": "${{ github.ref }}",
+            "build.type": "$BUILD_TYPE",
+            "branch.name": "${{ github.ref_name }}",
+            "ci.provider": "github-actions",
+            "project.name": "dynatrace-mcp-server",
+            "log.type": "job.start"
+          }]
+        EOF
+          )
+          
+          curl -s -X POST "${{ inputs.dynatrace-log-url }}" \
+            -H "Authorization: Api-Token ${{ inputs.dynatrace-api-token }}" \
+            -H "Content-Type: application/json" \
+            -d "$JOB_LOG_PAYLOAD" > /dev/null 2>&1 || true
+          
+          echo "📝 Job start logged to Dynatrace"
+        fi
+
+    - name: Start job trace
+      shell: bash
+      run: |
+        # Start the main job span with branch-based attributes
+        otel-cli span \
+          --service "dynatrace-mcp-server-build" \
+          --name "github-job-${{ inputs.job-name }}" \
+          --kind "internal" \
+          --trace-id "$GITHUB_TRACE_ID" \
+          --attrs "github.workflow=${{ github.workflow }},github.job=${{ inputs.job-name }},github.run_id=${{ github.run_id }},github.actor=${{ github.actor }},github.ref=${{ github.ref }},build.type=$BUILD_TYPE,branch.name=${{ github.ref_name }},ci.provider=github-actions,project.name=dynatrace-mcp-server" \
+          --start-time "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" &
+        
+        # Store the job span PID for cleanup
+        echo "OTEL_JOB_SPAN_PID=$!" >> $GITHUB_ENV
+        echo "🚀 Started job trace for ${{ inputs.job-name }} (build type: $BUILD_TYPE)"

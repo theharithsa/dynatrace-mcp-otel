@@ -1,0 +1,183 @@
+name: 'OpenTelemetry Step Wrapper'
+description: 'Wrap a step with OpenTelemetry span and log capture'
+inputs:
+  step-name:
+    description: 'Name of the step'
+    required: true
+  command:
+    description: 'Command to execute'
+    required: true
+  working-directory:
+    description: 'Working directory for the command'
+    required: false
+    default: '.'
+  dynatrace-log-url:
+    description: 'Dynatrace log ingest URL'
+    required: false
+    default: ''
+  dynatrace-api-token:
+    description: 'Dynatrace API token'
+    required: false
+    default: ''
+outputs:
+  exit-code:
+    description: 'Exit code of the command'
+    value: ${{ steps.execute.outputs.exit-code }}
+  duration:
+    description: 'Duration of the step in milliseconds'
+    value: ${{ steps.execute.outputs.duration }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Execute step with tracing and logging
+      id: execute
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        # Generate span ID for this step
+        SPAN_ID=$(openssl rand -hex 8)
+        START_TIME=$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)
+        START_TIMESTAMP=$(date +%s%N)
+        
+        echo "🔄 Starting step: ${{ inputs.step-name }}"
+        echo "📋 Span ID: $SPAN_ID"
+        echo "🏗️ Build type: $BUILD_TYPE"
+        
+        # Create log file for capturing command output
+        LOG_FILE="/tmp/step_${{ inputs.step-name }}_$(date +%s).log"
+        
+        # Start the span with branch-based attributes
+        otel-cli span \
+          --service "dynatrace-mcp-server-build" \
+          --name "step-${{ inputs.step-name }}" \
+          --kind "internal" \
+          --trace-id "$GITHUB_TRACE_ID" \
+          --span-id "$SPAN_ID" \
+          --attrs "step.name=${{ inputs.step-name }},github.workflow=${{ github.workflow }},github.job=${{ github.job }},github.step=${{ inputs.step-name }},build.type=$BUILD_TYPE,branch.name=${{ github.ref_name }},ci.provider=github-actions,project.name=dynatrace-mcp-server" \
+          --start-time "$START_TIME" &
+        
+        SPAN_PID=$!
+        
+        # Execute the actual command and capture both exit code and output
+        set +e
+        
+        # Send initial log about step starting
+        if [ -n "${{ inputs.dynatrace-log-url }}" ] && [ -n "${{ inputs.dynatrace-api-token }}" ]; then
+          START_LOG="Starting step: ${{ inputs.step-name }} in workflow ${{ github.workflow }}"
+          echo "$START_LOG" | tee -a "$LOG_FILE"
+          
+          # Send start log to Dynatrace
+          LOG_TIMESTAMP=$(date +%s%3N)
+          START_LOG_PAYLOAD=$(cat << EOF
+          [{
+            "content": "$START_LOG",
+            "timestamp": $LOG_TIMESTAMP,
+            "level": "INFO",
+            "service": "dynatrace-mcp-server-build",
+            "trace_id": "$GITHUB_TRACE_ID",
+            "span_id": "$SPAN_ID",
+            "github.workflow": "${{ github.workflow }}",
+            "github.job": "${{ github.job }}",
+            "github.step": "${{ inputs.step-name }}",
+            "github.run_id": "${{ github.run_id }}",
+            "github.actor": "${{ github.actor }}",
+            "github.ref": "${{ github.ref }}",
+            "build.type": "$BUILD_TYPE",
+            "branch.name": "${{ github.ref_name }}",
+            "ci.provider": "github-actions",
+            "project.name": "dynatrace-mcp-server",
+            "log.type": "step.start"
+          }]
+        EOF
+          )
+          
+          curl -s -X POST "${{ inputs.dynatrace-log-url }}" \
+            -H "Authorization: Api-Token ${{ inputs.dynatrace-api-token }}" \
+            -H "Content-Type: application/json" \
+            -d "$START_LOG_PAYLOAD" > /dev/null 2>&1 || true
+        fi
+        
+        # Execute command with output capture
+        set +e
+        ${{ inputs.command }} 2>&1 | tee -a "$LOG_FILE"
+        EXIT_CODE=${PIPESTATUS[0]}
+        set -e
+        
+        # Calculate duration
+        END_TIMESTAMP=$(date +%s%N)
+        DURATION=$(( (END_TIMESTAMP - START_TIMESTAMP) / 1000000 ))
+        
+        # End the span
+        kill $SPAN_PID 2>/dev/null || true
+        
+        # Send span completion with status and build info
+        if [ $EXIT_CODE -eq 0 ]; then
+          SPAN_STATUS="OK"
+          LOG_LEVEL="INFO"
+          echo "✅ Step completed successfully (build: $BUILD_TYPE)"
+        else
+          SPAN_STATUS="ERROR"
+          LOG_LEVEL="ERROR"
+          echo "❌ Step failed with exit code: $EXIT_CODE (build: $BUILD_TYPE)"
+        fi
+        
+        otel-cli span \
+          --service "dynatrace-mcp-server-build" \
+          --name "step-${{ inputs.step-name }}" \
+          --kind "internal" \
+          --trace-id "$GITHUB_TRACE_ID" \
+          --span-id "$SPAN_ID" \
+          --attrs "step.name=${{ inputs.step-name }},step.exit_code=$EXIT_CODE,step.duration_ms=$DURATION,step.status=$SPAN_STATUS,github.workflow=${{ github.workflow }},github.job=${{ github.job }},build.type=$BUILD_TYPE,branch.name=${{ github.ref_name }},ci.provider=github-actions,project.name=dynatrace-mcp-server" \
+          --start-time "$START_TIME" \
+          --end-time "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+        
+        # Send command output logs to Dynatrace if configured
+        if [ -n "${{ inputs.dynatrace-log-url }}" ] && [ -n "${{ inputs.dynatrace-api-token }}" ] && [ -f "$LOG_FILE" ]; then
+          # Read log content and properly escape for JSON
+          LOG_CONTENT=$(cat "$LOG_FILE" | jq -Rs .)
+          
+          # Send final log with command output
+          LOG_TIMESTAMP=$(date +%s%3N)
+          FINAL_LOG_PAYLOAD=$(cat << EOF
+          [{
+            "content": $LOG_CONTENT,
+            "timestamp": $LOG_TIMESTAMP,
+            "level": "$LOG_LEVEL",
+            "service": "dynatrace-mcp-server-build",
+            "trace_id": "$GITHUB_TRACE_ID",
+            "span_id": "$SPAN_ID",
+            "github.workflow": "${{ github.workflow }}",
+            "github.job": "${{ github.job }}",
+            "github.step": "${{ inputs.step-name }}",
+            "github.run_id": "${{ github.run_id }}",
+            "github.actor": "${{ github.actor }}",
+            "github.ref": "${{ github.ref }}",
+            "build.type": "$BUILD_TYPE",
+            "branch.name": "${{ github.ref_name }}",
+            "ci.provider": "github-actions",
+            "project.name": "dynatrace-mcp-server",
+            "step.exit_code": "$EXIT_CODE",
+            "step.duration_ms": "$DURATION",
+            "log.type": "step.output"
+          }]
+        EOF
+          )
+          
+          curl -s -X POST "${{ inputs.dynatrace-log-url }}" \
+            -H "Authorization: Api-Token ${{ inputs.dynatrace-api-token }}" \
+            -H "Content-Type: application/json" \
+            -d "$FINAL_LOG_PAYLOAD" > /dev/null 2>&1 || true
+          
+          echo "📝 Step output sent to Dynatrace logs"
+          
+          # Clean up log file
+          rm -f "$LOG_FILE"
+        fi
+        
+        # Set outputs
+        echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
+        echo "duration=$DURATION" >> $GITHUB_OUTPUT
+        
+        # Preserve exit code for workflow
+        exit $EXIT_CODE
