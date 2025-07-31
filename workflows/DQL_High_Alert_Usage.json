@@ -1,0 +1,103 @@
+{
+  "id": "92642820-1c14-400c-9ece-98d447112639",
+  "title": "DQL Query - High Usage User Alerting",
+  "tasks": {
+    "create_output": {
+      "name": "create_output",
+      "input": {
+        "script": "import { execution } from '@dynatrace-sdk/automation-utils';\n\ntype QueryEntry = {\n  User: string;\n  Feature: string;\n  GBQueried: number;\n  \"user.email\": string;\n  query_string: string;\n  \"client.source\": string;\n};\n\nexport default async function ({ execution_id }: { execution_id: string }) {\n  const ex = await execution(execution_id);\n  console.log('Automated script execution on behalf of', ex.trigger);\n\n  const res = await ex.result(\"find_expensive_queries\");\n  const records: QueryEntry[] = res.records;\n\n  const groupedResults: Record<string, {\n    user: string;\n    totalGB: number;\n    queries: string[];\n    sources: Set<string>;\n    features: Set<string>;\n  }> = {};\n\n  for (const entry of records) {\n    const email = entry[\"user.email\"];\n    if (!groupedResults[email]) {\n      groupedResults[email] = {\n        user: email,\n        totalGB: 0,\n        queries: [],\n        sources: new Set(),\n        features: new Set(),\n      };\n    }\n\n    groupedResults[email].totalGB += entry.GBQueried;\n    groupedResults[email].queries.push(entry.query_string);\n    groupedResults[email].sources.add(entry[\"client.source\"]);\n    groupedResults[email].features.add(entry.Feature);\n  }\n\n  const emailsWithMessages: { email: string; message: string }[] = [];\n\n  for (const [email, data] of Object.entries(groupedResults)) {\n    const shortNameRaw = email.split(/[@._]/)[0];\n    const shortName = shortNameRaw.charAt(0).toUpperCase() + shortNameRaw.slice(1);\n\n    let message = `## ⚠️ High Data Query Notification\n\nHi *${shortName}*,\n\nYou are receiving this email because you have queried **more than 250 GB of data in the past 6 hours** via Dynatrace. This activity was detected from dashboards, notebooks, or direct log/business event queries you executed.\n\nPlease note that **every query against logs, business events, or metrics contributes to your organization’s DDU (Data Unit) consumption**, and may lead to **additional licensing costs**.\n\n---\n\n### 📊 Total Data Queried\n**${data.totalGB} GB**\n\n### 👤 User\n\\`${data.user}\\`\n\n### 🌐 Sources Where Queries Were Executed\n`;\n\n    data.sources.forEach((src) => {\n      message += `* [${src}](${src})\\n`;\n    });\n\n    message += `\n---\n\n### 🧩 Source Types\n`;\n\n    data.features.forEach((f) => {\n      message += `* ${f}\\n`;\n    });\n\n    // Now move the Queries section here — just before optimization tips\n    message += `\n---\n\n### 🔍 Queries You Executed\n`;\n\n    data.queries.forEach((q, index) => {\n      message += `\\n#### Query ${index + 1}\\n`;\n      message += `\\`\\`\\`sql\\n${q.trim()}\\n\\`\\`\\`\\n`;\n    });\n\n    message += `\n---\n\n### 🛠️ Tips to Optimize Your Queries\n\nTo reduce unnecessary consumption and improve performance, consider the following:\n\n1. **Use \\`| filter\\` early**: Filter your data as early as possible in the pipeline.\n2. **Limit timeframes**: Query only the time window you care about (e.g., last 15 min).\n3. **Avoid unbounded groupings**: Grouping by high-cardinality fields (like \\`user.id\\`) can be expensive.\n4. **Control dashboard refresh**: Don't use aggressive auto-refresh unless required.\n5. **Disable auto-run in Notebooks**: For expensive queries, avoid re-executing on open.\n6. **Consult your DT Admin**: They can help with query best practices and review costly dashboards.\n\n---\n\n### 📌 DQL Best Practices (Quick Reference)\n\n1. **Filter early and narrow the timeframe**  \n   Use short time ranges (e.g., \\`from:-15m\\`) and apply filters first.\n\n2. **Use sampling and scan limits for logs**  \n   Add \\`samplingRatio\\` and \\`scanLimitGBytes\\` to log queries to reduce cost and load.\n\n3. **Follow recommended command order**  \n   Filter → Fields → Summarize → Sort → Limit (in that order).\n\n4. **Prefer \\`matchesPhrase()\\` over \\`contains()\\`**  \n   It performs better for partial string matches.\n\n5. **Avoid premature sorting**  \n   Apply \\`sort\\` only after filtering or summarizing.\n\n📘 [See full best practices guide](https://docs.dynatrace.com/docs/discover-dynatrace/references/dynatrace-query-language/dql-best-practices)\n\n---\n\nIf you're unsure about the queries or dashboards you've created, please reach out to your Dynatrace administrator for guidance.\n\nThanks for being a responsible observability user! 🎯\n`;\n\n    emailsWithMessages.push({ email, message });\n  }\n\n  return {\n    recipients: JSON.parse(JSON.stringify(emailsWithMessages))\n  };\n}\n"
+      },
+      "action": "dynatrace.automations:run-javascript",
+      "position": {
+        "x": 0,
+        "y": 2
+      },
+      "conditions": {
+        "states": {
+          "find_expensive_queries": "OK"
+        }
+      },
+      "description": "Build a custom task running js Code",
+      "predecessors": [
+        "find_expensive_queries"
+      ]
+    },
+    "sending_email": {
+      "name": "sending_email",
+      "input": {
+        "cc": [],
+        "to": [
+          "{{ _.item.email }}"
+        ],
+        "bcc": [],
+        "taskId": "{{ task().id }}",
+        "content": "{{ _.item.message }}",
+        "subject": "Dynatrace High Query Notification",
+        "executionId": "{{ execution().id }}",
+        "environmentUrl": "{{ environment().url }}"
+      },
+      "action": "dynatrace.email:send-email",
+      "position": {
+        "x": 0,
+        "y": 3
+      },
+      "conditions": {
+        "custom": "",
+        "states": {
+          "create_output": "OK"
+        }
+      },
+      "withItems": "item in {{ result(\"create_output\")[\"recipients\"] | to_json }}",
+      "concurrency": 1,
+      "description": "Send email",
+      "predecessors": [
+        "create_output"
+      ]
+    },
+    "find_expensive_queries": {
+      "name": "find_expensive_queries",
+      "input": {
+        "query": "fetch dt.system.query_executions, from:now()-6h\n| sort scanned_bytes desc\n| fields timestamp, scanned_GB = scanned_bytes / 1000 / 1000 / 1000, query_string, analysis_timeframe.start, analysis_timeframe.end, client.application_context, execution_duration_ms, user, user.email, client.source\n| summarize GBQueried = sum(scanned_GB),by:{client.application_context, user, user.email, query_string, client.source}\n| fields User = user, Feature = client.application_context, GBQueried, user.email, query_string, client.source\n// | filterOut matchesPhrase(user.email,\"dynatrace.com\")\n| filter isNotNull(Feature) and GBQueried > 5\n| sort GBQueried desc"
+      },
+      "action": "dynatrace.automations:execute-dql-query",
+      "position": {
+        "x": 0,
+        "y": 1
+      },
+      "conditions": {
+        "else": "STOP",
+        "custom": "",
+        "states": {}
+      },
+      "description": "Executes DQL query",
+      "predecessors": []
+    }
+  },
+  "description": "",
+  "actor": "db793755-1f39-43b9-b443-4be73887345f",
+  "owner": "5f9bc507-b7bc-40b2-a118-46b9d12c41d4",
+  "ownerType": "USER",
+  "isPrivate": false,
+  "trigger": {
+    "schedule": {
+      "isActive": true,
+      "isFaulty": false,
+      "trigger": {
+        "cron": "0 */6 * * 1-5",
+        "type": "cron"
+      },
+      "rule": null,
+      "filterParameters": {
+        "earliestStart": "2024-02-15",
+        "earliestStartTime": "00:00"
+      },
+      "timezone": "Asia/Kolkata",
+      "inputs": {}
+    }
+  },
+  "schemaVersion": 3,
+  "result": null,
+  "input": {},
+  "hourlyExecutionLimit": 1000,
+  "type": "STANDARD"
+}
