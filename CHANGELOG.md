@@ -71,6 +71,14 @@
 * Dynamic package naming based on target branch
 * Branch-specific release tagging and GitHub releases
 * PR merge detection for production releases
+* GitHub environment-based deployment with proper permissions
+* Comprehensive README documentation with MCP-focused approach
+* Quick start guide for AI assistant integration
+* Complete tool reference with descriptions and use cases
+* Environment variable documentation with examples
+* OAuth scope requirements and setup instructions
+* Advanced usage examples for custom dashboards and TypeScript execution
+* Development setup instructions for code customization
 
 ### Changed
 
@@ -85,4 +93,16 @@
 * Enhanced GitHub workflow with strict PR merge requirements for main branch
 * Updated workflow to prevent direct push publishing to main branch
 * Dev branch allows both PR and push publishing
+* Updated README.md with correct package installation instructions
+* Fixed NPM authentication using GitHub environments
+* Replaced deprecated GitHub release action with modern alternative
+* Simplified README structure emphasizing MCP client configuration
+* Reorganized documentation to prioritize AI agent use cases
+* Clarified package variants (production vs development)
+* Updated configuration examples for different MCP clients
 
+### Fixed
+
+* NPM authentication issues in GitHub Actions
+* GitHub token permissions for release creation
+* Package naming consistency between dev and production builds
