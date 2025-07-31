@@ -65,6 +65,12 @@
 * NPM package configuration with proper metadata
 * GitHub Release creation on successful NPM publish
 * Comprehensive .npmignore for clean package distribution
+* Dual-package publishing strategy for dev and production releases
+* Dev branch publishes as `dynatrace-mcp-server-dev` on PR events and direct pushes
+* Main branch publishes as `dynatrace-mcp-server` ONLY when PR is merged (not on direct push)
+* Dynamic package naming based on target branch
+* Branch-specific release tagging and GitHub releases
+* PR merge detection for production releases
 
 ### Changed
 
@@ -73,4 +79,10 @@
 * Updated documentation to clarify Slack channel requirements and customization options
 * Updated README.md with NPM installation instructions
 * Enhanced package.json with publishing scripts and metadata
+* Enhanced GitHub workflow with branch-specific publishing logic
+* Updated workflow to handle different publishing rules per branch
+* Improved debugging output for publish decisions
+* Enhanced GitHub workflow with strict PR merge requirements for main branch
+* Updated workflow to prevent direct push publishing to main branch
+* Dev branch allows both PR and push publishing
 

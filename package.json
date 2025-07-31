@@ -1,6 +1,6 @@
 {
   "name": "dynatrace-mcp-server",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Dynatrace Model Context Protocol (MCP) Server for AI assistants",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
