@@ -265,10 +265,38 @@ jobs:
           echo "📋 Final package.json name:"
           node -p "require('./package.json').name"
 
+      - name: Check NPM authentication
+        run: |
+          echo "🔐 Checking NPM authentication..."
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "❌ NODE_AUTH_TOKEN is not set"
+            exit 1
+          else
+            echo "✅ NODE_AUTH_TOKEN is set"
+            echo "Token length: ${#NODE_AUTH_TOKEN}"
+          fi
+          
+          # Check if we can authenticate
+          npm whoami || echo "❌ NPM authentication failed"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Configure NPM authentication
+        run: |
+          echo "🔧 Configuring NPM authentication..."
+          echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" > ~/.npmrc
+          echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
+          echo "always-auth=true" >> ~/.npmrc
+          
+          # Verify authentication
+          npm whoami
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish to NPM
         run: |
           echo "🚀 Publishing ${{ needs.check-version.outputs.package-name }}@${{ needs.check-version.outputs.new-version }} to NPM..."
-          npm publish
+          npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
