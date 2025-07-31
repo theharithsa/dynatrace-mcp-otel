@@ -28,93 +28,48 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: Install OpenTelemetry CLI
+    - name: Install trace sending utilities
       shell: bash
       run: |
-        echo "🔧 Installing OpenTelemetry CLI..."
+        echo "🔧 Installing trace utilities..."
         
-        # Try multiple methods to install otel-cli
-        OTEL_CLI_INSTALLED=false
-        
-        # Method 1: Try the latest release from GitHub
-        echo "📥 Attempting to download from GitHub releases..."
-        LATEST_RELEASE=$(curl -s https://api.github.com/repos/equinix-labs/otel-cli/releases/latest | grep -o '"tag_name": "[^"]*' | cut -d'"' -f4)
-        
-        if [ -n "$LATEST_RELEASE" ]; then
-          echo "🔍 Found latest release: $LATEST_RELEASE"
-          DOWNLOAD_URL="https://github.com/equinix-labs/otel-cli/releases/download/${LATEST_RELEASE}/otel-cli_linux_amd64.tar.gz"
-          
-          if curl -L --fail "$DOWNLOAD_URL" -o otel-cli.tar.gz; then
-            echo "📦 Downloaded otel-cli successfully"
-            if tar -xzf otel-cli.tar.gz; then
-              sudo mv otel-cli /usr/local/bin/
-              chmod +x /usr/local/bin/otel-cli
-              OTEL_CLI_INSTALLED=true
-              echo "✅ otel-cli installed successfully via GitHub releases"
-            else
-              echo "⚠️ Failed to extract otel-cli archive"
-            fi
-            rm -f otel-cli.tar.gz
-          else
-            echo "⚠️ Failed to download from GitHub releases"
-          fi
-        else
-          echo "⚠️ Could not determine latest release"
-        fi
-        
-        # Method 2: Try a specific known version if latest failed
-        if [ "$OTEL_CLI_INSTALLED" = false ]; then
-          echo "📥 Trying known version v0.4.5..."
-          DOWNLOAD_URL="https://github.com/equinix-labs/otel-cli/releases/download/v0.4.5/otel-cli_linux_amd64.tar.gz"
-          
-          if curl -L --fail "$DOWNLOAD_URL" -o otel-cli.tar.gz; then
-            echo "📦 Downloaded otel-cli v0.4.5 successfully"
-            if tar -xzf otel-cli.tar.gz; then
-              sudo mv otel-cli /usr/local/bin/
-              chmod +x /usr/local/bin/otel-cli
-              OTEL_CLI_INSTALLED=true
-              echo "✅ otel-cli v0.4.5 installed successfully"
-            else
-              echo "⚠️ Failed to extract otel-cli archive"
-            fi
-            rm -f otel-cli.tar.gz
-          else
-            echo "⚠️ Failed to download v0.4.5"
-          fi
-        fi
-        
-        # Method 3: Use curl for basic tracing if otel-cli fails
-        if [ "$OTEL_CLI_INSTALLED" = false ]; then
-          echo "🔄 otel-cli installation failed, creating wrapper script..."
-          
-          # Create a simple wrapper script that uses curl for basic tracing
-          sudo tee /usr/local/bin/otel-cli > /dev/null << 'EOF'
+        # Create a trace sending function
+        sudo tee /usr/local/bin/send-trace > /dev/null << 'EOF'
         #!/bin/bash
-        # Simple otel-cli wrapper using curl
+        # Direct trace sender using curl
         
-        case "$1" in
-          "span")
-            echo "📊 OTEL Span: $*"
-            # Just log the span information since we can't send traces without proper otel-cli
-            ;;
-          *)
-            echo "📊 OTEL Command: $*"
-            ;;
-        esac
-        EOF
-          
-          sudo chmod +x /usr/local/bin/otel-cli
-          echo "✅ Created otel-cli wrapper script"
-        fi
+        TRACE_ENDPOINT="$1"
+        API_TOKEN="$2"
+        TRACE_PAYLOAD="$3"
         
-        # Verify installation
-        if command -v otel-cli >/dev/null 2>&1; then
-          echo "✅ otel-cli is available"
-          otel-cli --version || echo "📊 Using wrapper script"
-        else
-          echo "❌ otel-cli installation failed completely"
+        if [ -z "$TRACE_ENDPOINT" ] || [ -z "$API_TOKEN" ] || [ -z "$TRACE_PAYLOAD" ]; then
+          echo "❌ Missing required parameters for trace sending"
           exit 1
         fi
+        
+        echo "📡 Sending trace to: $TRACE_ENDPOINT"
+        
+        HTTP_STATUS=$(curl -s -w "%{http_code}" -o /tmp/trace_response.txt \
+          -X POST "$TRACE_ENDPOINT" \
+          -H "Authorization: Api-Token $API_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "$TRACE_PAYLOAD")
+        
+        echo "📊 Trace HTTP Status: $HTTP_STATUS"
+        
+        if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 202 ] || [ "$HTTP_STATUS" -eq 204 ]; then
+          echo "✅ Trace sent successfully"
+        else
+          echo "❌ Failed to send trace (HTTP $HTTP_STATUS)"
+          echo "Response:"
+          cat /tmp/trace_response.txt || true
+        fi
+        
+        rm -f /tmp/trace_response.txt
+        EOF
+        
+        sudo chmod +x /usr/local/bin/send-trace
+        echo "✅ Trace utilities installed"
 
     - name: Initialize trace and logging
       id: init-trace
@@ -187,75 +142,132 @@ runs:
         echo "🏗️ Build type: $BUILD_TYPE"
         echo "🌿 Branch: ${{ github.ref_name }}"
         
-        # Test connectivity to Dynatrace
-        if [ -n "${{ inputs.dynatrace-log-url }}" ] && [ -n "${{ inputs.dynatrace-api-token }}" ]; then
-          echo "🧪 Testing Dynatrace connectivity..."
-          
-          TEST_LOG_PAYLOAD='[{"content":"GitHub Actions OTel test log","timestamp":'$(date +%s%3N)',"level":"INFO","service":"dynatrace-mcp-server-build","trace_id":"'$TRACE_ID'","span_id":"'$(openssl rand -hex 8)'","test":true}]'
-          
-          HTTP_STATUS=$(curl -s -w "%{http_code}" -o /tmp/test_response.txt \
-            -X POST "${{ inputs.dynatrace-log-url }}" \
-            -H "Authorization: Api-Token ${{ inputs.dynatrace-api-token }}" \
-            -H "Content-Type: application/json" \
-            -d "$TEST_LOG_PAYLOAD")
-          
-          if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 204 ]; then
-            echo "✅ Dynatrace connectivity test successful (HTTP $HTTP_STATUS)"
-          else
-            echo "⚠️ Dynatrace connectivity test failed (HTTP $HTTP_STATUS)"
-            cat /tmp/test_response.txt || true
-          fi
-          
-          rm -f /tmp/test_response.txt
-        fi
+        # Test connectivity to Dynatrace OTLP endpoint
+        echo "🧪 Testing Dynatrace OTLP connectivity..."
         
-        # Send initial job start log to Dynatrace
-        if [ -n "${{ inputs.dynatrace-log-url }}" ] && [ -n "${{ inputs.dynatrace-api-token }}" ]; then
-          JOB_START_LOG="Starting GitHub Actions job: ${{ inputs.job-name }} for workflow ${{ github.workflow }}"
-          LOG_TIMESTAMP=$(date +%s%3N)
-          
-          JOB_LOG_PAYLOAD=$(cat << EOF
-          [{
-            "content": "$JOB_START_LOG",
-            "timestamp": $LOG_TIMESTAMP,
-            "level": "INFO",
-            "service": "dynatrace-mcp-server-build",
-            "trace_id": "$TRACE_ID",
-            "span_id": "$(openssl rand -hex 8)",
-            "github.workflow": "${{ github.workflow }}",
-            "github.job": "${{ inputs.job-name }}",
-            "github.run_id": "${{ github.run_id }}",
-            "github.actor": "${{ github.actor }}",
-            "github.ref": "${{ github.ref }}",
-            "build.type": "$BUILD_TYPE",
-            "branch.name": "${{ github.ref_name }}",
-            "ci.provider": "github-actions",
-            "project.name": "dynatrace-mcp-server",
-            "log.type": "job.start"
-          }]
+        # Create a test trace payload
+        CURRENT_TIME_NS=$(($(date +%s) * 1000000000))
+        TEST_SPAN_ID=$(openssl rand -hex 8)
+        
+        TEST_TRACE_PAYLOAD=$(cat << EOF
+        {
+          "resourceSpans": [
+            {
+              "resource": {
+                "attributes": [
+                  {"key": "service.name", "value": {"stringValue": "dynatrace-mcp-server-build"}},
+                  {"key": "github.workflow", "value": {"stringValue": "${{ github.workflow }}"}},
+                  {"key": "github.job", "value": {"stringValue": "${{ inputs.job-name }}"}},
+                  {"key": "build.type", "value": {"stringValue": "$BUILD_TYPE"}},
+                  {"key": "test", "value": {"boolValue": true}}
+                ]
+              },
+              "instrumentationLibrarySpans": [
+                {
+                  "instrumentationLibrary": {
+                    "name": "github-actions-otel"
+                  },
+                  "spans": [
+                    {
+                      "traceId": "$TRACE_ID",
+                      "spanId": "$TEST_SPAN_ID",
+                      "name": "github-connectivity-test",
+                      "kind": "SPAN_KIND_INTERNAL",
+                      "startTimeUnixNano": "$CURRENT_TIME_NS",
+                      "endTimeUnixNano": "$((CURRENT_TIME_NS + 1000000))",
+                      "attributes": [
+                        {"key": "test.type", "value": {"stringValue": "connectivity"}}
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
         EOF
-          )
-          
-          curl -s -X POST "${{ inputs.dynatrace-log-url }}" \
-            -H "Authorization: Api-Token ${{ inputs.dynatrace-api-token }}" \
-            -H "Content-Type: application/json" \
-            -d "$JOB_LOG_PAYLOAD" > /dev/null 2>&1 || true
-          
-          echo "📝 Job start logged to Dynatrace"
-        fi
+        )
+        
+        # Send test trace
+        send-trace "$OTEL_ENDPOINT" "${{ inputs.dynatrace-api-token }}" "$TEST_TRACE_PAYLOAD"
+        
+        # Debug output for trace sending
+        echo "🔍 Test trace payload:"
+        echo "$TEST_TRACE_PAYLOAD" | jq '.'
+        
+        # Wait for a few seconds to allow trace to be processed
+        echo "⏳ Waiting for trace processing..."
+        sleep 5
+        
+        # Check trace in Dynatrace
+        echo "🔍 Checking trace in Dynatrace..."
+        
+        TRACE_CHECK_PAYLOAD=$(cat << EOF
+        {
+          "traceId": "$TRACE_ID"
+        }
+        EOF
+        )
+        
+        send-trace "$OTEL_ENDPOINT" "${{ inputs.dynatrace-api-token }}" "$TRACE_CHECK_PAYLOAD"
+        
+        # ...existing code...
 
     - name: Start job trace
       shell: bash
       run: |
-        # Start the main job span with branch-based attributes
-        otel-cli span \
-          --service "dynatrace-mcp-server-build" \
-          --name "github-job-${{ inputs.job-name }}" \
-          --kind "internal" \
-          --trace-id "$GITHUB_TRACE_ID" \
-          --attrs "github.workflow=${{ github.workflow }},github.job=${{ inputs.job-name }},github.run_id=${{ github.run_id }},github.actor=${{ github.actor }},github.ref=${{ github.ref }},build.type=$BUILD_TYPE,branch.name=${{ github.ref_name }},ci.provider=github-actions,project.name=dynatrace-mcp-server" \
-          --start-time "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" &
+        echo "🚀 Starting job trace for ${{ inputs.job-name }} (build type: $BUILD_TYPE)"
         
-        # Store the job span PID for cleanup
-        echo "OTEL_JOB_SPAN_PID=$!" >> $GITHUB_ENV
-        echo "🚀 Started job trace for ${{ inputs.job-name }} (build type: $BUILD_TYPE)"
+        # Create job span payload
+        CURRENT_TIME_NS=$(($(date +%s) * 1000000000))
+        JOB_SPAN_ID=$(openssl rand -hex 8)
+        
+        JOB_TRACE_PAYLOAD=$(cat << EOF
+        {
+          "resourceSpans": [
+            {
+              "resource": {
+                "attributes": [
+                  {"key": "service.name", "value": {"stringValue": "dynatrace-mcp-server-build"}},
+                  {"key": "github.workflow", "value": {"stringValue": "${{ github.workflow }}"}},
+                  {"key": "github.job", "value": {"stringValue": "${{ inputs.job-name }}"}},
+                  {"key": "github.run_id", "value": {"stringValue": "${{ github.run_id }}"}},
+                  {"key": "github.actor", "value": {"stringValue": "${{ github.actor }}"}},
+                  {"key": "github.ref", "value": {"stringValue": "${{ github.ref }}"}},
+                  {"key": "build.type", "value": {"stringValue": "$BUILD_TYPE"}},
+                  {"key": "branch.name", "value": {"stringValue": "${{ github.ref_name }}"}},
+                  {"key": "ci.provider", "value": {"stringValue": "github-actions"}},
+                  {"key": "project.name", "value": {"stringValue": "dynatrace-mcp-server"}}
+                ]
+              },
+              "instrumentationLibrarySpans": [
+                {
+                  "instrumentationLibrary": {
+                    "name": "github-actions-otel"
+                  },
+                  "spans": [
+                    {
+                      "traceId": "$GITHUB_TRACE_ID",
+                      "spanId": "$JOB_SPAN_ID",
+                      "name": "github-job-${{ inputs.job-name }}",
+                      "kind": "SPAN_KIND_INTERNAL",
+                      "startTimeUnixNano": "$CURRENT_TIME_NS",
+                      "attributes": [
+                        {"key": "job.name", "value": {"stringValue": "${{ inputs.job-name }}"}}
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        EOF
+        )
+        
+        # Send job trace
+        send-trace "$OTEL_EXPORTER_OTLP_ENDPOINT" "$DYNATRACE_API_TOKEN" "$JOB_TRACE_PAYLOAD"
+        
+        # Store job span info for later completion
+        echo "GITHUB_JOB_SPAN_ID=$JOB_SPAN_ID" >> $GITHUB_ENV
+        echo "GITHUB_JOB_START_TIME_NS=$CURRENT_TIME_NS" >> $GITHUB_ENV
