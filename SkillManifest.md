@@ -46,12 +46,14 @@ This server exposes the following skills ("tools" or "capabilities") for seamles
 The Dynatrace MCP Server includes advanced OpenTelemetry integration features:
 
 ### Features
+
 - Automatic trace correlation with logs
 - Enhanced logging with security context (`dt.security_context: dynatrace_mcp_otel`)
 - Build logs metadata (`logType: build-logs`) for improved filtering
 - GitHub Actions integration for CI/CD observability
 
 ### Latest Updates (v1.0.8)
+
 - **Added**: Enhanced logging with `dt.security_context` field for proper isolation
 - **Added**: `logType: build-logs` metadata for all log entries
 - **Fixed**: Improved error handling for OpenTelemetry trace sending
@@ -59,6 +61,7 @@ The Dynatrace MCP Server includes advanced OpenTelemetry integration features:
 
 ### Configuration
 OpenTelemetry integration requires these environment variables:
+
 - `OTEL_EXPORTER_OTLP_ENDPOINT`: Your Dynatrace OTLP endpoint
 - `DYNATRACE_API_TOKEN`: API token with appropriate permissions
 - `DYNATRACE_LOG_INGEST_URL`: Log ingest API endpoint
