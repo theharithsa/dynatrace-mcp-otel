@@ -49,14 +49,13 @@ runs:
         EOF
         
         # Install OTel packages in /tmp
-        cd /tmp
-        npm install --no-package-lock --no-save
+        cd /tmp && npm install --no-package-lock --no-save
         
         # Create trace sending Node.js script that mimics your working otel.ts
         cat > /tmp/send-trace.js << 'EOF'
         const { NodeSDK } = require('@opentelemetry/sdk-node');
         const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-proto');
-        const { trace, context } = require('@opentelemetry/api');
+        const { trace } = require('@opentelemetry/api');
         const { Resource } = require('@opentelemetry/resources');
         const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
 
@@ -68,7 +67,7 @@ runs:
             const sdk = new NodeSDK({
               resource: new Resource({
                 [SemanticResourceAttributes.SERVICE_NAME]: serviceName,
-                [SemanticResourceAttributes.SERVICE_VERSION]: '1.0.7',
+                [SemanticResourceAttributes.SERVICE_VERSION]: '1.0.8',
                 ...attributes
               }),
               traceExporter: new OTLPTraceExporter({
@@ -85,7 +84,7 @@ runs:
             // Create and send a span
             const tracer = trace.getTracer('github-actions', '1.0.0');
             
-            await new Promise((resolve, reject) => {
+            await new Promise((resolve) => {
               const span = tracer.startSpan(traceName, {
                 attributes: {
                   'github.workflow': process.env.GITHUB_WORKFLOW || '',
@@ -112,7 +111,6 @@ runs:
             
           } catch (error) {
             console.error('❌ Error sending trace:', error.message);
-            console.error('Stack trace:', error.stack);
             throw error;
           }
         }
@@ -123,7 +121,6 @@ runs:
           
           if (!endpoint || !token || !serviceName || !traceName) {
             console.error('❌ Missing required parameters');
-            console.error('Usage: node send-trace.js <endpoint> <token> <serviceName> <traceName> [attributesJson]');
             process.exit(1);
           }
           
@@ -136,8 +133,6 @@ runs:
               process.exit(1);
             });
         }
-
-        module.exports = { sendTrace };
         EOF
         
         echo "✅ OpenTelemetry trace sender installed"
@@ -199,17 +194,14 @@ runs:
         
         # Export environment variables for subsequent steps (matching .env file names)
         echo "OTEL_EXPORTER_OTLP_ENDPOINT=$OTEL_ENDPOINT" >> $GITHUB_ENV
-        echo "OTEL_EXPORTER_OTLP_HEADERS=Authorization=Api-Token ${{ inputs.dynatrace-api-token }}" >> $GITHUB_ENV
         echo "OTEL_SERVICE_NAME=dynatrace-mcp-server-build" >> $GITHUB_ENV
         echo "DYNATRACE_API_TOKEN=${{ inputs.dynatrace-api-token }}" >> $GITHUB_ENV
         echo "DYNATRACE_LOG_INGEST_URL=${{ inputs.dynatrace-log-url }}" >> $GITHUB_ENV
-        echo "OTEL_RESOURCE_ATTRIBUTES=github.workflow=${{ github.workflow }},github.job=${{ inputs.job-name }},github.run_id=${{ github.run_id }},github.actor=${{ github.actor }},build.type=$BUILD_TYPE,branch.name=${{ github.ref_name }},branch.ref=${{ github.ref }}" >> $GITHUB_ENV
         echo "GITHUB_TRACE_ID=$TRACE_ID" >> $GITHUB_ENV
         echo "BUILD_TYPE=$BUILD_TYPE" >> $GITHUB_ENV
         
         echo "🔧 OTel initialized with trace ID: $TRACE_ID"
         echo "📡 Endpoint: $OTEL_ENDPOINT"
-        echo "📝 Log URL: ${{ inputs.dynatrace-log-url }}"
         echo "🏗️ Build type: $BUILD_TYPE"
         echo "🌿 Branch: ${{ github.ref_name }}"
         
@@ -242,27 +234,7 @@ runs:
           JOB_START_LOG="Starting GitHub Actions job: ${{ inputs.job-name }} for workflow ${{ github.workflow }} with trace ID: $TRACE_ID"
           LOG_TIMESTAMP=$(date +%s%3N)
           
-          JOB_LOG_PAYLOAD=$(cat << EOF
-          [{
-            "content": "$JOB_START_LOG",
-            "timestamp": $LOG_TIMESTAMP,
-            "level": "INFO",
-            "service": "dynatrace-mcp-server-build",
-            "trace_id": "$TRACE_ID",
-            "span_id": "$(openssl rand -hex 8)",
-            "github.workflow": "${{ github.workflow }}",
-            "github.job": "${{ inputs.job-name }}",
-            "github.run_id": "${{ github.run_id }}",
-            "github.actor": "${{ github.actor }}",
-            "github.ref": "${{ github.ref }}",
-            "build.type": "$BUILD_TYPE",
-            "branch.name": "${{ github.ref_name }}",
-            "ci.provider": "github-actions",
-            "project.name": "dynatrace-mcp-server",
-            "log.type": "job.start"
-          }]
-        EOF
-          )
+          JOB_LOG_PAYLOAD='[{"content":"'$JOB_START_LOG'","timestamp":'$LOG_TIMESTAMP',"level":"INFO","service":"dynatrace-mcp-server-build","trace_id":"'$TRACE_ID'","span_id":"'$(openssl rand -hex 8)'","github.workflow":"${{ github.workflow }}","github.job":"${{ inputs.job-name }}","github.run_id":"${{ github.run_id }}","github.actor":"${{ github.actor }}","github.ref":"${{ github.ref }}","build.type":"'$BUILD_TYPE'","branch.name":"${{ github.ref_name }}","ci.provider":"github-actions","project.name":"dynatrace-mcp-server","log.type":"job.start"}]'
           
           LOG_STATUS=$(curl -s -w "%{http_code}" -o /tmp/log_response.txt \
             -X POST "${{ inputs.dynatrace-log-url }}" \
@@ -273,12 +245,40 @@ runs:
           if [ "$LOG_STATUS" -eq 200 ] || [ "$LOG_STATUS" -eq 204 ]; then
             echo "📝 Job start logged to Dynatrace successfully"
           else
-            echo "⚠️ Job start log failed (HTTP $LOG_STATUS):"
-            cat /tmp/log_response.txt 2>/dev/null || echo "No response"
+            echo "⚠️ Job start log failed (HTTP $LOG_STATUS)"
           fi
           rm -f /tmp/log_response.txt
         fi
 
+    - name: Start job trace
+      shell: bash
+      run: |
+        echo "🚀 Starting job trace for ${{ inputs.job-name }} (build type: $BUILD_TYPE)"
+        
+        # Send job trace using proper OTel Node.js approach
+        cd /tmp
+        export NODE_PATH="/tmp/node_modules:$NODE_PATH"
+        export GITHUB_WORKFLOW="${{ github.workflow }}"
+        export GITHUB_JOB="${{ inputs.job-name }}"
+        export GITHUB_RUN_ID="${{ github.run_id }}"
+        export GITHUB_ACTOR="${{ github.actor }}"
+        export GITHUB_REF="${{ github.ref }}"
+        
+        # Send job start trace
+        echo "📡 Sending job start trace..."
+        if node send-trace.js \
+          "$OTEL_EXPORTER_OTLP_ENDPOINT" \
+          "$DYNATRACE_API_TOKEN" \
+          "dynatrace-mcp-server-build" \
+          "github-job-${{ inputs.job-name }}" \
+          '{"job.name":"${{ inputs.job-name }}","build.type":"'$BUILD_TYPE'"}'; then
+          echo "✅ Job trace sent successfully using proper OTel protobuf format"
+        else
+          echo "⚠️ Job trace sending failed"
+        fi
+        
+        # Store job span info for later completion
+        echo "GITHUB_JOB_START_TIME_NS=$(($(date +%s) * 1000000000))" >> $GITHUB_ENV
     - name: Start job trace
       shell: bash
       run: |
