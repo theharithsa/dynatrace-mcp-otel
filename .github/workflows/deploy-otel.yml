@@ -20,10 +20,11 @@ jobs:
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
         
       - uses: plengauer/Thoth/actions/instrument/deploy@v5.21.0
+        with:
+          github_token: '${{ secrets.DEPLOY_OBSERVABILITY_TOKEN }}' # TODO configure a token that has permissions to push contents and open pull requests
         env:
           OTEL_EXPORTER_OTLP_ENDPOINT: '${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}'
           OTEL_EXPORTER_OTLP_HEADERS: 'Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}'
           OTEL_SERVICE_NAME: 'dynatrace-mcp-server-build'
           OTEL_RESOURCE_ATTRIBUTES: "service.version=${{ steps.package-version.outputs.version }},deployment.environment=${{ (github.ref_name == 'main' && 'production') || 'development' }}"
-        with:
-          github_token: '${{ secrets.DEPLOY_OBSERVABILITY_TOKEN }}' # TODO configure a token that has permissions to push contents and open pull requests
+       
