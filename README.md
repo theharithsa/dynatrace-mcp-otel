@@ -1,479 +1,299 @@
 # Dynatrace MCP Server
 
-This remote MCP server allows interaction with the [Dynatrace](https://www.dynatrace.com/) observability platform.
-Bring real-time observability data directly into your development workflow.
+A Model Context Protocol (MCP) server that provides AI assistants with comprehensive access to Dynatrace observability data, automation capabilities, and operational insights.
 
-<img width="1046" alt="image" src="/assets/dynatrace-mcp-arch.png" />
+## Table of Contents
 
-## Use cases
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Available Tools](#available-tools)
+- [Environment Variables](#environment-variables)
+- [Authentication](#authentication)
+- [Advanced Usage](#advanced-usage)
+- [Development](#development)
+- [Dynatrace MCP OpenTelemetry Integration](#dynatrace-mcp-opentelemetry-integration)
 
-- Real-time observability, fetch production-level data for early detection.
-- Fix issues in the context from monitored exceptions, logs, and anomalies.
-- More context on security level issues
-- Natural language to query log data
-- For more skills manifest, visit [here](./SkillManifest.md)
+## Quick Start
 
-## Capabilities
+### 1. Add to Your MCP Client
 
-- List and get [problem](https://www.dynatrace.com/hub/detail/problems/) details from your services (for example Kubernetes)
-- List and get security problems / [vulnerability](https://www.dynatrace.com/hub/detail/vulnerabilities/) details
-- Execute DQL (Dynatrace Query Language) and retrieve logs, events, spans and metrics
-- Send Slack messages (via Slack Connector)
-- Set up notification Workflow (via Dynatrace [AutomationEngine](https://docs.dynatrace.com/docs/discover-dynatrace/platform/automationengine))
-- Get more information about a monitored entity
-- Get Ownership of an entity
-- Bulk create dashboards from all JSON files in your /dashboards folder (auto-names each dashboard).
-- Bulk delete dashboards/documents by passing an array of document IDs.
-- Share dashboards/documents environment-wide (all users in the Dynatrace environment).
-- Direct-share dashboards/documents with specific users or groups (recipients and type from environment variables).
-- Delete direct shares by their share ID.
-- Full OpenTelemetry tracing and detailed logging for all dashboard/document operations.
-- Keep an eye on [CHANGELOG.md](./CHANGELOG.md), more updates to come. 
-
-## Quickstart
-
-**Work in progress**
-
-You can add this MCP server (using STDIO) to your MCP Client like VS Code, Claude, Cursor, Amazon Q Developer CLI, Windsurf Github Copilot via the package `@dynatrace-oss/dynatrace-mcp-server`.
-
-We recommend to always set it up for your current workspace instead of using it globally.
-
-**VS Code**
-
-```json
-{
-  "servers": {
-    "npx-dynatrace-mcp-server": {
-      "command": "npx",
-      "cwd": "${workspaceFolder}",
-      "args": ["-y", "@dynatrace-oss/dynatrace-mcp-server@latest"],
-      "envFile": "${workspaceFolder}/.env"
-    }
-  }
-}
-```
-
-Please note: In this config, [the `${workspaceFolder}` variable](https://code.visualstudio.com/docs/reference/variables-reference#_predefined-variables) is used.
-This only works if the config is stored in the current workspaces, e.g., `<your-repo>/.vscode/mcp.json`. Alternatively, this can also be stored in user-settings, and you can define `env` as follows:
-
-```json
-{
-  "servers": {
-    "npx-dynatrace-mcp-server": {
-      "command": "npx",
-      "args": ["-y", "@dynatrace-oss/dynatrace-mcp-server@latest"],
-      "env": {
-        "OAUTH_CLIENT_ID": "",
-        "OAUTH_CLIENT_SECRET": "",
-        "DT_ENVIRONMENT": ""
-      }
-    }
-  }
-}
-```
-
-**Claude Desktop**
+Configure your MCP client (Claude Desktop, Cline, etc.) by adding this server to your `mcp.json`:
 
 ```json
 {
   "mcpServers": {
-    "mobile-mcp": {
+    "dynatrace": {
       "command": "npx",
-      "args": ["-y", "@dynatrace-oss/dynatrace-mcp-server@latest"],
+      "args": ["dynatrace-mcp-server"],
       "env": {
-        "OAUTH_CLIENT_ID": "",
-        "OAUTH_CLIENT_SECRET": "",
-        "DT_ENVIRONMENT": ""
+        "OAUTH_CLIENT_ID": "dt0c01.ABC123...",
+        "OAUTH_CLIENT_SECRET": "dt0s01.DEF456...",
+        "DT_ENVIRONMENT": "https://abc12345.apps.dynatrace.com"
       }
     }
   }
 }
 ```
 
-**Amazon Q Developer CLI**
+### 2. Get Your Dynatrace Credentials
 
-The [Amazon Q Developer CLI](https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/command-line-mcp-configuration.html) provides an interactive chat experience directly in your terminal. You can ask questions, get help with AWS services, troubleshoot issues, and generate code snippets without leaving your command line environment.
+1. Go to your Dynatrace environment → **Settings** → **Platform Management** → **OAuth clients**
+2. Create a new OAuth client with the [required scopes](#required-scopes)
+3. Copy the Client ID and Secret
+
+### 3. Start Using
+
+Your AI assistant can now:
+- Query problems and vulnerabilities
+- Execute DQL (Dynatrace Query Language) queries
+- Get entity details and ownership information
+- Create dashboards and workflows
+- Send Slack notifications
+- Execute custom TypeScript code
+
+## Configuration
+
+### Basic Configuration
 
 ```json
 {
   "mcpServers": {
-    "mobile-mcp": {
+    "dynatrace": {
       "command": "npx",
-      "args": ["-y", "@dynatrace-oss/dynatrace-mcp-server@latest"],
+      "args": ["dynatrace-mcp-server"],
       "env": {
-        "OAUTH_CLIENT_ID": "",
-        "OAUTH_CLIENT_SECRET": "",
-        "DT_ENVIRONMENT": ""
+        "OAUTH_CLIENT_ID": "your-client-id",
+        "OAUTH_CLIENT_SECRET": "your-client-secret",
+        "DT_ENVIRONMENT": "https://your-tenant.apps.dynatrace.com"
       }
     }
   }
 }
 ```
 
-This configuration should be stored in `<your-repo>/.amazonq/mcp.json`.
+### Development Version
+
+For latest features and testing:
+
+```json
+{
+  "mcpServers": {
+    "dynatrace-dev": {
+      "command": "npx",
+      "args": ["dynatrace-mcp-server-dev"],
+      "env": {
+        "OAUTH_CLIENT_ID": "your-client-id",
+        "OAUTH_CLIENT_SECRET": "your-client-secret",
+        "DT_ENVIRONMENT": "https://your-tenant.apps.dynatrace.com"
+      }
+    }
+  }
+}
+```
+
+## Available Tools
+
+### 🔍 Monitoring & Observability
+- **`get_environment_info`** - Get Dynatrace environment details
+- **`list_problems`** - List all active problems
+- **`get_problem_details`** - Get detailed problem information
+- **`list_vulnerabilities`** - List security vulnerabilities
+- **`get_vulnerabilty_details`** - Get vulnerability details and affected entities
+
+### 📊 Data Querying
+- **`execute_dql`** - Execute Dynatrace Query Language statements
+- **`verify_dql`** - Validate DQL syntax before execution
+- **`get_logs_for_entity`** - Retrieve logs for specific entities
+- **`get_kubernetes_events`** - Get Kubernetes cluster events
+
+### 🏗️ Entity Management
+- **`find_entity_by_name`** - Find monitored entities by name
+- **`get_entity_details`** - Get detailed entity information
+- **`get_ownership`** - Get ownership information for entities
+
+### 📈 Dashboard & Reporting
+- **`create_dashboard`** - Create dashboards from JSON files
+- **`bulk_delete_dashboards`** - Delete multiple dashboards
+- **`share_document_env`** - Share documents across environments
+- **`direct_share_document`** - Share documents with specific users
+
+### 🤖 Automation
+- **`create_workflow_for_notification`** - Create notification workflows
+- **`make_workflow_public`** - Make workflows publicly accessible
+- **`execute_typescript`** - Execute custom TypeScript code via Function Executor
+
+### 💬 Communication
+- **`send_slack_message`** - Send messages via Slack integration
 
 ## Environment Variables
 
-A **Dynatrace OAuth Client** is needed to communicate with your Dynatrace Environment. Please follow the documentation about
-[creating an Oauth Client in Dynatrace](https://docs.dynatrace.com/docs/manage/identity-access-management/access-tokens-and-oauth-clients/oauth-clients),
-and set up the following environment variables in order for this MCP to work:
+### Required
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `OAUTH_CLIENT_ID` | Dynatrace OAuth Client ID | `dt0c01.ABC123...` |
+| `OAUTH_CLIENT_SECRET` | Dynatrace OAuth Client Secret | `dt0s01.DEF456...` |
+| `DT_ENVIRONMENT` | Dynatrace environment URL | `https://abc12345.apps.dynatrace.com` |
 
-- `DT_ENVIRONMENT` (string, e.g., https://abc12345.apps.dynatrace.com) - URL to your Dynatrace Platform (do not use Dynatrace classic URLs like `abc12345.live.dynatrace.com`)
-- `OAUTH_CLIENT_ID` (string, e.g., `dt0s02.SAMPLE`) - Dynatrace OAuth Client ID
-- `OAUTH_CLIENT_SECRET` (string, e.g., `dt0s02.SAMPLE.abcd1234`) - Dynatrace OAuth Client Secret
-- OAuth Client Scopes:
-  - `app-engine:apps:run` - needed for environmentInformationClient
-  - `app-engine:functions:run` - needed for environmentInformationClient
-  - `hub:catalog:read` - get details about installed Apps on Dynatrace Environment
-  - `environment-api:security-problems:read` - needed for reading security problems
-  - `environment-api:entities:read` - read monitored entities
-  - `environment-api:problems:read` - get problems
-  - `environment-api:metrics:read` - read metrics
-  - `environment-api:slo:read` - read SLOs
-  - `storage:buckets:read` - Read all system data stored on Grail
-  - `storage:logs:read` - Read logs for reliability guardian validations
-  - `storage:metrics:read` - Read metrics for reliability guardian validations
-  - `storage:bizevents:read` - Read bizevents for reliability guardian validations
-  - `storage:spans:read` - Read spans from Grail
-  - `storage:entities:read` - Read Entities from Grail
-  - `storage:events:read` - Read Events from Grail
-  - `storage:security.events:read`- Read Security Events from Grail
-  - `storage:system:read` - Read System Data from Grail
-  - `storage:user.events:read` - Read User events from Grail
-  - `storage:user.sessions:read` - Read User sessions from Grail
-  - `settings:objects:read` - needed for reading ownership information and Guardians (SRG) from settings
+### Optional
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SLACK_CONNECTION_ID` | Slack connection ID for notifications | `fake-slack-connection-id` |
+| `DT_SHARE_RECIPIENTS` | Comma-separated list of user/group IDs for document sharing | None |
+| `DT_SHARE_TYPE` | Type of recipients (user/group) | `group` |
+| `OAUTH_TOKEN_URL` | OAuth token endpoint | `https://sso.dynatrace.com/sso/oauth2/token` |
+| `OAUTH_URN` | OAuth resource URN | Auto-detected |
 
-    **Note**: Please ensure that `settings:objects:read` is used, and _not_ the similarly named scope `app-settings:objects:read`.
+### OpenTelemetry (Optional)
+| Variable | Description |
+|----------|-------------|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry endpoint for traces |
+| `DYNATRACE_API_TOKEN` | API token for trace export |
+| `DYNATRACE_LOG_INGEST_URL` | Log ingest endpoint |
 
-In addition, depending on the features you use, the following variables can be configured:
+## Authentication
 
-- `SLACK_CONNECTION_ID` (string, optional) - Slack Connection ID from Dynatrace Slack App configuration. Required for `send_slack_message` functionality.
+### Required Scopes
 
-### Slack Integration Setup
+Your OAuth client needs these scopes:
 
-To use the `send_slack_message` functionality, you need to:
+**Core Scopes:**
+- `app-engine:apps:run`
+- `app-engine:functions:run`
 
-1. **Install Slack App in Dynatrace:**
-   - Go to your Dynatrace environment
-   - Navigate to **Apps** → **Slack** (or search for "Slack" in the Hub)
-   - Install and configure the Slack connector
+**Feature-Specific Scopes:**
+- `environment-api:security-problems:read` - For vulnerability management
+- `environment-api:problems:read` - For problem analysis
+- `environment-api:entities:read` - For entity information
+- `storage:*:read` - For DQL queries (logs, metrics, events, etc.)
+- `automation:workflows:write` - For workflow creation
+- `automation:workflows:read` - For workflow management
+- `automation:workflows:run` - For workflow execution
+- `document:documents:write` - For dashboard creation
+- `document:documents:delete` - For dashboard deletion
+- `document:environment-shares:write` - For document sharing
+- `document:direct-shares:write` - For direct document sharing
+- `app-settings:objects:read` - For Slack integration
+- `settings:objects:read` - For ownership information
 
-2. **Create Slack Connection:**
-   - Set up a connection with your Slack workspace
-   - Copy the connection ID from the Slack connector settings
-   - Add the connection ID to your `.env` file as `SLACK_CONNECTION_ID`
+### Setting Up OAuth Client
 
-3. **Required OAuth Scope:**
-   - `app-settings:objects:read` - needed for accessing Slack connection settings
+1. Navigate to **Settings** → **Platform Management** → **OAuth clients**
+2. Click **Create OAuth client**
+3. Set **Client type** to `Public`
+4. Add all required scopes from the list above
+5. Save and copy the Client ID and Secret
 
-## Troubleshooting
+## Advanced Usage
 
-### Authentication Issues
+### Custom Dashboard Creation
 
-In most cases, something is wrong with the OAuth Client. Please ensure that you have added all scopes as requested above.
-In addition, please ensure that your user also has all necessary permissions on your Dynatrace Environment.
+Place JSON dashboard files in a `/dashboards` folder and use the `create_dashboard` tool to bulk-create them.
 
-In case of any problems, you can troubleshoot SSO/OAuth issues based on our [Dynatrace Developer Documentation](https://developer.dynatrace.com/develop/access-platform-apis-from-outside/#get-bearer-token-and-call-app-function) and providing the list of scopes.
+### TypeScript Code Execution
 
-It is recommended to try access the following API (which requires minimal scopes `app-engine:apps:run` and `app-engine:functions:run`):
+Execute custom logic using the Dynatrace Function Executor:
 
-1. Use OAuth Client ID and Secret to retrieve a Bearer Token (only valid for a couple of minutes):
-
-```bash
-curl --request POST 'https://sso.dynatrace.com/sso/oauth2/token' \
-  --header 'Content-Type: application/x-www-form-urlencoded' \
-  --data-urlencode 'grant_type=client_credentials' \
-  --data-urlencode 'client_id={your-client-id}' \
-  --data-urlencode 'client_secret={your-client-secret}' \
-  --data-urlencode 'scope=app-engine:apps:run app-engine:functions:run'
-```
-
-2. Use `access_token` from the response of the above call as the bearer-token in the next call:
-
-```bash
-curl -X GET https://abc12345.apps.dynatrace.com/platform/management/v1/environment \
-  -H 'accept: application/json' \
-  -H 'Authorization: Bearer {your-bearer-token}'
-```
-
-3. You should retrieve a result like this:
-
-```json
-{
-  "environmentId": "abc12345",
-  "createTime": "2023-01-01T00:10:57.123Z",
-  "blockTime": "2025-12-07T00:00:00Z",
-  "state": "ACTIVE"
+```typescript
+// Example: Query and process data
+export default async function({ entityId }) {
+  // Your custom TypeScript code here
+  return { processed: true, entityId };
 }
 ```
 
-### Problem accessing data on Grail
+### Slack Integration
 
-Grail has a dedicated section about permissions in the Dynatrace Docs. Please refer to https://docs.dynatrace.com/docs/discover-dynatrace/platform/grail/data-model/assign-permissions-in-grail for more details.
+Configure Slack notifications by setting up a Slack connection in Dynatrace and providing the `SLACK_CONNECTION_ID`.
 
 ## Development
 
-For local development purposes, you can use VSCode and GitHub Copilot.
+### For Code Customization
 
-First, enable Copilot for your Workspace `.vscode/settings.json`:
+If you need to modify the server code:
 
-```json
-{
-  "github.copilot.enable": {
-    "*": true
-  }
-}
+```bash
+# Install the package for customization
+npm install dynatrace-mcp-server
+
+# Or for development version
+npm install dynatrace-mcp-server-dev
+
+# Clone and modify the source
+git clone https://github.com/your-repo/dynatrace-mcp-otel.git
+cd dynatrace-mcp-otel
+npm install
+npm run build
 ```
 
-Second, add the MCP to `.vscode/mcp.json`:
+### Local Development
 
 ```json
 {
-  "servers": {
-    "my-dynatrace-mcp-server": {
+  "mcpServers": {
+    "dynatrace-local": {
       "command": "node",
-      "args": ["${workspaceFolder}/dist/index.js"],
-      "envFile": "${workspaceFolder}/.env"
+      "args": ["dist/index.js"],
+      "cwd": "/path/to/dynatrace-mcp-otel",
+      "env": {
+        "OAUTH_CLIENT_ID": "your-client-id",
+        "OAUTH_CLIENT_SECRET": "your-client-secret",
+        "DT_ENVIRONMENT": "https://your-tenant.apps.dynatrace.com"
+      }
     }
   }
 }
 ```
 
-Third, create a `.env` file in this repository (you can copy from `.env.template`) and configure environment variables as [described above](#environment-variables).
+### Package Variants
 
-Last but not least, switch to Agent Mode in CoPilot and reload tools.
+- **`dynatrace-mcp-server`** - Production release (stable)
+- **`dynatrace-mcp-server-dev`** - Development release (latest features)
 
-## Installation
+## Dynatrace MCP OpenTelemetry Integration
 
-### From NPM (Recommended)
+### Observability Features
 
-```bash
-npm install -g dynatrace-mcp-server
+#### Log Correlation
+- All logs include `dt.security_context` field set to `dynatrace_mcp_otel`
+- Logs are tagged with `logType: build-logs` for filtering
+- Logs are automatically correlated with traces via standard OpenTelemetry attributes
+
+#### CI/CD Observability
+
+Our GitHub Actions workflows are instrumented with OpenTelemetry using [inception-health/otel-action](https://github.com/marketplace/actions/opentelemetry-for-github-workflows-jobs-and-steps).
+
+##### Configuration in GitHub Actions
+
+```yaml
+- name: Setup OpenTelemetry
+  uses: inception-health/otel-action@v2
+  with:
+    dsn: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+    service_name: 'dynatrace-mcp-server-build'
+    access_token: ${{ secrets.DYNATRACE_API_TOKEN }}
+    log_url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
+    build_type: ${{ github.ref == 'refs/heads/dev' && 'dev' || 'prod' }}
 ```
 
-### From Source
+##### Required Variables/Secrets
 
-```bash
-git clone https://github.com/your-username/dynatrace-mcp-otel.git
-cd dynatrace-mcp-otel
-npm install
-npm run build
-npm start
-```
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: Dynatrace OTLP endpoint URL
+- `DYNATRACE_API_TOKEN`: API token with ingest permission
+- `DYNATRACE_LOG_INGEST_URL`: Dynatrace log ingest URL
 
-## Usage
+#### Known Issues
+- In version 1.0.8, trace ingestion might not work correctly in all environments, but logging functionality works as expected
 
-After installation, you can start the server:
+## Version History
+- 1.0.8: Switched to standard OpenTelemetry GitHub Action; enhanced logging with security context
+- 1.0.7: // ...existing version history...
 
-```bash
-# If installed globally
-dynatrace-mcp-server
+## Support
 
-# If running from source
-npm start
-```
-
-## Publishing
-
-This package is automatically published to NPM when:
-1. Changes are pushed to the main branch
-2. The version in `package.json` is incremented
-
-To publish a new version:
-1. Update the version in `package.json`:
-   ```bash
-   npm version patch  # for bug fixes
-   npm version minor  # for new features
-   npm version major  # for breaking changes
-   ```
-2. Push to main branch:
-   ```bash
-   git push origin main --tags
-   ```
-
-The GitHub Action will automatically build, test, and publish to NPM.
-
-## Added Changes
-### 🆕 **Dashboard & Document Management**
-
-This MCP server now lets you **manage dashboards/documents directly from your agent, IDE, or automation workflow**.
-
-#### **New Capabilities:**
-
-* **Batch Dashboard Creation**
-
-  * Automatically create Dynatrace dashboards for every JSON file in your `/dashboards` folder.
-  * Each dashboard name is auto-extracted from the JSON.
-  * Errors are logged; summary shows all results (success/failure per file).
-
-* **Bulk Dashboard/Document Deletion**
-
-  * Delete multiple dashboards/documents at once using the `bulk_delete_dashboards` tool.
-
-* **Document Sharing**
-
-  * **Environment-wide Share:** Share a document with all users in the environment (`share_document_env`).
-  * **Direct Share:** Share a document directly with one or more users/groups. Recipient IDs and types are configurable via environment variables for automation.
-
-* **Direct Share Deletion**
-
-  * Delete a direct share by ID with full OTEL tracing.
-
-* **Comprehensive Tracing & Logging**
-
-  * All operations (create, delete, share) are fully traced via OpenTelemetry and logged for observability.
+- **Issues**: Report issues on GitHub
+- **Documentation**: [Dynatrace Platform Documentation](https://docs.dynatrace.com)
+- **MCP Protocol**: [Model Context Protocol](https://modelcontextprotocol.io)
 
 ---
 
-### **Usage Examples**
-
-**Batch Create All Dashboards:**
-
-```bash
-# Will create dashboards for every .json file in /dashboards
-create_dashboard
-```
-
-**Bulk Delete Dashboards:**
-
-```json
-# Tool input (in Copilot/Agent)
-{
-  "tool": "bulk_delete_dashboards",
-  "args": { "documentIds": ["docId1", "docId2", "..."] }
-}
-```
-
-**Share Dashboard with Environment:**
-
-```json
-{
-  "tool": "share_document_env",
-  "args": { "documentId": "<your-dashboard-id>", "access": "read" }
-}
-```
-
-**Direct Share Dashboard:**
-
-* Set environment variables:
-
-  ```
-  DT_SHARE_RECIPIENTS=comma,separated,ids
-  DT_SHARE_TYPE=group  # or "user"
-  ```
-* Then call:
-
-  ```json
-  {
-    "tool": "direct_share_document",
-    "args": { "documentId": "<your-dashboard-id>", "access": "read" }
-  }
-  ```
-
-**Delete Direct Share:**
-
-```json
-{
-  "tool": "delete_direct_share",
-  "args": { "shareId": "<your-direct-share-id>" }
-}
-```
-
----
-
-### **Environment Variables for Document Sharing**
-
-* `DT_SHARE_RECIPIENTS` — Comma-separated user or group IDs for direct share
-* `DT_SHARE_TYPE` — Either `group` or `user`
-
----
-
-### **Changelog (Major Additions)**
-
-* **\[2025-07-25]**
-
-  * Batch dashboard creation from folder
-  * Bulk dashboard/document deletion
-  * Environment and direct document sharing
-  * Direct share deletion
-  * Enhanced OpenTelemetry tracing and error logging everywhere
-
----
-
-### **Quickstart (Extended)**
-
-You can use these new skills/capabilities via any MCP-compatible IDE/agent/chat:
-
-* **Create dashboards in bulk:**
-  Run the `create_dashboard` skill—auto-discovers all JSON files and creates dashboards.
-* **Delete dashboards in bulk:**
-  Pass one or more document IDs to the `bulk_delete_dashboards` tool.
-* **Share dashboards after creation:**
-  Pass the document ID to either `share_document_env` or `direct_share_document`.
-
----
-
-### **Pro Tip**
-
-Combine these skills for full dashboard lifecycle automation. For example:
-
-1. Create dashboards from `/dashboards`.
-2. Share each dashboard with your team (or groups) right after creation.
-3. Clean up with bulk delete when needed.
-
-## Features
-
-- **Dynatrace Integration**: Seamless connection to Dynatrace environments
-- **MCP Protocol Support**: Full Model-Context-Protocol server implementation
-- **OAuth Authentication**: Secure authentication using Dynatrace OAuth clients
-- **Slack Integration**: Automated reporting and notifications to designated Slack channels
-- **Automated Analysis**: Comprehensive code analysis, security scanning, and health monitoring
-- **Multi-Channel Reporting**: Organized reporting across different team channels (#team-bugs, #team-security, #team-ops, #team-service-health)
-
-## Slack Integration
-
-The MCP server now supports automated Slack reporting for various analysis and monitoring tasks:
-
-### Supported Channels
-- `#team-bugs`: Bug analysis and code quality reports
-- `#team-security`: Security vulnerability assessments  
-- `#team-ops`: Environment health checks and resource monitoring
-- `#team-service-health`: Service performance analysis and root cause investigations
-
-> **Important**: These Slack channels must already exist in your workspace for the integration to work. If your team uses different channel names, you can modify the channel names in the prompt when requesting analysis (e.g., change `#team-bugs` to `#dev-issues` or any other existing channel name in your workspace).
-
-### Analysis Capabilities
-- **Bug Analysis**: Automated code review with line-by-line bug identification and severity assessment
-- **Security Scanning**: Comprehensive vulnerability detection with remediation recommendations
-- **Health Monitoring**: CPU, memory, and disk usage analysis across all hosts (7-day analysis)
-- **Service Monitoring**: Performance tracking, response time analysis, and failure rate monitoring for dynatrace-mcp-server
-
-### Report Features
-- Visual formatting with proper Slack markdown
-- Direct links to Dynatrace dashboards and environments
-- Severity classifications (Critical, High, Medium, Low)
-- Timestamp attribution and analyst identification
-- Actionable remediation steps and recommendations
-
-### Channel Customization
-When using the analysis prompts, you can specify different channel names that exist in your Slack workspace. Simply replace the default channel names (e.g., `#team-bugs`, `#team-security`) with your preferred channels in the prompt text.
-
-## Required Scopes
-
-The following Dynatrace OAuth scopes are required for full functionality:
-
-- `app-engine:apps:run` - For application execution
-- `environment-api:entities:read` - For entity data access
-- `environment-api:metrics:read` - For metrics data access
-- `environment-api:problems:read` - For problem analysis
-- `environment-api:events:read` - For event data access
-- `environment-api:logs:read` - For log analysis
-- `settings:objects:read` - For configuration access
-- `DataExport` - For data export capabilities
-- `InstallerDownload` - For installer access
-- `storage:events:read` - For event storage access
-- `storage:metrics:read` - For metrics storage access
-- `storage:logs:read` - For log storage access
-- `storage:bizevents:read` - For business events access
-
-> **Note**: Slack integration requires additional configuration of Slack webhook URLs or bot tokens for posting to channels. All referenced Slack channels must exist in your workspace before using the automated reporting features.
+**Note**: This MCP server is designed for AI assistant integration. For standalone use cases, consider using the Dynatrace CLI or API directly.

@@ -7,11 +7,21 @@ on:
 jobs:
   validate-version:
     runs-on: ubuntu-latest
+    environment: NPM Deploy  # Add environment access for OTel variables
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Setup OpenTelemetry
+        uses: plengauer/Thoth/actions/instrument/deploy@v5.21.0
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: '${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}'
+          OTEL_EXPORTER_OTLP_HEADERS: 'Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}'
+        with:
+          service_name: 'dynatrace-mcp-server-build'
+          build_type: 'dev'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -19,7 +29,7 @@ jobs:
           node-version: '18'
 
       - name: Install semver for validation
-        run: npm install -g semver
+        run: 'npm install -g semver'
 
       - name: Validate version bump
         run: |

@@ -1,0 +1,19 @@
+name: 'Deploy OpenTelemetry'
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, master, dev]
+    types: [opened, synchronize, closed]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: otel-deploy-job
+    steps:
+      - uses: plengauer/Thoth/actions/instrument/deploy@v5.21.0
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: '${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}'
+          OTEL_EXPORTER_OTLP_HEADERS: '${{ secrets.OTEL_EXPORTER_OTLP_HEADERS }}'

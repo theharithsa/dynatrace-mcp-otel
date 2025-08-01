@@ -21,3 +21,6 @@ try {
 } catch (error: unknown) {
   console.error('[otel] ❌ Failed to start OpenTelemetry SDK:', error);
 }
+
+// Export SDK for GitHub Actions trace sending
+export { sdk };
