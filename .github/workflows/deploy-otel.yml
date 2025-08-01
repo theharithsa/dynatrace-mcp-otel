@@ -12,6 +12,7 @@ permissions:
   contents: write  # Required for creating releases
   packages: write  # Optional, for GitHub Packages
   pull-requests: write  # Required for PR events
+  actions: write  # Required for workflow events
 
 jobs:
   deploy:
