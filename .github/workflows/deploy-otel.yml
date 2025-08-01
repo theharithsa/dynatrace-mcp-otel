@@ -12,8 +12,6 @@ permissions:
   contents: write  # Required for creating releases
   packages: write  # Optional, for GitHub Packages
   pull-requests: write  # Required for PR events
-  actions: write  # Required for workflow events
-  deployments: write  # Required to create or update workflow files
 
 jobs:
   deploy:
@@ -30,7 +28,7 @@ jobs:
         
       - uses: plengauer/Thoth/actions/instrument/deploy@v5.21.0
         with:
-          github_token: '${{ secrets.GITHUB_TOKEN }}' # Uses the default GitHub Actions token with appropriate permissions
+          github_token: '${{ secrets.DEPLOY_OBSERVABILITY_TOKEN }}' # Uses the default GitHub Actions token with appropriate permissions
         env:
           OTEL_EXPORTER_OTLP_ENDPOINT: '${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}'
           OTEL_EXPORTER_OTLP_HEADERS: 'Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}'
