@@ -45,6 +45,8 @@ jobs:
           echo "Repository: ${{ github.repository }}"
           echo "Actor: ${{ github.actor }}"
           echo "SHA: ${{ github.sha }}"
+    permissions:
+      actions: read
   check-version:
     runs-on: ubuntu-latest
     environment: NPM Deploy # Add environment access
