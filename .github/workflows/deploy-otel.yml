@@ -13,7 +13,7 @@ permissions:
   packages: write  # Optional, for GitHub Packages
   pull-requests: write  # Required for PR events
   actions: write  # Required for workflow events
-  workflows: write  # Required to create or update workflow files
+  deployments: write  # Required to create or update workflow files
 
 jobs:
   deploy:
