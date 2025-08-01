@@ -51,7 +51,9 @@ runs:
           "build.type": "$BUILD_TYPE",
           "branch.name": "${{ github.ref_name }}",
           "ci.provider": "github-actions",
-          "project.name": "dynatrace-mcp-server"
+          "project.name": "dynatrace-mcp-server",
+          "dt.security_context": "dynatrace_mcp_otel",
+          "logType": "build-logs"
         }]
         EOF
         )

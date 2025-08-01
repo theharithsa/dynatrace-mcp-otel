@@ -73,7 +73,11 @@ runs:
             "branch.name": "${{ github.ref_name }}",
             "ci.provider": "github-actions",
             "project.name": "dynatrace-mcp-server",
-            "log.type": "step.start"
+            "log.type": "step.start",
+            "otel.trace_id": "$GITHUB_TRACE_ID",
+            "otel.span_id": "$SPAN_ID",
+            "dt.security_context": "dynatrace_mcp_otel",
+            "logType": "build-logs"
           }]
         EOF
           )
@@ -145,7 +149,9 @@ runs:
             "project.name": "dynatrace-mcp-server",
             "log.type": "span.start",
             "otel.trace_id": "$GITHUB_TRACE_ID",
-            "otel.span_id": "$SPAN_ID"
+            "otel.span_id": "$SPAN_ID",
+            "dt.security_context": "dynatrace_mcp_otel",
+            "logType": "build-logs"
           }]
         EOF
           )
@@ -328,7 +334,9 @@ runs:
             "step.duration_ms": "$DURATION",
             "log.type": "span.end",
             "otel.trace_id": "$GITHUB_TRACE_ID",
-            "otel.span_id": "$SPAN_ID"
+            "otel.span_id": "$SPAN_ID",
+            "dt.security_context": "dynatrace_mcp_otel",
+            "logType": "build-logs"
           }]
         EOF
           )
@@ -365,7 +373,9 @@ runs:
             "step.duration_ms": "$DURATION",
             "log.type": "step.output",
             "otel.trace_id": "$GITHUB_TRACE_ID",
-            "otel.span_id": "$SPAN_ID"
+            "otel.span_id": "$SPAN_ID",
+            "dt.security_context": "dynatrace_mcp_otel",
+            "logType": "build-logs"
           }]
         EOF
           )

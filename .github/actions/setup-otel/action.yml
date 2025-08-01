@@ -206,7 +206,9 @@ runs:
             "branch.name": "${{ github.ref_name }}",
             "ci.provider": "github-actions",
             "project.name": "dynatrace-mcp-server",
-            "log.type": "job.start"
+            "log.type": "job.start",
+            "dt.security_context": "dynatrace_mcp_otel",
+            "logType": "build-logs"
           }]
         EOF
           )
