@@ -161,13 +161,17 @@ runs:
           "startTimeUnixNano": "$CURRENT_TIME_NS",
           "endTimeUnixNano": "$((CURRENT_TIME_NS + 1000000000))",
           "statusCode": 1,
+          "instrumentationScope": "github-actions-otel",
           "resourceAttributes": [
             {"key": "github.workflow", "value": "${{ github.workflow }}"},
-            {"key": "build.type", "value": "$BUILD_TYPE"}
+            {"key": "build.type", "value": "$BUILD_TYPE"},
+            {"key": "github.run_id", "value": "${{ github.run_id }}"},
+            {"key": "github.actor", "value": "${{ github.actor }}"
           ],
           "attributes": [
             {"key": "test.type", "value": "connectivity"},
-            {"key": "build.type", "value": "$BUILD_TYPE"}
+            {"key": "build.type", "value": "$BUILD_TYPE"},
+            {"key": "github.workflow", "value": "${{ github.workflow }}"
           ]
         }
         EOF
@@ -240,15 +244,18 @@ runs:
           "kind": 1,
           "startTimeUnixNano": "$CURRENT_TIME_NS",
           "statusCode": 1,
+          "instrumentationScope": "github-actions-otel",
           "resourceAttributes": [
             {"key": "github.workflow", "value": "${{ github.workflow }}"},
             {"key": "github.run_id", "value": "${{ github.run_id }}"},
-            {"key": "build.type", "value": "$BUILD_TYPE"}
+            {"key": "build.type", "value": "$BUILD_TYPE"},
+            {"key": "github.actor", "value": "${{ github.actor }}"
           ],
           "attributes": [
             {"key": "job.name", "value": "${{ inputs.job-name }}"},
             {"key": "github.actor", "value": "${{ github.actor }}"},
-            {"key": "build.type", "value": "$BUILD_TYPE"}
+            {"key": "build.type", "value": "$BUILD_TYPE"},
+            {"key": "github.workflow", "value": "${{ github.workflow }}"
           ]
         }
         EOF

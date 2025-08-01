@@ -95,15 +95,18 @@ runs:
           "kind": 1,
           "startTimeUnixNano": "$START_TIME_NS",
           "statusCode": 1,
+          "instrumentationScope": "github-actions-otel",
           "resourceAttributes": [
             {"key": "github.workflow", "value": "${{ github.workflow }}"},
             {"key": "github.job", "value": "${{ github.job }}"},
-            {"key": "build.type", "value": "$BUILD_TYPE"}
+            {"key": "build.type", "value": "$BUILD_TYPE"},
+            {"key": "github.run_id", "value": "${{ github.run_id }}"
           ],
           "attributes": [
             {"key": "step.name", "value": "${{ inputs.step-name }}"},
             {"key": "github.step", "value": "${{ inputs.step-name }}"},
-            {"key": "build.type", "value": "$BUILD_TYPE"}
+            {"key": "build.type", "value": "$BUILD_TYPE"},
+            {"key": "github.workflow", "value": "${{ github.workflow }}"
           ]
         }
         EOF
@@ -269,16 +272,19 @@ runs:
           "startTimeUnixNano": "$START_TIME_NS",
           "endTimeUnixNano": "$END_TIME_NS",
           "statusCode": $SPAN_STATUS_CODE,
+          "instrumentationScope": "github-actions-otel",
           "resourceAttributes": [
             {"key": "github.workflow", "value": "${{ github.workflow }}"},
             {"key": "github.job", "value": "${{ github.job }}"},
-            {"key": "build.type", "value": "$BUILD_TYPE"}
+            {"key": "build.type", "value": "$BUILD_TYPE"},
+            {"key": "github.run_id", "value": "${{ github.run_id }}"
           ],
           "attributes": [
             {"key": "step.name", "value": "${{ inputs.step-name }}"},
             {"key": "step.exit_code", "value": $EXIT_CODE, "type": "int"},
             {"key": "step.duration_ms", "value": $DURATION, "type": "int"},
-            {"key": "build.type", "value": "$BUILD_TYPE"}
+            {"key": "build.type", "value": "$BUILD_TYPE"},
+            {"key": "github.workflow", "value": "${{ github.workflow }}"
           ]
         }
         EOF
