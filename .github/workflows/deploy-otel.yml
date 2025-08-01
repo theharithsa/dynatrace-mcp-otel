@@ -2,9 +2,10 @@ name: 'Deploy OpenTelemetry'
 
 on:
   push:
-    branches: main
-    paths:
-      - .github/workflows/**
+    branches: [main, dev]
+  pull_request:
+    branches: [main, master, dev]
+    types: [opened, synchronize, closed]
 
 jobs:
   deploy:
