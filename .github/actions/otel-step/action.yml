@@ -84,79 +84,78 @@ runs:
             -d "$START_LOG_PAYLOAD" > /dev/null 2>&1 || true
         fi
         
-        # Send start span trace using proper OTLP format
-        START_TRACE_PAYLOAD=$(cat << EOF
+        # Send step start trace using Node.js OTLP exporter
+        START_SPAN_JSON=$(cat << EOF
         {
-          "resourceSpans": [
-            {
-              "resource": {
-                "attributes": [
-                  {
-                    "key": "service.name",
-                    "value": {
-                      "stringValue": "dynatrace-mcp-server-build"
-                    }
-                  },
-                  {
-                    "key": "telemetry.sdk.name",
-                    "value": {
-                      "stringValue": "opentelemetry"
-                    }
-                  },
-                  {
-                    "key": "telemetry.sdk.language",
-                    "value": {
-                      "stringValue": "shell"
-                    }
-                  }
-                ]
-              },
-              "scopeSpans": [
-                {
-                  "scope": {
-                    "name": "github-actions-otel",
-                    "version": "1.0.0"
-                  },
-                  "spans": [
-                    {
-                      "traceId": "$GITHUB_TRACE_ID",
-                      "spanId": "$SPAN_ID",
-                      "parentSpanId": "$GITHUB_JOB_SPAN_ID",
-                      "name": "github.step.${{ inputs.step-name }}",
-                      "kind": 1,
-                      "startTimeUnixNano": "$START_TIME_NS",
-                      "attributes": [
-                        {
-                          "key": "step.name",
-                          "value": {
-                            "stringValue": "${{ inputs.step-name }}"
-                          }
-                        },
-                        {
-                          "key": "github.step",
-                          "value": {
-                            "stringValue": "${{ inputs.step-name }}"
-                          }
-                        },
-                        {
-                          "key": "build.type",
-                          "value": {
-                            "stringValue": "$BUILD_TYPE"
-                          }
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
+          "serviceName": "dynatrace-mcp-server-build",
+          "traceId": "$GITHUB_TRACE_ID",
+          "spanId": "$SPAN_ID",
+          "parentSpanId": "$GITHUB_JOB_SPAN_ID",
+          "name": "github.step.${{ inputs.step-name }}",
+          "kind": 1,
+          "startTimeUnixNano": "$START_TIME_NS",
+          "statusCode": 1,
+          "resourceAttributes": [
+            {"key": "github.workflow", "value": "${{ github.workflow }}"},
+            {"key": "github.job", "value": "${{ github.job }}"},
+            {"key": "build.type", "value": "$BUILD_TYPE"}
+          ],
+          "attributes": [
+            {"key": "step.name", "value": "${{ inputs.step-name }}"},
+            {"key": "github.step", "value": "${{ inputs.step-name }}"},
+            {"key": "build.type", "value": "$BUILD_TYPE"}
           ]
         }
         EOF
         )
         
-        echo "📡 Sending start span trace..."
-        send-trace "$OTEL_EXPORTER_OTLP_ENDPOINT" "$DYNATRACE_API_TOKEN" "$START_TRACE_PAYLOAD" || echo "⚠️ Start trace failed"
+        echo "📡 Sending step start trace via OTLP..."
+        send-trace "$OTEL_EXPORTER_OTLP_ENDPOINT" "$DYNATRACE_API_TOKEN" "$START_SPAN_JSON" || echo "⚠️ Start trace failed"
+        
+        # Also send enhanced logs for correlation
+        if [ -n "${{ inputs.dynatrace-log-url }}" ] && [ -n "${{ inputs.dynatrace-api-token }}" ]; then
+          START_LOG="TRACE_START: Step ${{ inputs.step-name }} starting with span_id=$SPAN_ID, trace_id=$GITHUB_TRACE_ID, parent_span_id=$GITHUB_JOB_SPAN_ID"
+          echo "$START_LOG" | tee -a "$LOG_FILE"
+          
+          LOG_TIMESTAMP=$(date +%s%3N)
+          START_LOG_PAYLOAD=$(cat << EOF
+          [{
+            "content": "$START_LOG",
+            "timestamp": $LOG_TIMESTAMP,
+            "level": "INFO",
+            "service": "dynatrace-mcp-server-build",
+            "trace_id": "$GITHUB_TRACE_ID",
+            "span_id": "$SPAN_ID",
+            "parent_span_id": "$GITHUB_JOB_SPAN_ID",
+            "span_name": "step-${{ inputs.step-name }}",
+            "span_kind": "INTERNAL",
+            "span_start_time_ns": "$START_TIME_NS",
+            "github.workflow": "${{ github.workflow }}",
+            "github.job": "${{ github.job }}",
+            "github.step": "${{ inputs.step-name }}",
+            "github.run_id": "${{ github.run_id }}",
+            "github.actor": "${{ github.actor }}",
+            "github.ref": "${{ github.ref }}",
+            "build.type": "$BUILD_TYPE",
+            "branch.name": "${{ github.ref_name }}",
+            "ci.provider": "github-actions",
+            "project.name": "dynatrace-mcp-server",
+            "log.type": "span.start",
+            "otel.trace_id": "$GITHUB_TRACE_ID",
+            "otel.span_id": "$SPAN_ID"
+          }]
+        EOF
+          )
+          
+          curl -s -X POST "${{ inputs.dynatrace-log-url }}" \
+            -H "Authorization: Api-Token ${{ inputs.dynatrace-api-token }}" \
+            -H "Content-Type: application/json" \
+            -d "$START_LOG_PAYLOAD" > /dev/null 2>&1 || true
+        fi
+        
+        echo "📝 Enhanced span start logged to Dynatrace"
+        echo "📡 OTLP trace sent via Node.js exporter"
+        echo "⏭️ Skipping OTLP trace - using logs for observability"
         
         # Execute command with output capture
         set +e
@@ -258,19 +257,58 @@ runs:
         echo "📡 Sending completion span trace..."
         send-trace "$OTEL_EXPORTER_OTLP_ENDPOINT" "$DYNATRACE_API_TOKEN" "$COMPLETION_TRACE_PAYLOAD" || echo "⚠️ Completion trace failed"
         
-        # Send command output logs to Dynatrace (this works)
+        # Send completion trace using Node.js OTLP exporter
+        COMPLETION_SPAN_JSON=$(cat << EOF
+        {
+          "serviceName": "dynatrace-mcp-server-build",
+          "traceId": "$GITHUB_TRACE_ID",
+          "spanId": "$SPAN_ID",
+          "parentSpanId": "$GITHUB_JOB_SPAN_ID",
+          "name": "github.step.${{ inputs.step-name }}",
+          "kind": 1,
+          "startTimeUnixNano": "$START_TIME_NS",
+          "endTimeUnixNano": "$END_TIME_NS",
+          "statusCode": $SPAN_STATUS_CODE,
+          "resourceAttributes": [
+            {"key": "github.workflow", "value": "${{ github.workflow }}"},
+            {"key": "github.job", "value": "${{ github.job }}"},
+            {"key": "build.type", "value": "$BUILD_TYPE"}
+          ],
+          "attributes": [
+            {"key": "step.name", "value": "${{ inputs.step-name }}"},
+            {"key": "step.exit_code", "value": $EXIT_CODE, "type": "int"},
+            {"key": "step.duration_ms", "value": $DURATION, "type": "int"},
+            {"key": "build.type", "value": "$BUILD_TYPE"}
+          ]
+        }
+        EOF
+        )
+        
+        echo "📡 Sending completion trace via OTLP..."
+        send-trace "$OTEL_EXPORTER_OTLP_ENDPOINT" "$DYNATRACE_API_TOKEN" "$COMPLETION_SPAN_JSON" || echo "⚠️ Completion trace failed"
+        
+        # Send enhanced completion logs for correlation
         if [ -n "${{ inputs.dynatrace-log-url }}" ] && [ -n "${{ inputs.dynatrace-api-token }}" ] && [ -f "$LOG_FILE" ]; then
-          LOG_CONTENT=$(cat "$LOG_FILE" | jq -Rs .)
-          LOG_TIMESTAMP=$(date +%s%3N)
+          # Send span completion log first
+          COMPLETION_LOG="TRACE_END: Step ${{ inputs.step-name }} completed with exit_code=$EXIT_CODE, duration_ms=$DURATION, status=$LOG_LEVEL"
+          echo "$COMPLETION_LOG" >> "$LOG_FILE"
           
-          FINAL_LOG_PAYLOAD=$(cat << EOF
+          LOG_TIMESTAMP=$(date +%s%3N)
+          COMPLETION_LOG_PAYLOAD=$(cat << EOF
           [{
-            "content": $LOG_CONTENT,
+            "content": "$COMPLETION_LOG",
             "timestamp": $LOG_TIMESTAMP,
             "level": "$LOG_LEVEL",
             "service": "dynatrace-mcp-server-build",
             "trace_id": "$GITHUB_TRACE_ID",
             "span_id": "$SPAN_ID",
+            "parent_span_id": "$GITHUB_JOB_SPAN_ID",
+            "span_name": "step-${{ inputs.step-name }}",
+            "span_kind": "INTERNAL",
+            "span_start_time_ns": "$START_TIME_NS",
+            "span_end_time_ns": "$END_TIME_NS",
+            "span_duration_ms": "$DURATION",
+            "span_status_code": "$SPAN_STATUS_CODE",
             "github.workflow": "${{ github.workflow }}",
             "github.job": "${{ github.job }}",
             "github.step": "${{ inputs.step-name }}",
@@ -283,7 +321,46 @@ runs:
             "project.name": "dynatrace-mcp-server",
             "step.exit_code": "$EXIT_CODE",
             "step.duration_ms": "$DURATION",
-            "log.type": "step.output"
+            "log.type": "span.end",
+            "otel.trace_id": "$GITHUB_TRACE_ID",
+            "otel.span_id": "$SPAN_ID"
+          }]
+        EOF
+          )
+          
+          curl -s -X POST "${{ inputs.dynatrace-log-url }}" \
+            -H "Authorization: Api-Token ${{ inputs.dynatrace-api-token }}" \
+            -H "Content-Type: application/json" \
+            -d "$COMPLETION_LOG_PAYLOAD" > /dev/null 2>&1 || true
+          
+          # Then send the full command output
+          LOG_CONTENT=$(cat "$LOG_FILE" | jq -Rs .)
+          LOG_TIMESTAMP=$(date +%s%3N)
+          
+          FINAL_LOG_PAYLOAD=$(cat << EOF
+          [{
+            "content": $LOG_CONTENT,
+            "timestamp": $LOG_TIMESTAMP,
+            "level": "$LOG_LEVEL",
+            "service": "dynatrace-mcp-server-build",
+            "trace_id": "$GITHUB_TRACE_ID",
+            "span_id": "$SPAN_ID",
+            "parent_span_id": "$GITHUB_JOB_SPAN_ID",
+            "github.workflow": "${{ github.workflow }}",
+            "github.job": "${{ github.job }}",
+            "github.step": "${{ inputs.step-name }}",
+            "github.run_id": "${{ github.run_id }}",
+            "github.actor": "${{ github.actor }}",
+            "github.ref": "${{ github.ref }}",
+            "build.type": "$BUILD_TYPE",
+            "branch.name": "${{ github.ref_name }}",
+            "ci.provider": "github-actions",
+            "project.name": "dynatrace-mcp-server",
+            "step.exit_code": "$EXIT_CODE",
+            "step.duration_ms": "$DURATION",
+            "log.type": "step.output",
+            "otel.trace_id": "$GITHUB_TRACE_ID",
+            "otel.span_id": "$SPAN_ID"
           }]
         EOF
           )
@@ -293,9 +370,12 @@ runs:
             -H "Content-Type: application/json" \
             -d "$FINAL_LOG_PAYLOAD" > /dev/null 2>&1 || true
           
-          echo "📝 Step output sent to Dynatrace logs"
+          echo "📝 Step completion and output sent to Dynatrace logs"
           rm -f "$LOG_FILE"
         fi
+        
+        echo "📝 Enhanced span completion logged to Dynatrace"
+        echo "📡 OTLP trace sent via Node.js exporter"
         
         # Set outputs
         echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
