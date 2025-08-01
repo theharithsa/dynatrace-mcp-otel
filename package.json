@@ -8,7 +8,8 @@
     "dist/**/*",
     "README.md",
     "CHANGELOG.md",
-    "prompt.md"
+    "prompt.md",
+    "SkillManifest.md"
   ],
   "keywords": [
     "dynatrace",
