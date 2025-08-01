@@ -40,7 +40,7 @@ runs:
         # Install Node.js OpenTelemetry packages for trace sending
         cd ${{ github.workspace }}/.github/scripts
         npm init -y > /dev/null 2>&1 || true
-        npm install @opentelemetry/exporter-trace-otlp-proto @opentelemetry/resources @opentelemetry/semantic-conventions --save --silent
+        npm install @opentelemetry/exporter-trace-otlp-proto @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-node @opentelemetry/api --save --silent
         
         # Create a comprehensive trace sending function that uses Node.js
         sudo tee /usr/local/bin/send-trace > /dev/null << 'EOF'

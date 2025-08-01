@@ -1,11 +1,9 @@
-const { NodeSDK } = require('@opentelemetry/sdk-node');
 const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-proto');
-const { trace, context, SpanKind, SpanStatusCode } = require('@opentelemetry/api');
 const { Resource } = require('@opentelemetry/resources');
 const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
 
 /**
- * Send a trace span to Dynatrace using NodeSDK approach like otel.ts
+ * Send a trace span to Dynatrace using direct OTLP exporter like otel.ts
  */
 async function sendTrace(endpoint, apiToken, spanData) {
   try {
@@ -15,15 +13,15 @@ async function sendTrace(endpoint, apiToken, spanData) {
     let traceId, spanId, name, parentSpanId, kind, startTime, endTime, status, attributes, resourceAttrs;
     
     if (spanData.resourceSpans) {
-      // OTLP format received
+      // OTLP format received - extract first span
       const span = spanData.resourceSpans[0].scopeSpans[0].spans[0];
       traceId = span.traceId;
       spanId = span.spanId;
       parentSpanId = span.parentSpanId;
       name = span.name;
       kind = span.kind || 1;
-      startTime = parseInt(span.startTimeUnixNano);
-      endTime = span.endTimeUnixNano ? parseInt(span.endTimeUnixNano) : undefined;
+      startTime = span.startTimeUnixNano;
+      endTime = span.endTimeUnixNano;
       status = span.status?.code || 1;
       
       // Convert OTLP attributes format
@@ -48,8 +46,8 @@ async function sendTrace(endpoint, apiToken, spanData) {
       parentSpanId = spanData.parentSpanId;
       name = spanData.name;
       kind = spanData.kind || 1;
-      startTime = parseInt(spanData.startTimeUnixNano);
-      endTime = spanData.endTimeUnixNano ? parseInt(spanData.endTimeUnixNano) : undefined;
+      startTime = spanData.startTimeUnixNano;
+      endTime = spanData.endTimeUnixNano;
       status = spanData.statusCode || 1;
       attributes = {};
       resourceAttrs = { [SemanticResourceAttributes.SERVICE_NAME]: spanData.serviceName || 'dynatrace-mcp-server-build' };
@@ -74,7 +72,7 @@ async function sendTrace(endpoint, apiToken, spanData) {
 
     console.log('📋 Parsed span:', { name, traceId, spanId, parentSpanId });
 
-    // Create resource with defaults
+    // Create resource with defaults like otel.ts
     const resource = new Resource({
       [SemanticResourceAttributes.SERVICE_NAME]: resourceAttrs[SemanticResourceAttributes.SERVICE_NAME] || 'dynatrace-mcp-server-build',
       [SemanticResourceAttributes.TELEMETRY_SDK_NAME]: 'opentelemetry',
@@ -93,65 +91,48 @@ async function sendTrace(endpoint, apiToken, spanData) {
 
     console.log('🔧 Created OTLP exporter with endpoint:', endpoint);
 
-    // Create a minimal NodeSDK instance for this trace
-    const sdk = new NodeSDK({
-      resource: resource,
-      traceExporter: exporter,
-      instrumentations: [], // No auto-instrumentation needed
-    });
-
-    // Start SDK
-    sdk.start();
-    console.log('🚀 NodeSDK started');
-
-    // Get tracer and create span
-    const tracer = trace.getTracer('github-actions-otel', '1.0.0');
-    
-    // Create span context for parent if provided
-    let parentContext = context.active();
-    if (parentSpanId) {
-      const parentSpanContext = {
-        traceId: traceId,
-        spanId: parentSpanId,
-        traceFlags: 1,
-        isRemote: true
-      };
-      parentContext = trace.setSpanContext(context.active(), parentSpanContext);
-    }
-
-    // Create and start span
-    const span = tracer.startSpan(name, {
+    // Create a minimal ReadableSpan that matches OTLP SDK expectations
+    const readableSpan = {
+      name: name,
       kind: kind,
-      attributes: attributes,
-      startTime: [Math.floor(startTime / 1000000000), startTime % 1000000000]
-    }, parentContext);
-
-    // Set span context to match our IDs
-    Object.defineProperty(span, '_spanContext', {
-      value: {
+      spanContext: () => ({
         traceId: traceId,
         spanId: spanId,
         traceFlags: 1
-      },
-      writable: false
+      }),
+      parentSpanId: parentSpanId,
+      startTime: [Math.floor(parseInt(startTime) / 1000000000), parseInt(startTime) % 1000000000],
+      endTime: endTime ? [Math.floor(parseInt(endTime) / 1000000000), parseInt(endTime) % 1000000000] : undefined,
+      status: { code: status },
+      attributes: attributes,
+      links: [],
+      events: [],
+      duration: endTime ? [Math.floor((parseInt(endTime) - parseInt(startTime)) / 1000000000), (parseInt(endTime) - parseInt(startTime)) % 1000000000] : [0, 0],
+      ended: !!endTime,
+      resource: resource,
+      instrumentationLibrary: {
+        name: 'github-actions-otel',
+        version: '1.0.0'
+      }
+    };
+
+    console.log('📤 Exporting span directly via OTLP...');
+
+    // Export the trace using the same method as otel.ts
+    await new Promise((resolve, reject) => {
+      exporter.export([readableSpan], (result) => {
+        console.log('📊 Export result:', result);
+        if (result.code === 0) {
+          console.log('✅ Trace sent successfully via OTLP protobuf');
+          resolve(result);
+        } else {
+          console.error('❌ Failed to send trace:', result.error);
+          reject(new Error(`Export failed: ${result.error}`));
+        }
+      });
     });
 
-    // Set status
-    span.setStatus({ code: status === 1 ? SpanStatusCode.OK : SpanStatusCode.ERROR });
-
-    // End span if endTime provided
-    if (endTime) {
-      span.end([Math.floor(endTime / 1000000000), endTime % 1000000000]);
-    } else {
-      span.end();
-    }
-
-    console.log('📤 Span created and ended');
-
-    // Force flush and shutdown
-    await sdk.shutdown();
-    console.log('✅ Trace sent successfully via NodeSDK');
-
+    await exporter.shutdown();
     return true;
   } catch (error) {
     console.error('❌ Error sending trace:', error.message);
