@@ -1,6 +1,7 @@
 const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-proto');
 const { Resource } = require('@opentelemetry/resources');
 const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
+const { trace } = require('@opentelemetry/api');
 
 /**
  * Send a trace span to Dynatrace using the same method as otel.ts
@@ -48,38 +49,40 @@ async function sendTrace(endpoint, apiToken, spanData) {
       });
     }
 
-    // Create a proper span object that matches OpenTelemetry expectations
-    const span = {
-      traceId: spanData.traceId,
-      spanId: spanData.spanId,
-      parentSpanId: spanData.parentSpanId,
+    // Create a proper ReadableSpan that matches OpenTelemetry SDK structure
+    const readableSpan = {
       name: spanData.name,
       kind: spanData.kind || 1, // SPAN_KIND_CLIENT
-      startTimeUnixNano: spanData.startTimeUnixNano,
-      endTimeUnixNano: spanData.endTimeUnixNano,
+      spanContext: () => ({
+        traceId: spanData.traceId,
+        spanId: spanData.spanId,
+        traceFlags: 1
+      }),
+      parentSpanId: spanData.parentSpanId,
+      startTime: [Math.floor(spanData.startTimeUnixNano / 1000000000), (spanData.startTimeUnixNano % 1000000000)],
+      endTime: spanData.endTimeUnixNano ? [Math.floor(spanData.endTimeUnixNano / 1000000000), (spanData.endTimeUnixNano % 1000000000)] : undefined,
       status: {
         code: spanData.statusCode || 1 // STATUS_CODE_OK
       },
       attributes: spanAttributes,
+      links: [],
+      events: [],
+      duration: spanData.endTimeUnixNano ? [Math.floor((spanData.endTimeUnixNano - spanData.startTimeUnixNano) / 1000000000), ((spanData.endTimeUnixNano - spanData.startTimeUnixNano) % 1000000000)] : [0, 0],
+      ended: !!spanData.endTimeUnixNano,
+      resource: resource,
       instrumentationLibrary: {
         name: spanData.instrumentationScope || 'github-actions-otel',
         version: '1.0.0'
       }
     };
 
-    console.log('🔨 Created span object:', JSON.stringify(span, null, 2));
-
-    // Create the proper OTLP format
-    const exportData = {
-      resource: resource,
-      spans: [span]
-    };
+    console.log('🔨 Created readable span object');
 
     console.log('📤 Exporting span data...');
 
     // Export the trace using the same method as otel.ts
     await new Promise((resolve, reject) => {
-      exporter.export([exportData], (result) => {
+      exporter.export([readableSpan], (result) => {
         console.log('📊 Export result:', result);
         if (result.code === 0) {
           console.log('✅ Trace sent successfully via OTLP protobuf');
