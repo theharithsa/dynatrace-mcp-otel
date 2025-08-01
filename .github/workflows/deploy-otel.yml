@@ -6,6 +6,13 @@ on:
     paths:
       - .github/workflows/**
 
+
+# Add permissions for GitHub token
+permissions:
+  contents: write  # Required for creating releases
+  packages: write  # Optional, for GitHub Packages
+  pull-requests: write  # Required for PR events
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -14,8 +21,6 @@ jobs:
       group: otel-deploy-job
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: '${{ secrets.DEPLOY_OBSERVABILITY_TOKEN }}'
       
       - name: Get package version
         id: package-version
