@@ -258,11 +258,34 @@ npm run build
 - Logs are tagged with `logType: build-logs` for filtering
 - Logs are automatically correlated with traces via standard OpenTelemetry attributes
 
+#### CI/CD Observability
+
+Our GitHub Actions workflows are instrumented with OpenTelemetry using [inception-health/otel-action](https://github.com/marketplace/actions/opentelemetry-for-github-workflows-jobs-and-steps).
+
+##### Configuration in GitHub Actions
+
+```yaml
+- name: Setup OpenTelemetry
+  uses: inception-health/otel-action@v2
+  with:
+    dsn: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+    service_name: 'dynatrace-mcp-server-build'
+    access_token: ${{ secrets.DYNATRACE_API_TOKEN }}
+    log_url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
+    build_type: ${{ github.ref == 'refs/heads/dev' && 'dev' || 'prod' }}
+```
+
+##### Required Variables/Secrets
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: Dynatrace OTLP endpoint URL
+- `DYNATRACE_API_TOKEN`: API token with ingest permission
+- `DYNATRACE_LOG_INGEST_URL`: Dynatrace log ingest URL
+
 #### Known Issues
 - In version 1.0.8, trace ingestion might not work correctly in all environments, but logging functionality works as expected
 
 ## Version History
-- 1.0.8: Enhanced logging with security context and build-logs metadata
+- 1.0.8: Switched to standard OpenTelemetry GitHub Action; enhanced logging with security context
 - 1.0.7: // ...existing version history...
 
 ## Support

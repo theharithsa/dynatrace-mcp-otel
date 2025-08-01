@@ -28,42 +28,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Debug Environment Variables
-        run: |
-          echo "🔍 Checking environment variables..."
-          echo "OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-'NOT SET'}"
-          echo "DYNATRACE_API_TOKEN: ${DYNATRACE_API_TOKEN:+SET}"
-          echo "DYNATRACE_LOG_INGEST_URL: ${DYNATRACE_LOG_INGEST_URL:-'NOT SET'}"
-        env:
-          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
-          DYNATRACE_API_TOKEN: ${{ secrets.DYNATRACE_API_TOKEN }}
-          DYNATRACE_LOG_INGEST_URL: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-
-      - name: Setup OpenTelemetry
-        uses: ./.github/actions/setup-otel
-        with:
-          job-name: 'debug-info'
-          otel-endpoint: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-
       - name: Debug GitHub Context
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'debug-context'
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          command: |
-            echo "Event name: ${{ github.event_name }}"
-            echo "Ref: ${{ github.ref }}"
-            echo "Branch: ${{ github.ref_name }}"
-            echo "Base ref: ${{ github.base_ref }}"
-            echo "Head ref: ${{ github.head_ref }}"
-            echo "PR merged: ${{ github.event.pull_request.merged }}"
-            echo "PR action: ${{ github.event.action }}"
-            echo "Repository: ${{ github.repository }}"
-            echo "Actor: ${{ github.actor }}"
-            echo "SHA: ${{ github.sha }}"
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Base ref: ${{ github.base_ref }}"
+          echo "Head ref: ${{ github.head_ref }}"
+          echo "PR merged: ${{ github.event.pull_request.merged }}"
+          echo "PR action: ${{ github.event.action }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "SHA: ${{ github.sha }}"
 
   check-version:
     runs-on: ubuntu-latest
@@ -80,164 +56,139 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Debug Environment Variables
-        run: |
-          echo "🔍 Checking environment variables..."
-          echo "OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-'NOT SET'}"
-          echo "DYNATRACE_API_TOKEN: ${DYNATRACE_API_TOKEN:+SET}"
-          echo "DYNATRACE_LOG_INGEST_URL: ${DYNATRACE_LOG_INGEST_URL:-'NOT SET'}"
-        env:
-          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
-          DYNATRACE_API_TOKEN: ${{ secrets.DYNATRACE_API_TOKEN }}
-          DYNATRACE_LOG_INGEST_URL: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-
-      - name: Setup OpenTelemetry
-        uses: ./.github/actions/setup-otel
-        with:
-          job-name: 'check-version'
-          otel-endpoint: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
 
       - name: Setup Node.js
-        uses: ./.github/actions/otel-step
+        uses: actions/setup-node@v4
         with:
-          step-name: 'setup-nodejs'
-          command: |
-            # This would normally be done by actions/setup-node, but we wrap it
-            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-            sudo apt-get install -y nodejs
+          node-version: '18'
 
       - name: Check if version changed and determine publish strategy
         id: version-check
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'version-check'
-          command: |
-            # Get current version and base package name
-            CURRENT_VERSION=$(node -p "require('./package.json').version")
-            BASE_PACKAGE_NAME=$(node -p "require('./package.json').name")
-            echo "📦 Current version: $CURRENT_VERSION"
-            echo "📦 Base package name: $BASE_PACKAGE_NAME"
-            
-            # Initialize variables
-            VERSION_CHANGED="false"
-            SHOULD_PUBLISH="false"
-            TARGET_BRANCH=""
-            PACKAGE_NAME=""
-            
-            # Determine target branch and package name
-            if [ "${{ github.event_name }}" = "push" ]; then
-              case "${{ github.ref }}" in
-                "refs/heads/main"|"refs/heads/master")
-                  TARGET_BRANCH="main"
-                  PACKAGE_NAME="$BASE_PACKAGE_NAME"
-                  echo "🎯 Target: Main branch push (NO PUBLISH - only on PR merge)"
-                  ;;
-                "refs/heads/dev")
-                  TARGET_BRANCH="dev"
-                  PACKAGE_NAME="${BASE_PACKAGE_NAME}-dev"
-                  echo "🎯 Target: Dev branch push (dev package)"
-                  ;;
-                *)
-                  echo "❌ Unsupported branch: ${{ github.ref }}"
-                  ;;
-              esac
-            elif [ "${{ github.event_name }}" = "pull_request" ]; then
-              case "${{ github.base_ref }}" in
-                "main"|"master")
-                  TARGET_BRANCH="main"
-                  PACKAGE_NAME="$BASE_PACKAGE_NAME"
-                  if [ "${{ github.event.action }}" = "closed" ] && [ "${{ github.event.pull_request.merged }}" = "true" ]; then
-                    echo "🎯 Target: PR merged to main (production package)"
-                  else
-                    echo "🎯 Target: PR to main (NO PUBLISH - only on merge)"
-                  fi
-                  ;;
-                "dev")
-                  TARGET_BRANCH="dev"
-                  PACKAGE_NAME="${BASE_PACKAGE_NAME}-dev"
-                  echo "🎯 Target: PR to dev (dev package)"
-                  ;;
-                *)
-                  echo "❌ Unsupported base branch: ${{ github.base_ref }}"
-                  ;;
-              esac
-            elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-              TARGET_BRANCH="manual"
-              PACKAGE_NAME="$BASE_PACKAGE_NAME"
-              echo "🎯 Target: Manual trigger"
+        run: |
+          # Get current version and base package name
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          BASE_PACKAGE_NAME=$(node -p "require('./package.json').name")
+          echo "📦 Current version: $CURRENT_VERSION"
+          echo "📦 Base package name: $BASE_PACKAGE_NAME"
+          
+          # Initialize variables
+          VERSION_CHANGED="false"
+          SHOULD_PUBLISH="false"
+          TARGET_BRANCH=""
+          PACKAGE_NAME=""
+          
+          # Determine target branch and package name
+          if [ "${{ github.event_name }}" = "push" ]; then
+            case "${{ github.ref }}" in
+              "refs/heads/main"|"refs/heads/master")
+                TARGET_BRANCH="main"
+                PACKAGE_NAME="$BASE_PACKAGE_NAME"
+                echo "🎯 Target: Main branch push (NO PUBLISH - only on PR merge)"
+                ;;
+              "refs/heads/dev")
+                TARGET_BRANCH="dev"
+                PACKAGE_NAME="${BASE_PACKAGE_NAME}-dev"
+                echo "🎯 Target: Dev branch push (dev package)"
+                ;;
+              *)
+                echo "❌ Unsupported branch: ${{ github.ref }}"
+                ;;
+            esac
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            case "${{ github.base_ref }}" in
+              "main"|"master")
+                TARGET_BRANCH="main"
+                PACKAGE_NAME="$BASE_PACKAGE_NAME"
+                if [ "${{ github.event.action }}" = "closed" ] && [ "${{ github.event.pull_request.merged }}" = "true" ]; then
+                  echo "🎯 Target: PR merged to main (production package)"
+                else
+                  echo "🎯 Target: PR to main (NO PUBLISH - only on merge)"
+                fi
+                ;;
+              "dev")
+                TARGET_BRANCH="dev"
+                PACKAGE_NAME="${BASE_PACKAGE_NAME}-dev"
+                echo "🎯 Target: PR to dev (dev package)"
+                ;;
+              *)
+                echo "❌ Unsupported base branch: ${{ github.base_ref }}"
+                ;;
+            esac
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TARGET_BRANCH="manual"
+            PACKAGE_NAME="$BASE_PACKAGE_NAME"
+            echo "🎯 Target: Manual trigger"
+          fi
+          
+          # Check for manual force publish
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.force_publish }}" = "true" ]; then
+            echo "🔧 Manual force publish triggered"
+            VERSION_CHANGED="true"
+            SHOULD_PUBLISH="true"
+          else
+            # Check if we can compare with previous commit
+            if git show HEAD~1:package.json > /tmp/prev_package.json 2>/dev/null; then
+              PREVIOUS_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/prev_package.json', 'utf8')).version")
+              echo "📦 Previous version: $PREVIOUS_VERSION"
+              
+              if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+                echo "✅ Version changed: $PREVIOUS_VERSION → $CURRENT_VERSION"
+                VERSION_CHANGED="true"
+              else
+                echo "❌ Version unchanged: $CURRENT_VERSION"
+                VERSION_CHANGED="false"
+              fi
+            else
+              echo "🆕 No previous version found (first commit or new file)"
+              VERSION_CHANGED="true"
             fi
             
-            # Check for manual force publish
-            if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.force_publish }}" = "true" ]; then
-              echo "🔧 Manual force publish triggered"
-              VERSION_CHANGED="true"
-              SHOULD_PUBLISH="true"
-            else
-              # Check if we can compare with previous commit
-              if git show HEAD~1:package.json > /tmp/prev_package.json 2>/dev/null; then
-                PREVIOUS_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/prev_package.json', 'utf8')).version")
-                echo "📦 Previous version: $PREVIOUS_VERSION"
-                
-                if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
-                  echo "✅ Version changed: $PREVIOUS_VERSION → $CURRENT_VERSION"
-                  VERSION_CHANGED="true"
+            # Determine if we should publish based on branch-specific rules
+            if [ "$VERSION_CHANGED" = "true" ] && [ -n "$TARGET_BRANCH" ]; then
+              if [ "$TARGET_BRANCH" = "main" ]; then
+                # Main branch: Only publish when PR is merged
+                if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.action }}" = "closed" ] && [ "${{ github.event.pull_request.merged }}" = "true" ]; then
+                  echo "✅ Main branch: PR merged detected"
+                  SHOULD_PUBLISH="true"
                 else
-                  echo "❌ Version unchanged: $CURRENT_VERSION"
-                  VERSION_CHANGED="false"
+                  echo "❌ Main branch: Only merged PRs allowed, got event=${{ github.event_name }}, action=${{ github.event.action }}, merged=${{ github.event.pull_request.merged }}"
+                  SHOULD_PUBLISH="false"
                 fi
-              else
-                echo "🆕 No previous version found (first commit or new file)"
-                VERSION_CHANGED="true"
-              fi
-              
-              # Determine if we should publish based on branch-specific rules
-              if [ "$VERSION_CHANGED" = "true" ] && [ -n "$TARGET_BRANCH" ]; then
-                if [ "$TARGET_BRANCH" = "main" ]; then
-                  # Main branch: Only publish when PR is merged
-                  if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.action }}" = "closed" ] && [ "${{ github.event.pull_request.merged }}" = "true" ]; then
-                    echo "✅ Main branch: PR merged detected"
-                    SHOULD_PUBLISH="true"
-                  else
-                    echo "❌ Main branch: Only merged PRs allowed, got event=${{ github.event_name }}, action=${{ github.event.action }}, merged=${{ github.event.pull_request.merged }}"
-                    SHOULD_PUBLISH="false"
-                  fi
-                elif [ "$TARGET_BRANCH" = "dev" ]; then
-                  # Dev branch: Publish on both push and PR (but not on PR close unless merged)
-                  if [ "${{ github.event_name }}" = "push" ]; then
-                    echo "✅ Dev branch: Direct push detected"
-                    SHOULD_PUBLISH="true"
-                  elif [ "${{ github.event_name }}" = "pull_request" ]; then
-                    if [ "${{ github.event.action }}" = "closed" ]; then
-                      if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
-                        echo "✅ Dev branch: PR merged detected"
-                        SHOULD_PUBLISH="true"
-                      else
-                        echo "❌ Dev branch: PR closed but not merged"
-                        SHOULD_PUBLISH="false"
-                      fi
-                    else
-                      echo "✅ Dev branch: PR opened/updated"
+              elif [ "$TARGET_BRANCH" = "dev" ]; then
+                # Dev branch: Publish on both push and PR (but not on PR close unless merged)
+                if [ "${{ github.event_name }}" = "push" ]; then
+                  echo "✅ Dev branch: Direct push detected"
+                  SHOULD_PUBLISH="true"
+                elif [ "${{ github.event_name }}" = "pull_request" ]; then
+                  if [ "${{ github.event.action }}" = "closed" ]; then
+                    if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
+                      echo "✅ Dev branch: PR merged detected"
                       SHOULD_PUBLISH="true"
+                    else
+                      echo "❌ Dev branch: PR closed but not merged"
+                      SHOULD_PUBLISH="false"
                     fi
                   else
-                    echo "❌ Dev branch: Unexpected event ${{ github.event_name }}"
-                    SHOULD_PUBLISH="false"
+                    echo "✅ Dev branch: PR opened/updated"
+                    SHOULD_PUBLISH="true"
                   fi
+                else
+                  echo "❌ Dev branch: Unexpected event ${{ github.event_name }}"
+                  SHOULD_PUBLISH="false"
                 fi
-              else
-                echo "❌ Publishing conditions not met"
-                SHOULD_PUBLISH="false"
               fi
+            else
+              echo "❌ Publishing conditions not met"
+              SHOULD_PUBLISH="false"
             fi
-            
-            # Set outputs
-            echo "changed=$VERSION_CHANGED" >> $GITHUB_OUTPUT
-            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-            echo "should_publish=$SHOULD_PUBLISH" >> $GITHUB_OUTPUT
-            echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
-            echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          fi
+          
+          # Set outputs
+          echo "changed=$VERSION_CHANGED" >> $GITHUB_OUTPUT
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "should_publish=$SHOULD_PUBLISH" >> $GITHUB_OUTPUT
+          echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
+          echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
   test:
     runs-on: ubuntu-latest
@@ -250,25 +201,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Debug Environment Variables
-        run: |
-          echo "🔍 Checking environment variables..."
-          echo "OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-'NOT SET'}"
-          echo "DYNATRACE_API_TOKEN: ${DYNATRACE_API_TOKEN:+SET}"
-          echo "DYNATRACE_LOG_INGEST_URL: ${DYNATRACE_LOG_INGEST_URL:-'NOT SET'}"
-        env:
-          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
-          DYNATRACE_API_TOKEN: ${{ secrets.DYNATRACE_API_TOKEN }}
-          DYNATRACE_LOG_INGEST_URL: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-
-      - name: Setup OpenTelemetry
-        uses: ./.github/actions/setup-otel
-        with:
-          job-name: 'test'
-          otel-endpoint: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -276,30 +209,16 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'npm-install'
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          command: 'npm ci'
+        run: 'npm ci'
 
       - name: Run build
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'npm-build'
-          command: 'npm run build'
+        run: 'npm run build'
 
       - name: Run tests
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'npm-test'
-          command: 'npm test --if-present'
+        run: 'npm test --if-present'
 
       - name: Check TypeScript compilation
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'typescript-check'
-          command: 'npx tsc --noEmit'
+        run: 'npx tsc --noEmit'
 
   publish:
     needs: [check-version, test, debug-info]
@@ -310,28 +229,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup OpenTelemetry
-        uses: ./.github/actions/setup-otel
-        with:
-          job-name: 'publish'
-          otel-endpoint: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
 
       - name: Publishing Info
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'publish-info'
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          command: |
-            echo "🎉 All conditions met - proceeding with publish!"
-            echo "Package name: ${{ needs.check-version.outputs.package-name }}"
-            echo "Version: ${{ needs.check-version.outputs.new-version }}"
-            echo "Target branch: ${{ needs.check-version.outputs.target-branch }}"
-            echo "Event: ${{ github.event_name }}"
-            echo "Action: ${{ github.event.action }}"
-            echo "Environment: NPM Deploy"
+        run: |
+          echo "🎉 All conditions met - proceeding with publish!"
+          echo "Package name: ${{ needs.check-version.outputs.package-name }}"
+          echo "Version: ${{ needs.check-version.outputs.new-version }}"
+          echo "Target branch: ${{ needs.check-version.outputs.target-branch }}"
+          echo "Event: ${{ github.event_name }}"
+          echo "Action: ${{ github.event.action }}"
+          echo "Environment: NPM Deploy"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -341,113 +248,73 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'npm-install'
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          command: 'npm ci'
+        run: 'npm ci'
 
       - name: Build project
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'npm-build'
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          command: 'npm run build'
+        run: 'npm run build'
 
       - name: Update package name for dev builds
         if: needs.check-version.outputs.target-branch == 'dev'
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'update-package-name'
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          command: |
-            echo "📝 Updating package name to: ${{ needs.check-version.outputs.package-name }}"
-            node -e "
-              const pkg = require('./package.json');
-              pkg.name = '${{ needs.check-version.outputs.package-name }}';
-              require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));
-            "
+        run: |
+          echo "📝 Updating package name to: ${{ needs.check-version.outputs.package-name }}"
+          node -e "
+            const pkg = require('./package.json');
+            pkg.name = '${{ needs.check-version.outputs.package-name }}';
+            require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));
+          "
 
       - name: Verify package contents
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'verify-package'
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          command: |
-            echo "📦 Package contents that will be published:"
-            npm pack --dry-run
-            echo ""
-            echo "📋 Final package.json name:"
-            node -p "require('./package.json').name"
+        run: |
+          echo "📦 Package contents that will be published:"
+          npm pack --dry-run
+          echo ""
+          echo "📋 Final package.json name:"
+          node -p "require('./package.json').name"
 
       - name: Configure NPM authentication
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'configure-npm-auth'
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          command: |
-            echo "🔧 Configuring NPM authentication..."
-            echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" > ~/.npmrc
-            echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
-            echo "always-auth=true" >> ~/.npmrc
-            npm whoami
+        run: |
+          echo "🔧 Configuring NPM authentication..."
+          echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" > ~/.npmrc
+          echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
+          echo "always-auth=true" >> ~/.npmrc
+          npm whoami
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to NPM
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'npm-publish'
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          command: |
-            echo "🚀 Publishing ${{ needs.check-version.outputs.package-name }}@${{ needs.check-version.outputs.new-version }} to NPM..."
-            npm publish --access public
+        run: |
+          echo "🚀 Publishing ${{ needs.check-version.outputs.package-name }}@${{ needs.check-version.outputs.new-version }} to NPM..."
+          npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Extract changelog content
         id: changelog
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'extract-changelog'
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          command: |
-            echo "📝 Extracting changelog for version ${{ needs.check-version.outputs.new-version }}"
-            
-            # Extract changelog content for this version
-            IS_DEV=${{ needs.check-version.outputs.target-branch == 'dev' }}
-            CHANGELOG_CONTENT=$(node .github/scripts/extract-changelog.js "${{ needs.check-version.outputs.new-version }}" "$IS_DEV")
-            
-            # Save to file for GitHub release
-            echo "$CHANGELOG_CONTENT" > /tmp/release_notes.md
-            
-            # Also output for debugging
-            echo "📋 Release notes content:"
-            cat /tmp/release_notes.md
+        run: |
+          echo "📝 Extracting changelog for version ${{ needs.check-version.outputs.new-version }}"
+          
+          # Extract changelog content for this version
+          IS_DEV=${{ needs.check-version.outputs.target-branch == 'dev' }}
+          CHANGELOG_CONTENT=$(node .github/scripts/extract-changelog.js "${{ needs.check-version.outputs.new-version }}" "$IS_DEV")
+          
+          # Save to file for GitHub release
+          echo "$CHANGELOG_CONTENT" > /tmp/release_notes.md
+          
+          # Also output for debugging
+          echo "📋 Release notes content:"
+          cat /tmp/release_notes.md
 
       - name: Create GitHub Release with Changelog
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'create-github-release'
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          command: |
-            echo "🏷️ Creating GitHub release with changelog content..."
-            
-            # Create release with changelog content
-            gh release create "v${{ needs.check-version.outputs.new-version }}-${{ needs.check-version.outputs.target-branch }}" \
-              --title "${{ needs.check-version.outputs.target-branch == 'dev' && 'Development Release' || 'Production Release' }} v${{ needs.check-version.outputs.new-version }}" \
-              --notes-file "/tmp/release_notes.md" \
-              ${{ needs.check-version.outputs.target-branch == 'dev' && '--prerelease' || '' }}
-            
-            echo "✅ GitHub release created with changelog content"
+        run: |
+          echo "🏷️ Creating GitHub release with changelog content..."
+          
+          # Create release with changelog content
+          gh release create "v${{ needs.check-version.outputs.new-version }}-${{ needs.check-version.outputs.target-branch }}" \
+            --title "${{ needs.check-version.outputs.target-branch == 'dev' && 'Development Release' || 'Production Release' }} v${{ needs.check-version.outputs.new-version }}" \
+            --notes-file "/tmp/release_notes.md" \
+            ${{ needs.check-version.outputs.target-branch == 'dev' && '--prerelease' || '' }}
+          
+          echo "✅ GitHub release created with changelog content"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -460,39 +327,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Debug Environment Variables
-        run: |
-          echo "🔍 Checking environment variables..."
-          echo "OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-'NOT SET'}"
-          echo "DYNATRACE_API_TOKEN: ${DYNATRACE_API_TOKEN:+SET}"
-          echo "DYNATRACE_LOG_INGEST_URL: ${DYNATRACE_LOG_INGEST_URL:-'NOT SET'}"
-        env:
-          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
-          DYNATRACE_API_TOKEN: ${{ secrets.DYNATRACE_API_TOKEN }}
-          DYNATRACE_LOG_INGEST_URL: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
-
-      - name: Setup OpenTelemetry
-        uses: ./.github/actions/setup-otel
-        with:
-          job-name: 'publish-skipped'
-          otel-endpoint: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
-          dynatrace-api-token: ${{ secrets.DYNATRACE_API_TOKEN }}
-          dynatrace-log-url: ${{ vars.DYNATRACE_LOG_INGEST_URL }}
 
       - name: Publish Skipped Info
-        uses: ./.github/actions/otel-step
-        with:
-          step-name: 'publish-skipped-info'
-          command: |
-            echo "❌ Publish was skipped. Reasons:"
-            echo "   Version changed: ${{ needs.check-version.outputs.version-changed }}"
-            echo "   Should publish: ${{ needs.check-version.outputs.should-publish }}"
-            echo "   Target branch: ${{ needs.check-version.outputs.target-branch }}"
-            echo "   Event type: ${{ github.event_name }}"
-            echo "   Event action: ${{ github.event.action }}"
-            echo "   PR merged: ${{ github.event.pull_request.merged }}"
-            echo "   Package name: ${{ needs.check-version.outputs.package-name }}"
-            echo ""
-            echo "💡 Publishing rules:"
-            echo "   📦 Dev branch: Publishes on PR open/update/merge and push as 'dynatrace-mcp-server-dev'"
-            echo "   📦 Main branch: ONLY publishes when PR is approved and merged as 'dynatrace-mcp-server'"
+        run: |
+          echo "❌ Publish was skipped. Reasons:"
+          echo "   Version changed: ${{ needs.check-version.outputs.version-changed }}"
+          echo "   Should publish: ${{ needs.check-version.outputs.should-publish }}"
+          echo "   Target branch: ${{ needs.check-version.outputs.target-branch }}"
+          echo "   Event type: ${{ github.event_name }}"
+          echo "   Event action: ${{ github.event.action }}"
+          echo "   PR merged: ${{ github.event.pull_request.merged }}"
+          echo "   Package name: ${{ needs.check-version.outputs.package-name }}"
+          echo ""
+          echo "💡 Publishing rules:"
+          echo "   📦 Dev branch: Publishes on PR open/update/merge and push as 'dynatrace-mcp-server-dev'"
+          echo "   📦 Main branch: ONLY publishes when PR is approved and merged as 'dynatrace-mcp-server'"

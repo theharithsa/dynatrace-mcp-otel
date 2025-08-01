@@ -7,6 +7,11 @@ All notable changes to the Dynatrace MCP Server project will be documented in th
 ### Added
 - Enhanced logging with `dt.security_context` and `logType` fields for better correlation
 - Added build-logs metadata to all log entries for improved filtering
+- Deployed standardized OpenTelemetry using Thoth action
+
+### Changed
+- Switched from custom OpenTelemetry implementation to standard Thoth action
+- Simplified CI/CD pipeline with standardized observability tooling
 
 ### Fixed
 - Improved error handling in OpenTelemetry trace sending
