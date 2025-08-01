@@ -14,6 +14,8 @@ jobs:
       group: otel-deploy-job
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: '${{ secrets.DEPLOY_OBSERVABILITY_TOKEN }}'
       
       - name: Get package version
         id: package-version
@@ -27,4 +29,3 @@ jobs:
           OTEL_EXPORTER_OTLP_HEADERS: 'Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}'
           OTEL_SERVICE_NAME: 'dynatrace-mcp-server-build'
           OTEL_RESOURCE_ATTRIBUTES: "service.version=${{ steps.package-version.outputs.version }},deployment.environment=${{ (github.ref_name == 'main' && 'production') || 'development' }}"
-       
