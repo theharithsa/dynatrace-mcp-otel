@@ -158,7 +158,6 @@ runs:
         
         echo "📝 Enhanced span start logged to Dynatrace"
         echo "📡 OTLP trace sent via Node.js exporter"
-        echo "⏭️ Skipping OTLP trace - using logs for observability"
         
         # Execute command with output capture
         set +e
@@ -260,7 +259,7 @@ runs:
         echo "📡 Sending completion span trace..."
         send-trace "$OTEL_EXPORTER_OTLP_ENDPOINT" "$DYNATRACE_API_TOKEN" "$COMPLETION_TRACE_PAYLOAD" || echo "⚠️ Completion trace failed"
         
-        # Send completion trace using Node.js OTLP exporter
+        # Send completion trace using Node.js OTLP exporter (only this one)
         COMPLETION_SPAN_JSON=$(cat << EOF
         {
           "serviceName": "dynatrace-mcp-server-build",
@@ -281,8 +280,8 @@ runs:
           ],
           "attributes": [
             {"key": "step.name", "value": "${{ inputs.step-name }}"},
-            {"key": "step.exit_code", "value": $EXIT_CODE, "type": "int"},
-            {"key": "step.duration_ms", "value": $DURATION, "type": "int"},
+            {"key": "step.exit_code", "value": "$EXIT_CODE"},
+            {"key": "step.duration_ms", "value": "$DURATION"},
             {"key": "build.type", "value": "$BUILD_TYPE"},
             {"key": "github.workflow", "value": "${{ github.workflow }}"
           ]

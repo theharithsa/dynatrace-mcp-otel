@@ -1,20 +1,89 @@
+const { NodeSDK } = require('@opentelemetry/sdk-node');
 const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-proto');
+const { trace, context, SpanKind, SpanStatusCode } = require('@opentelemetry/api');
 const { Resource } = require('@opentelemetry/resources');
 const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
-const { trace } = require('@opentelemetry/api');
 
 /**
- * Send a trace span to Dynatrace using the same method as otel.ts
+ * Send a trace span to Dynatrace using NodeSDK approach like otel.ts
  */
 async function sendTrace(endpoint, apiToken, spanData) {
   try {
-    console.log('🔍 Received span data:', JSON.stringify(spanData, null, 2));
+    console.log('🔍 Received span data keys:', Object.keys(spanData));
+    
+    // Check if we received OTLP format or simple format
+    let traceId, spanId, name, parentSpanId, kind, startTime, endTime, status, attributes, resourceAttrs;
+    
+    if (spanData.resourceSpans) {
+      // OTLP format received
+      const span = spanData.resourceSpans[0].scopeSpans[0].spans[0];
+      traceId = span.traceId;
+      spanId = span.spanId;
+      parentSpanId = span.parentSpanId;
+      name = span.name;
+      kind = span.kind || 1;
+      startTime = parseInt(span.startTimeUnixNano);
+      endTime = span.endTimeUnixNano ? parseInt(span.endTimeUnixNano) : undefined;
+      status = span.status?.code || 1;
+      
+      // Convert OTLP attributes format
+      attributes = {};
+      if (span.attributes) {
+        span.attributes.forEach(attr => {
+          attributes[attr.key] = attr.value.stringValue || attr.value.intValue || attr.value.boolValue;
+        });
+      }
+      
+      // Convert OTLP resource attributes
+      resourceAttrs = {};
+      if (spanData.resourceSpans[0].resource?.attributes) {
+        spanData.resourceSpans[0].resource.attributes.forEach(attr => {
+          resourceAttrs[attr.key] = attr.value.stringValue || attr.value.intValue || attr.value.boolValue;
+        });
+      }
+    } else {
+      // Simple format received
+      traceId = spanData.traceId;
+      spanId = spanData.spanId;
+      parentSpanId = spanData.parentSpanId;
+      name = spanData.name;
+      kind = spanData.kind || 1;
+      startTime = parseInt(spanData.startTimeUnixNano);
+      endTime = spanData.endTimeUnixNano ? parseInt(spanData.endTimeUnixNano) : undefined;
+      status = spanData.statusCode || 1;
+      attributes = {};
+      resourceAttrs = { [SemanticResourceAttributes.SERVICE_NAME]: spanData.serviceName || 'dynatrace-mcp-server-build' };
+      
+      if (spanData.attributes) {
+        spanData.attributes.forEach(attr => {
+          attributes[attr.key] = attr.value;
+        });
+      }
+      
+      if (spanData.resourceAttributes) {
+        spanData.resourceAttributes.forEach(attr => {
+          resourceAttrs[attr.key] = attr.value;
+        });
+      }
+    }
     
     // Validate required fields
-    if (!spanData.traceId || !spanData.spanId || !spanData.name) {
-      throw new Error('Missing required span fields: traceId, spanId, or name');
+    if (!traceId || !spanId || !name) {
+      throw new Error(`Missing required span fields: traceId=${traceId}, spanId=${spanId}, name=${name}`);
     }
 
+    console.log('📋 Parsed span:', { name, traceId, spanId, parentSpanId });
+
+    // Create resource with defaults
+    const resource = new Resource({
+      [SemanticResourceAttributes.SERVICE_NAME]: resourceAttrs[SemanticResourceAttributes.SERVICE_NAME] || 'dynatrace-mcp-server-build',
+      [SemanticResourceAttributes.TELEMETRY_SDK_NAME]: 'opentelemetry',
+      [SemanticResourceAttributes.TELEMETRY_SDK_LANGUAGE]: 'nodejs',
+      [SemanticResourceAttributes.TELEMETRY_SDK_VERSION]: '1.0.0',
+      ...resourceAttrs
+    });
+
+    // Create exporter exactly like otel.ts
     const exporter = new OTLPTraceExporter({
       url: endpoint,
       headers: {
@@ -24,77 +93,65 @@ async function sendTrace(endpoint, apiToken, spanData) {
 
     console.log('🔧 Created OTLP exporter with endpoint:', endpoint);
 
-    // Create proper resource attributes
-    const resourceAttributes = {};
-    resourceAttributes[SemanticResourceAttributes.SERVICE_NAME] = spanData.serviceName || 'dynatrace-mcp-server-build';
-    resourceAttributes[SemanticResourceAttributes.TELEMETRY_SDK_NAME] = 'opentelemetry';
-    resourceAttributes[SemanticResourceAttributes.TELEMETRY_SDK_LANGUAGE] = 'nodejs';
-    resourceAttributes[SemanticResourceAttributes.TELEMETRY_SDK_VERSION] = '1.0.0';
-
-    // Add custom resource attributes
-    if (spanData.resourceAttributes) {
-      spanData.resourceAttributes.forEach(attr => {
-        resourceAttributes[attr.key] = attr.value;
-      });
-    }
-
-    const resource = new Resource(resourceAttributes);
-    console.log('📦 Created resource with attributes:', resourceAttributes);
-
-    // Create span attributes
-    const spanAttributes = {};
-    if (spanData.attributes) {
-      spanData.attributes.forEach(attr => {
-        spanAttributes[attr.key] = attr.value;
-      });
-    }
-
-    // Create a proper ReadableSpan that matches OpenTelemetry SDK structure
-    const readableSpan = {
-      name: spanData.name,
-      kind: spanData.kind || 1, // SPAN_KIND_CLIENT
-      spanContext: () => ({
-        traceId: spanData.traceId,
-        spanId: spanData.spanId,
-        traceFlags: 1
-      }),
-      parentSpanId: spanData.parentSpanId,
-      startTime: [Math.floor(spanData.startTimeUnixNano / 1000000000), (spanData.startTimeUnixNano % 1000000000)],
-      endTime: spanData.endTimeUnixNano ? [Math.floor(spanData.endTimeUnixNano / 1000000000), (spanData.endTimeUnixNano % 1000000000)] : undefined,
-      status: {
-        code: spanData.statusCode || 1 // STATUS_CODE_OK
-      },
-      attributes: spanAttributes,
-      links: [],
-      events: [],
-      duration: spanData.endTimeUnixNano ? [Math.floor((spanData.endTimeUnixNano - spanData.startTimeUnixNano) / 1000000000), ((spanData.endTimeUnixNano - spanData.startTimeUnixNano) % 1000000000)] : [0, 0],
-      ended: !!spanData.endTimeUnixNano,
+    // Create a minimal NodeSDK instance for this trace
+    const sdk = new NodeSDK({
       resource: resource,
-      instrumentationLibrary: {
-        name: spanData.instrumentationScope || 'github-actions-otel',
-        version: '1.0.0'
-      }
-    };
-
-    console.log('🔨 Created readable span object');
-
-    console.log('📤 Exporting span data...');
-
-    // Export the trace using the same method as otel.ts
-    await new Promise((resolve, reject) => {
-      exporter.export([readableSpan], (result) => {
-        console.log('📊 Export result:', result);
-        if (result.code === 0) {
-          console.log('✅ Trace sent successfully via OTLP protobuf');
-          resolve(result);
-        } else {
-          console.error('❌ Failed to send trace:', result.error);
-          reject(new Error(`Export failed: ${result.error}`));
-        }
-      });
+      traceExporter: exporter,
+      instrumentations: [], // No auto-instrumentation needed
     });
 
-    await exporter.shutdown();
+    // Start SDK
+    sdk.start();
+    console.log('🚀 NodeSDK started');
+
+    // Get tracer and create span
+    const tracer = trace.getTracer('github-actions-otel', '1.0.0');
+    
+    // Create span context for parent if provided
+    let parentContext = context.active();
+    if (parentSpanId) {
+      const parentSpanContext = {
+        traceId: traceId,
+        spanId: parentSpanId,
+        traceFlags: 1,
+        isRemote: true
+      };
+      parentContext = trace.setSpanContext(context.active(), parentSpanContext);
+    }
+
+    // Create and start span
+    const span = tracer.startSpan(name, {
+      kind: kind,
+      attributes: attributes,
+      startTime: [Math.floor(startTime / 1000000000), startTime % 1000000000]
+    }, parentContext);
+
+    // Set span context to match our IDs
+    Object.defineProperty(span, '_spanContext', {
+      value: {
+        traceId: traceId,
+        spanId: spanId,
+        traceFlags: 1
+      },
+      writable: false
+    });
+
+    // Set status
+    span.setStatus({ code: status === 1 ? SpanStatusCode.OK : SpanStatusCode.ERROR });
+
+    // End span if endTime provided
+    if (endTime) {
+      span.end([Math.floor(endTime / 1000000000), endTime % 1000000000]);
+    } else {
+      span.end();
+    }
+
+    console.log('📤 Span created and ended');
+
+    // Force flush and shutdown
+    await sdk.shutdown();
+    console.log('✅ Trace sent successfully via NodeSDK');
+
     return true;
   } catch (error) {
     console.error('❌ Error sending trace:', error.message);
