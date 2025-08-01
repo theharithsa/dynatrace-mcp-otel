@@ -1,47 +1,49 @@
 name: Version Validation
-
 on:
   pull_request:
     branches: [dev]
-
 jobs:
   validate-version:
     runs-on: ubuntu-latest
-    environment: NPM Deploy  # Add environment access for OTel variables
+    environment: NPM Deploy # Add environment access for OTel variables
     steps:
+      - uses: plengauer/opentelemetry-github/actions/instrument/job@v5.21.0
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          OTEL_EXPORTER_OTLP_HEADERS: Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}
+          OTEL_SERVICE_NAME: dynatrace-mcp-server-build
+          OTEL_RESOURCE_ATTRIBUTES: service.version=${{ steps.package-version.outputs.version }},deployment.environment=${{ (github.ref_name == 'main' && 'production') || 'development' }}
+        with:
+          secrets_to_redact: '["${{ github.token }}","${{ secrets.DYNATRACE_API_TOKEN }}"]'
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Setup OpenTelemetry
-        uses: plengauer/Thoth/actions/instrument/deploy@v5.21.0
+        uses: plengauer/opentelemetry-github/actions/instrument/deploy@v5.21.0
         env:
           OTEL_EXPORTER_OTLP_ENDPOINT: '${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}'
           OTEL_EXPORTER_OTLP_HEADERS: 'Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}'
         with:
           service_name: 'dynatrace-mcp-server-build'
           build_type: 'dev'
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-
       - name: Install semver for validation
         run: 'npm install -g semver'
-
       - name: Validate version bump
         run: |
           # Get current version
           CURRENT_VERSION=$(node -p "require('./package.json').version")
           echo "PR version: $CURRENT_VERSION"
-          
+
           # Get main branch version
           git fetch origin main
           MAIN_VERSION=$(git show origin/main:package.json | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8')).version")
           echo "Main version: $MAIN_VERSION"
-          
+
           if semver -r ">$MAIN_VERSION" "$CURRENT_VERSION"; then
             echo "✅ Version correctly incremented from $MAIN_VERSION to $CURRENT_VERSION"
           elif [ "$CURRENT_VERSION" = "$MAIN_VERSION" ]; then
@@ -50,9 +52,8 @@ jobs:
             echo "❌ Invalid version bump: $CURRENT_VERSION is not greater than $MAIN_VERSION"
             exit 1
           fi
-
       - name: Check package.json format
-        run: |
+        run: |-
           node -e "
             const pkg = require('./package.json');
             const required = ['name', 'version', 'description', 'main', 'author'];
@@ -63,3 +64,5 @@ jobs:
             }
             console.log('✅ Package.json has all required fields for NPM publishing');
           "
+    permissions:
+      actions: read

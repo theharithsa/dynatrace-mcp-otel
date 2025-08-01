@@ -1,5 +1,4 @@
 name: Publish to NPM
-
 on:
   push:
     branches: [main, master, dev]
@@ -13,21 +12,27 @@ on:
         required: false
         default: 'false'
         type: boolean
-
 # Add permissions for GitHub token
 permissions:
-  contents: write  # Required for creating releases
-  packages: write  # Optional, for GitHub Packages
-  pull-requests: read  # Required for PR events
-
+  contents: write # Required for creating releases
+  packages: write # Optional, for GitHub Packages
+  pull-requests: read # Required for PR events
+  actions: read
 jobs:
   debug-info:
     runs-on: ubuntu-latest
-    environment: NPM Deploy  # Add environment access
+    environment: NPM Deploy # Add environment access
     steps:
+      - uses: plengauer/opentelemetry-github/actions/instrument/job@v5.21.0
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          OTEL_EXPORTER_OTLP_HEADERS: Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}
+          OTEL_SERVICE_NAME: dynatrace-mcp-server-build
+          OTEL_RESOURCE_ATTRIBUTES: service.version=${{ steps.package-version.outputs.version }},deployment.environment=${{ (github.ref_name == 'main' && 'production') || 'development' }}
+        with:
+          secrets_to_redact: '["${{ github.token }}"]'
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Debug GitHub Context
         run: |
           echo "Event name: ${{ github.event_name }}"
@@ -40,10 +45,9 @@ jobs:
           echo "Repository: ${{ github.repository }}"
           echo "Actor: ${{ github.actor }}"
           echo "SHA: ${{ github.sha }}"
-
   check-version:
     runs-on: ubuntu-latest
-    environment: NPM Deploy  # Add environment access
+    environment: NPM Deploy # Add environment access
     outputs:
       version-changed: ${{ steps.version-check.outputs.changed }}
       new-version: ${{ steps.version-check.outputs.version }}
@@ -51,294 +55,124 @@ jobs:
       target-branch: ${{ steps.version-check.outputs.target_branch }}
       package-name: ${{ steps.version-check.outputs.package_name }}
     steps:
+      - uses: plengauer/opentelemetry-github/actions/instrument/job@v5.21.0
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          OTEL_EXPORTER_OTLP_HEADERS: Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}
+          OTEL_SERVICE_NAME: dynatrace-mcp-server-build
+          OTEL_RESOURCE_ATTRIBUTES: service.version=${{ steps.package-version.outputs.version }},deployment.environment=${{ (github.ref_name == 'main' && 'production') || 'development' }}
+        with:
+          secrets_to_redact: '["${{ github.token }}"]'
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-
       - name: Check if version changed and determine publish strategy
         id: version-check
-        run: |
-          # Get current version and base package name
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-          BASE_PACKAGE_NAME=$(node -p "require('./package.json').name")
-          echo "📦 Current version: $CURRENT_VERSION"
-          echo "📦 Base package name: $BASE_PACKAGE_NAME"
-          
-          # Initialize variables
-          VERSION_CHANGED="false"
-          SHOULD_PUBLISH="false"
-          TARGET_BRANCH=""
-          PACKAGE_NAME=""
-          
-          # Determine target branch and package name
-          if [ "${{ github.event_name }}" = "push" ]; then
-            case "${{ github.ref }}" in
-              "refs/heads/main"|"refs/heads/master")
-                TARGET_BRANCH="main"
-                PACKAGE_NAME="$BASE_PACKAGE_NAME"
-                echo "🎯 Target: Main branch push (NO PUBLISH - only on PR merge)"
-                ;;
-              "refs/heads/dev")
-                TARGET_BRANCH="dev"
-                PACKAGE_NAME="${BASE_PACKAGE_NAME}-dev"
-                echo "🎯 Target: Dev branch push (dev package)"
-                ;;
-              *)
-                echo "❌ Unsupported branch: ${{ github.ref }}"
-                ;;
-            esac
-          elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            case "${{ github.base_ref }}" in
-              "main"|"master")
-                TARGET_BRANCH="main"
-                PACKAGE_NAME="$BASE_PACKAGE_NAME"
-                if [ "${{ github.event.action }}" = "closed" ] && [ "${{ github.event.pull_request.merged }}" = "true" ]; then
-                  echo "🎯 Target: PR merged to main (production package)"
-                else
-                  echo "🎯 Target: PR to main (NO PUBLISH - only on merge)"
-                fi
-                ;;
-              "dev")
-                TARGET_BRANCH="dev"
-                PACKAGE_NAME="${BASE_PACKAGE_NAME}-dev"
-                echo "🎯 Target: PR to dev (dev package)"
-                ;;
-              *)
-                echo "❌ Unsupported base branch: ${{ github.base_ref }}"
-                ;;
-            esac
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TARGET_BRANCH="manual"
-            PACKAGE_NAME="$BASE_PACKAGE_NAME"
-            echo "🎯 Target: Manual trigger"
-          fi
-          
-          # Check for manual force publish
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.force_publish }}" = "true" ]; then
-            echo "🔧 Manual force publish triggered"
-            VERSION_CHANGED="true"
-            SHOULD_PUBLISH="true"
-          else
-            # Check if we can compare with previous commit
-            if git show HEAD~1:package.json > /tmp/prev_package.json 2>/dev/null; then
-              PREVIOUS_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/prev_package.json', 'utf8')).version")
-              echo "📦 Previous version: $PREVIOUS_VERSION"
-              
-              if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
-                echo "✅ Version changed: $PREVIOUS_VERSION → $CURRENT_VERSION"
-                VERSION_CHANGED="true"
-              else
-                echo "❌ Version unchanged: $CURRENT_VERSION"
-                VERSION_CHANGED="false"
-              fi
-            else
-              echo "🆕 No previous version found (first commit or new file)"
-              VERSION_CHANGED="true"
-            fi
-            
-            # Determine if we should publish based on branch-specific rules
-            if [ "$VERSION_CHANGED" = "true" ] && [ -n "$TARGET_BRANCH" ]; then
-              if [ "$TARGET_BRANCH" = "main" ]; then
-                # Main branch: Only publish when PR is merged
-                if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.action }}" = "closed" ] && [ "${{ github.event.pull_request.merged }}" = "true" ]; then
-                  echo "✅ Main branch: PR merged detected"
-                  SHOULD_PUBLISH="true"
-                else
-                  echo "❌ Main branch: Only merged PRs allowed, got event=${{ github.event_name }}, action=${{ github.event.action }}, merged=${{ github.event.pull_request.merged }}"
-                  SHOULD_PUBLISH="false"
-                fi
-              elif [ "$TARGET_BRANCH" = "dev" ]; then
-                # Dev branch: Publish on both push and PR (but not on PR close unless merged)
-                if [ "${{ github.event_name }}" = "push" ]; then
-                  echo "✅ Dev branch: Direct push detected"
-                  SHOULD_PUBLISH="true"
-                elif [ "${{ github.event_name }}" = "pull_request" ]; then
-                  if [ "${{ github.event.action }}" = "closed" ]; then
-                    if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
-                      echo "✅ Dev branch: PR merged detected"
-                      SHOULD_PUBLISH="true"
-                    else
-                      echo "❌ Dev branch: PR closed but not merged"
-                      SHOULD_PUBLISH="false"
-                    fi
-                  else
-                    echo "✅ Dev branch: PR opened/updated"
-                    SHOULD_PUBLISH="true"
-                  fi
-                else
-                  echo "❌ Dev branch: Unexpected event ${{ github.event_name }}"
-                  SHOULD_PUBLISH="false"
-                fi
-              fi
-            else
-              echo "❌ Publishing conditions not met"
-              SHOULD_PUBLISH="false"
-            fi
-          fi
-          
-          # Set outputs
-          echo "changed=$VERSION_CHANGED" >> $GITHUB_OUTPUT
-          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-          echo "should_publish=$SHOULD_PUBLISH" >> $GITHUB_OUTPUT
-          echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
-          echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
-
+        run: "# Get current version and base package name\nCURRENT_VERSION=$(node -p \"require('./package.json').version\")\nBASE_PACKAGE_NAME=$(node -p \"require('./package.json').name\")\necho \"\U0001F4E6 Current version: $CURRENT_VERSION\"\necho \"\U0001F4E6 Base package name: $BASE_PACKAGE_NAME\"\n\n# Initialize variables\nVERSION_CHANGED=\"false\"\nSHOULD_PUBLISH=\"false\"\nTARGET_BRANCH=\"\"\nPACKAGE_NAME=\"\"\n\n# Determine target branch and package name\nif [ \"${{ github.event_name }}\" = \"push\" ]; then\n  case \"${{ github.ref }}\" in\n    \"refs/heads/main\"|\"refs/heads/master\")\n      TARGET_BRANCH=\"main\"\n      PACKAGE_NAME=\"$BASE_PACKAGE_NAME\"\n      echo \"\U0001F3AF Target: Main branch push (NO PUBLISH - only on PR merge)\"\n      ;;\n    \"refs/heads/dev\")\n      TARGET_BRANCH=\"dev\"\n      PACKAGE_NAME=\"${BASE_PACKAGE_NAME}-dev\"\n      echo \"\U0001F3AF Target: Dev branch push (dev package)\"\n      ;;\n    *)\n      echo \"❌ Unsupported branch: ${{ github.ref }}\"\n      ;;\n  esac\nelif [ \"${{ github.event_name }}\" = \"pull_request\" ]; then\n  case \"${{ github.base_ref }}\" in\n    \"main\"|\"master\")\n      TARGET_BRANCH=\"main\"\n      PACKAGE_NAME=\"$BASE_PACKAGE_NAME\"\n      if [ \"${{ github.event.action }}\" = \"closed\" ] && [ \"${{ github.event.pull_request.merged }}\" = \"true\" ]; then\n        echo \"\U0001F3AF Target: PR merged to main (production package)\"\n      else\n        echo \"\U0001F3AF Target: PR to main (NO PUBLISH - only on merge)\"\n      fi\n      ;;\n    \"dev\")\n      TARGET_BRANCH=\"dev\"\n      PACKAGE_NAME=\"${BASE_PACKAGE_NAME}-dev\"\n      echo \"\U0001F3AF Target: PR to dev (dev package)\"\n      ;;\n    *)\n      echo \"❌ Unsupported base branch: ${{ github.base_ref }}\"\n      ;;\n  esac\nelif [ \"${{ github.event_name }}\" = \"workflow_dispatch\" ]; then\n  TARGET_BRANCH=\"manual\"\n  PACKAGE_NAME=\"$BASE_PACKAGE_NAME\"\n  echo \"\U0001F3AF Target: Manual trigger\"\nfi\n\n# Check for manual force publish\nif [ \"${{ github.event_name }}\" = \"workflow_dispatch\" ] && [ \"${{ github.event.inputs.force_publish }}\" = \"true\" ]; then\n  echo \"\U0001F527 Manual force publish triggered\"\n  VERSION_CHANGED=\"true\"\n  SHOULD_PUBLISH=\"true\"\nelse\n  # Check if we can compare with previous commit\n  if git show HEAD~1:package.json > /tmp/prev_package.json 2>/dev/null; then\n    PREVIOUS_VERSION=$(node -p \"JSON.parse(require('fs').readFileSync('/tmp/prev_package.json', 'utf8')).version\")\n    echo \"\U0001F4E6 Previous version: $PREVIOUS_VERSION\"\n    \n    if [ \"$CURRENT_VERSION\" != \"$PREVIOUS_VERSION\" ]; then\n      echo \"✅ Version changed: $PREVIOUS_VERSION → $CURRENT_VERSION\"\n      VERSION_CHANGED=\"true\"\n    else\n      echo \"❌ Version unchanged: $CURRENT_VERSION\"\n      VERSION_CHANGED=\"false\"\n    fi\n  else\n    echo \"\U0001F195 No previous version found (first commit or new file)\"\n    VERSION_CHANGED=\"true\"\n  fi\n  \n  # Determine if we should publish based on branch-specific rules\n  if [ \"$VERSION_CHANGED\" = \"true\" ] && [ -n \"$TARGET_BRANCH\" ]; then\n    if [ \"$TARGET_BRANCH\" = \"main\" ]; then\n      # Main branch: Only publish when PR is merged\n      if [ \"${{ github.event_name }}\" = \"pull_request\" ] && [ \"${{ github.event.action }}\" = \"closed\" ] && [ \"${{ github.event.pull_request.merged }}\" = \"true\" ]; then\n        echo \"✅ Main branch: PR merged detected\"\n        SHOULD_PUBLISH=\"true\"\n      else\n        echo \"❌ Main branch: Only merged PRs allowed, got event=${{ github.event_name }}, action=${{ github.event.action }}, merged=${{ github.event.pull_request.merged }}\"\n        SHOULD_PUBLISH=\"false\"\n      fi\n    elif [ \"$TARGET_BRANCH\" = \"dev\" ]; then\n      # Dev branch: Publish on both push and PR (but not on PR close unless merged)\n      if [ \"${{ github.event_name }}\" = \"push\" ]; then\n        echo \"✅ Dev branch: Direct push detected\"\n        SHOULD_PUBLISH=\"true\"\n      elif [ \"${{ github.event_name }}\" = \"pull_request\" ]; then\n        if [ \"${{ github.event.action }}\" = \"closed\" ]; then\n          if [ \"${{ github.event.pull_request.merged }}\" = \"true\" ]; then\n            echo \"✅ Dev branch: PR merged detected\"\n            SHOULD_PUBLISH=\"true\"\n          else\n            echo \"❌ Dev branch: PR closed but not merged\"\n            SHOULD_PUBLISH=\"false\"\n          fi\n        else\n          echo \"✅ Dev branch: PR opened/updated\"\n          SHOULD_PUBLISH=\"true\"\n        fi\n      else\n        echo \"❌ Dev branch: Unexpected event ${{ github.event_name }}\"\n        SHOULD_PUBLISH=\"false\"\n      fi\n    fi\n  else\n    echo \"❌ Publishing conditions not met\"\n    SHOULD_PUBLISH=\"false\"\n  fi\nfi\n\n# Set outputs\necho \"changed=$VERSION_CHANGED\" >> $GITHUB_OUTPUT\necho \"version=$CURRENT_VERSION\" >> $GITHUB_OUTPUT\necho \"should_publish=$SHOULD_PUBLISH\" >> $GITHUB_OUTPUT\necho \"target_branch=$TARGET_BRANCH\" >> $GITHUB_OUTPUT\necho \"package_name=$PACKAGE_NAME\" >> $GITHUB_OUTPUT\n"
+    permissions:
+      actions: read
   test:
     runs-on: ubuntu-latest
-    environment: NPM Deploy  # Add environment access
-    if: |
-      !(github.event_name == 'pull_request' && 
-        github.event.action == 'closed' && 
-        github.event.pull_request.merged != true)
+    environment: NPM Deploy # Add environment access
+    if: "!(github.event_name == 'pull_request' && \n  github.event.action == 'closed' && \n  github.event.pull_request.merged != true)\n"
     steps:
+      - uses: plengauer/opentelemetry-github/actions/instrument/job@v5.21.0
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          OTEL_EXPORTER_OTLP_HEADERS: Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}
+          OTEL_SERVICE_NAME: dynatrace-mcp-server-build
+          OTEL_RESOURCE_ATTRIBUTES: service.version=${{ steps.package-version.outputs.version }},deployment.environment=${{ (github.ref_name == 'main' && 'production') || 'development' }}
+        with:
+          secrets_to_redact: '["${{ github.token }}"]'
       - name: Checkout code
         uses: actions/checkout@v4
-
-      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-
       - name: Install dependencies
         run: 'npm ci'
-
       - name: Run build
         run: 'npm run build'
-
       - name: Run tests
         run: 'npm test --if-present'
-
       - name: Check TypeScript compilation
         run: 'npx tsc --noEmit'
-
+    permissions:
+      actions: read
   publish:
     needs: [check-version, test, debug-info]
     runs-on: ubuntu-latest
-    environment: NPM Deploy  # Already has environment access
+    environment: NPM Deploy # Already has environment access
     if: needs.check-version.outputs.should-publish == 'true'
     steps:
+      - uses: plengauer/opentelemetry-github/actions/instrument/job@v5.21.0
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          OTEL_EXPORTER_OTLP_HEADERS: Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}
+          OTEL_SERVICE_NAME: dynatrace-mcp-server-build
+          OTEL_RESOURCE_ATTRIBUTES: service.version=${{ steps.package-version.outputs.version }},deployment.environment=${{ (github.ref_name == 'main' && 'production') || 'development' }}
+        with:
+          secrets_to_redact: '["${{ github.token }}","${{ secrets.GITHUB_TOKEN }}","${{ secrets.NPM_TOKEN }}"]'
       - name: Checkout code
         uses: actions/checkout@v4
-
-
       - name: Publishing Info
-        run: |
-          echo "🎉 All conditions met - proceeding with publish!"
-          echo "Package name: ${{ needs.check-version.outputs.package-name }}"
-          echo "Version: ${{ needs.check-version.outputs.new-version }}"
-          echo "Target branch: ${{ needs.check-version.outputs.target-branch }}"
-          echo "Event: ${{ github.event_name }}"
-          echo "Action: ${{ github.event.action }}"
-          echo "Environment: NPM Deploy"
-
+        run: "echo \"\U0001F389 All conditions met - proceeding with publish!\"\necho \"Package name: ${{ needs.check-version.outputs.package-name }}\"\necho \"Version: ${{ needs.check-version.outputs.new-version }}\"\necho \"Target branch: ${{ needs.check-version.outputs.target-branch }}\"\necho \"Event: ${{ github.event_name }}\"\necho \"Action: ${{ github.event.action }}\"\necho \"Environment: NPM Deploy\"\n"
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
-
       - name: Install dependencies
         run: 'npm ci'
-
       - name: Build project
         run: 'npm run build'
-
       - name: Update package name for dev builds
         if: needs.check-version.outputs.target-branch == 'dev'
-        run: |
-          echo "📝 Updating package name to: ${{ needs.check-version.outputs.package-name }}"
-          node -e "
-            const pkg = require('./package.json');
-            pkg.name = '${{ needs.check-version.outputs.package-name }}';
-            require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));
-          "
-
+        run: "echo \"\U0001F4DD Updating package name to: ${{ needs.check-version.outputs.package-name }}\"\nnode -e \"\n  const pkg = require('./package.json');\n  pkg.name = '${{ needs.check-version.outputs.package-name }}';\n  require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));\n\"\n"
       - name: Verify package contents
-        run: |
-          echo "📦 Package contents that will be published:"
-          npm pack --dry-run
-          echo ""
-          echo "📋 Final package.json name:"
-          node -p "require('./package.json').name"
-
+        run: "echo \"\U0001F4E6 Package contents that will be published:\"\nnpm pack --dry-run\necho \"\"\necho \"\U0001F4CB Final package.json name:\"\nnode -p \"require('./package.json').name\"\n"
       - name: Configure NPM authentication
-        run: |
-          echo "🔧 Configuring NPM authentication..."
-          echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" > ~/.npmrc
-          echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
-          echo "always-auth=true" >> ~/.npmrc
-          npm whoami
+        run: "echo \"\U0001F527 Configuring NPM authentication...\"\necho \"//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN\" > ~/.npmrc\necho \"registry=https://registry.npmjs.org/\" >> ~/.npmrc\necho \"always-auth=true\" >> ~/.npmrc\nnpm whoami\n"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Publish to NPM
-        run: |
-          echo "🚀 Publishing ${{ needs.check-version.outputs.package-name }}@${{ needs.check-version.outputs.new-version }} to NPM..."
-          npm publish --access public
+        run: "echo \"\U0001F680 Publishing ${{ needs.check-version.outputs.package-name }}@${{ needs.check-version.outputs.new-version }} to NPM...\"\nnpm publish --access public\n"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Extract changelog content
         id: changelog
-        run: |
-          echo "📝 Extracting changelog for version ${{ needs.check-version.outputs.new-version }}"
-          
-          # Extract changelog content for this version
-          IS_DEV=${{ needs.check-version.outputs.target-branch == 'dev' }}
-          CHANGELOG_CONTENT=$(node .github/scripts/extract-changelog.js "${{ needs.check-version.outputs.new-version }}" "$IS_DEV")
-          
-          # Save to file for GitHub release
-          echo "$CHANGELOG_CONTENT" > /tmp/release_notes.md
-          
-          # Also output for debugging
-          echo "📋 Release notes content:"
-          cat /tmp/release_notes.md
-
+        run: "echo \"\U0001F4DD Extracting changelog for version ${{ needs.check-version.outputs.new-version }}\"\n\n# Extract changelog content for this version\nIS_DEV=${{ needs.check-version.outputs.target-branch == 'dev' }}\nCHANGELOG_CONTENT=$(node .github/scripts/extract-changelog.js \"${{ needs.check-version.outputs.new-version }}\" \"$IS_DEV\")\n\n# Save to file for GitHub release\necho \"$CHANGELOG_CONTENT\" > /tmp/release_notes.md\n\n# Also output for debugging\necho \"\U0001F4CB Release notes content:\"\ncat /tmp/release_notes.md\n"
       - name: Create GitHub Release with Changelog
-        run: |
-          echo "🏷️ Creating GitHub release with changelog content..."
-          
-          # Create release with changelog content
-          gh release create "v${{ needs.check-version.outputs.new-version }}-${{ needs.check-version.outputs.target-branch }}" \
-            --title "${{ needs.check-version.outputs.target-branch == 'dev' && 'Development Release' || 'Production Release' }} v${{ needs.check-version.outputs.new-version }}" \
-            --notes-file "/tmp/release_notes.md" \
-            ${{ needs.check-version.outputs.target-branch == 'dev' && '--prerelease' || '' }}
-          
-          echo "✅ GitHub release created with changelog content"
+        run: "echo \"\U0001F3F7️ Creating GitHub release with changelog content...\"\n\n# Create release with changelog content\ngh release create \"v${{ needs.check-version.outputs.new-version }}-${{ needs.check-version.outputs.target-branch }}\" \\\n  --title \"${{ needs.check-version.outputs.target-branch == 'dev' && 'Development Release' || 'Production Release' }} v${{ needs.check-version.outputs.new-version }}\" \\\n  --notes-file \"/tmp/release_notes.md\" \\\n  ${{ needs.check-version.outputs.target-branch == 'dev' && '--prerelease' || '' }}\n\necho \"✅ GitHub release created with changelog content\"\n"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+    permissions:
+      actions: read
   publish-skipped:
     needs: [check-version, debug-info]
     runs-on: ubuntu-latest
-    environment: NPM Deploy  # Add environment access
+    environment: NPM Deploy # Add environment access
     if: needs.check-version.outputs.should-publish != 'true'
     steps:
+      - uses: plengauer/opentelemetry-github/actions/instrument/job@v5.21.0
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          OTEL_EXPORTER_OTLP_HEADERS: Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}
+          OTEL_SERVICE_NAME: dynatrace-mcp-server-build
+          OTEL_RESOURCE_ATTRIBUTES: service.version=${{ steps.package-version.outputs.version }},deployment.environment=${{ (github.ref_name == 'main' && 'production') || 'development' }}
+        with:
+          secrets_to_redact: '["${{ github.token }}"]'
       - name: Checkout code
         uses: actions/checkout@v4
-
-
       - name: Publish Skipped Info
-        run: |
-          echo "❌ Publish was skipped. Reasons:"
-          echo "   Version changed: ${{ needs.check-version.outputs.version-changed }}"
-          echo "   Should publish: ${{ needs.check-version.outputs.should-publish }}"
-          echo "   Target branch: ${{ needs.check-version.outputs.target-branch }}"
-          echo "   Event type: ${{ github.event_name }}"
-          echo "   Event action: ${{ github.event.action }}"
-          echo "   PR merged: ${{ github.event.pull_request.merged }}"
-          echo "   Package name: ${{ needs.check-version.outputs.package-name }}"
-          echo ""
-          echo "💡 Publishing rules:"
-          echo "   📦 Dev branch: Publishes on PR open/update/merge and push as 'dynatrace-mcp-server-dev'"
-          echo "   📦 Main branch: ONLY publishes when PR is approved and merged as 'dynatrace-mcp-server'"
+        run: "echo \"❌ Publish was skipped. Reasons:\"\necho \"   Version changed: ${{ needs.check-version.outputs.version-changed }}\"\necho \"   Should publish: ${{ needs.check-version.outputs.should-publish }}\"\necho \"   Target branch: ${{ needs.check-version.outputs.target-branch }}\"\necho \"   Event type: ${{ github.event_name }}\"\necho \"   Event action: ${{ github.event.action }}\"\necho \"   PR merged: ${{ github.event.pull_request.merged }}\"\necho \"   Package name: ${{ needs.check-version.outputs.package-name }}\"\necho \"\"\necho \"\U0001F4A1 Publishing rules:\"\necho \"   \U0001F4E6 Dev branch: Publishes on PR open/update/merge and push as 'dynatrace-mcp-server-dev'\"\necho \"   \U0001F4E6 Main branch: ONLY publishes when PR is approved and merged as 'dynatrace-mcp-server'\""
+    permissions:
+      actions: read
