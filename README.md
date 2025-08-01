@@ -11,6 +11,7 @@ A Model Context Protocol (MCP) server that provides AI assistants with comprehen
 - [Authentication](#authentication)
 - [Advanced Usage](#advanced-usage)
 - [Development](#development)
+- [Dynatrace MCP OpenTelemetry Integration](#dynatrace-mcp-opentelemetry-integration)
 
 ## Quick Start
 
@@ -247,6 +248,22 @@ npm run build
 
 - **`dynatrace-mcp-server`** - Production release (stable)
 - **`dynatrace-mcp-server-dev`** - Development release (latest features)
+
+## Dynatrace MCP OpenTelemetry Integration
+
+### Observability Features
+
+#### Log Correlation
+- All logs include `dt.security_context` field set to `dynatrace_mcp_otel`
+- Logs are tagged with `logType: build-logs` for filtering
+- Logs are automatically correlated with traces via standard OpenTelemetry attributes
+
+#### Known Issues
+- In version 1.0.8, trace ingestion might not work correctly in all environments, but logging functionality works as expected
+
+## Version History
+- 1.0.8: Enhanced logging with security context and build-logs metadata
+- 1.0.7: // ...existing version history...
 
 ## Support
 

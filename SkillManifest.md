@@ -1,5 +1,7 @@
 # 🛠️ Skills Manifest: Dynatrace MCP Server
 
+Version: 1.0.8
+
 This server exposes the following skills ("tools" or "capabilities") for seamless observability, dashboard management, and automation in your Dynatrace environment.
 
 ---
@@ -39,6 +41,30 @@ This server exposes the following skills ("tools" or "capabilities") for seamles
 
 ---
 
+## OpenTelemetry Integration
+
+The Dynatrace MCP Server includes advanced OpenTelemetry integration features:
+
+### Features
+- Automatic trace correlation with logs
+- Enhanced logging with security context (`dt.security_context: dynatrace_mcp_otel`)
+- Build logs metadata (`logType: build-logs`) for improved filtering
+- GitHub Actions integration for CI/CD observability
+
+### Latest Updates (v1.0.8)
+- **Added**: Enhanced logging with `dt.security_context` field for proper isolation
+- **Added**: `logType: build-logs` metadata for all log entries
+- **Fixed**: Improved error handling for OpenTelemetry trace sending
+- **Known Issue**: Trace ingestion not fully functional in all environments, but logging works correctly
+
+### Configuration
+OpenTelemetry integration requires these environment variables:
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: Your Dynatrace OTLP endpoint
+- `DYNATRACE_API_TOKEN`: API token with appropriate permissions
+- `DYNATRACE_LOG_INGEST_URL`: Log ingest API endpoint
+
+---
+
 ## Tracing, Logging, & Error Handling
 
 All skills are:
@@ -46,6 +72,8 @@ All skills are:
 * Fully instrumented with **OpenTelemetry** tracing.
 * Log every action, result, and error for maximum observability.
 * Designed for composability—skills are atomic, can be chained in your agent, and return clear results.
+* Enhanced with security context tagging for proper isolation
+* Protected by least privilege token permissions
 
 ---
 
@@ -65,13 +93,28 @@ All skills are:
 
 ---
 
-## Environment Variables for Sharing
+## Environment Variables
 
-* `DT_SHARE_RECIPIENTS` — Comma-separated list of user or group IDs (for direct sharing).
-* `DT_SHARE_TYPE` — `user` or `group`.
+### For Sharing
+- `DT_SHARE_RECIPIENTS` — Comma-separated list of user or group IDs (for direct sharing).
+- `DT_SHARE_TYPE` — `user` or `group`.
+
+### For OpenTelemetry
+- `OTEL_EXPORTER_OTLP_ENDPOINT` — Your Dynatrace OTLP endpoint
+- `DYNATRACE_API_TOKEN` — API token with appropriate permissions
+- `DYNATRACE_LOG_INGEST_URL` — Log ingest API endpoint
+
+---
+
+## Requirements
+- Node.js 14+
+- Dynatrace environment with API token access
+- OpenTelemetry collector endpoint (for tracing functionality)
 
 ---
 
 > **Note:**
 > All skills are ready to use via your IDE, agent, or automation pipeline.
+> For custom orchestrations, just chain skills as needed!
+> Version 1.0.8 enhances observability with security context tagging and build logs metadata.
 > For custom orchestrations, just chain skills as needed!

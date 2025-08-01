@@ -1,14 +1,19 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to the Dynatrace MCP Server project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## Unreleased Changes
+## 1.0.8 - 2023-09-XX
 
 ### Added
-- Placeholder for future changes
+- Enhanced logging with `dt.security_context` and `logType` fields for better correlation
+- Added build-logs metadata to all log entries for improved filtering
+
+### Fixed
+- Improved error handling in OpenTelemetry trace sending
+- Ensured logs are successfully delivered even when traces fail
+
+### Known Issues
+- OpenTelemetry trace ingestion not fully functional, but logging works correctly
 
 ## [1.0.7] - 2025-01-31
 
