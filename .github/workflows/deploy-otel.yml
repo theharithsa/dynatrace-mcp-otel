@@ -2,18 +2,28 @@ name: 'Deploy OpenTelemetry'
 
 on:
   push:
-    branches: [main, dev]
-  pull_request:
     branches: [main, master, dev]
-    types: [opened, synchronize, closed]
+    paths:
+      - .github/workflows/**
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: NPM Deploy
     concurrency:
       group: otel-deploy-job
     steps:
+      - uses: actions/checkout@v4
+      
+      - name: Get package version
+        id: package-version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+        
       - uses: plengauer/Thoth/actions/instrument/deploy@v5.21.0
         env:
           OTEL_EXPORTER_OTLP_ENDPOINT: '${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}'
-          OTEL_EXPORTER_OTLP_HEADERS: '${{ secrets.OTEL_EXPORTER_OTLP_HEADERS }}'
+          OTEL_EXPORTER_OTLP_HEADERS: 'Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}'
+          OTEL_SERVICE_NAME: 'dynatrace-mcp-server-build'
+          OTEL_RESOURCE_ATTRIBUTES: "service.version=${{ steps.package-version.outputs.version }},deployment.environment=${{ (github.ref_name == 'main' && 'production') || 'development' }}"
+        with:
+          github_token: '${{ secrets.DEPLOY_OBSERVABILITY_TOKEN }}' # TODO configure a token that has permissions to push contents and open pull requests
