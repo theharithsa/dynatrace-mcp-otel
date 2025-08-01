@@ -40,7 +40,7 @@ runs:
         # Create a comprehensive trace sending function
         sudo tee /usr/local/bin/send-trace > /dev/null << 'EOF'
         #!/bin/bash
-        # Direct trace sender with multiple format attempts
+        # Direct trace sender with OTLP JSON format
         
         TRACE_ENDPOINT="$1"
         API_TOKEN="$2"
@@ -54,89 +54,55 @@ runs:
         echo "📡 Sending trace to: $TRACE_ENDPOINT"
         echo "🔍 Payload preview: $(echo "$TRACE_PAYLOAD" | head -c 200)..."
         
-        # Method 1: Try the exact endpoint provided
-        echo "🔄 Method 1: Original endpoint"
+        # Method 1: Try JSON OTLP endpoint with correct content type
+        JSON_ENDPOINT="${TRACE_ENDPOINT/\/v1\/traces/\/v1\/traces}"
+        echo "🔄 Method 1: JSON OTLP endpoint"
         HTTP_STATUS=$(curl -s -w "%{http_code}" -o /tmp/trace_response1.txt \
-          -X POST "$TRACE_ENDPOINT" \
+          -X POST "$JSON_ENDPOINT" \
           -H "Authorization: Api-Token $API_TOKEN" \
           -H "Content-Type: application/json" \
-          -H "User-Agent: github-actions-otel/1.0" \
+          -H "User-Agent: opentelemetry-otlp-exporter-node/0.45.0" \
           -d "$TRACE_PAYLOAD")
         
         echo "📊 HTTP Status: $HTTP_STATUS"
         if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 202 ] || [ "$HTTP_STATUS" -eq 204 ]; then
-          echo "✅ Trace sent successfully via original endpoint"
+          echo "✅ Trace sent successfully via JSON OTLP endpoint"
           rm -f /tmp/trace_response*.txt
           exit 0
         else
-          echo "⚠️ Original endpoint failed:"
+          echo "⚠️ JSON OTLP endpoint failed:"
           cat /tmp/trace_response1.txt 2>/dev/null || echo "No response body"
         fi
         
-        # Method 2: Try OTLP v1 JSON endpoint
-        V1_ENDPOINT="${TRACE_ENDPOINT%/v1/traces}/v1/traces"
-        if [ "$V1_ENDPOINT" != "$TRACE_ENDPOINT" ]; then
-          echo "🔄 Method 2: OTLP v1 endpoint: $V1_ENDPOINT"
+        # Method 2: Try with explicit JSON content type and OTLP path
+        ALT_ENDPOINT="${TRACE_ENDPOINT%/*}/traces"
+        if [ "$ALT_ENDPOINT" != "$TRACE_ENDPOINT" ]; then
+          echo "🔄 Method 2: Alternative traces endpoint: $ALT_ENDPOINT"
           HTTP_STATUS=$(curl -s -w "%{http_code}" -o /tmp/trace_response2.txt \
-            -X POST "$V1_ENDPOINT" \
+            -X POST "$ALT_ENDPOINT" \
             -H "Authorization: Api-Token $API_TOKEN" \
             -H "Content-Type: application/json" \
-            -H "User-Agent: github-actions-otel/1.0" \
+            -H "User-Agent: opentelemetry-otlp-exporter-node/0.45.0" \
             -d "$TRACE_PAYLOAD")
           
           echo "📊 HTTP Status: $HTTP_STATUS"
           if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 202 ] || [ "$HTTP_STATUS" -eq 204 ]; then
-            echo "✅ Trace sent successfully via v1 endpoint"
+            echo "✅ Trace sent successfully via alternative endpoint"
             rm -f /tmp/trace_response*.txt
             exit 0
           else
-            echo "⚠️ v1 endpoint failed:"
+            echo "⚠️ Alternative endpoint failed:"
             cat /tmp/trace_response2.txt 2>/dev/null || echo "No response body"
           fi
         fi
         
-        # Method 3: Try simplified payload
-        echo "🔄 Method 3: Simplified payload"
-        SIMPLE_TRACE=$(echo "$TRACE_PAYLOAD" | jq '{
-          resourceSpans: [
-            {
-              resource: {
-                attributes: [
-                  {key: "service.name", value: {stringValue: "github-actions"}}
-                ]
-              },
-              scopeSpans: [
-                {
-                  scope: {
-                    name: "github-actions"
-                  },
-                  spans: (.resourceSpans[0].instrumentationLibrarySpans[0].spans // .resourceSpans[0].scopeSpans[0].spans)
-                }
-              ]
-            }
-          ]
-        }')
-        
-        HTTP_STATUS=$(curl -s -w "%{http_code}" -o /tmp/trace_response3.txt \
-          -X POST "$TRACE_ENDPOINT" \
-          -H "Authorization: Api-Token $API_TOKEN" \
-          -H "Content-Type: application/json" \
-          -H "User-Agent: github-actions-otel/1.0" \
-          -d "$SIMPLE_TRACE")
-        
-        echo "📊 HTTP Status: $HTTP_STATUS"
-        if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 202 ] || [ "$HTTP_STATUS" -eq 204 ]; then
-          echo "✅ Trace sent successfully via simplified payload"
-          rm -f /tmp/trace_response*.txt
-          exit 0
-        else
-          echo "⚠️ Simplified payload failed:"
-          cat /tmp/trace_response3.txt 2>/dev/null || echo "No response body"
-        fi
-        
-        echo "❌ All trace sending methods failed"
+        # Method 3: Log the issue and skip traces to prevent blocking
+        echo "❌ All trace sending methods failed, but continuing workflow..."
+        echo "🔍 Debug info:"
+        echo "   Endpoint: $TRACE_ENDPOINT"
+        echo "   Payload size: $(echo "$TRACE_PAYLOAD" | wc -c) bytes"
         rm -f /tmp/trace_response*.txt
-        exit 1
+        exit 0  # Don't fail the workflow for trace issues
         EOF
         
         sudo chmod +x /usr/local/bin/send-trace
@@ -219,7 +185,7 @@ runs:
         CURRENT_TIME_NS=$(($(date +%s) * 1000000000))
         TEST_SPAN_ID=$(openssl rand -hex 8)
         
-        # Use OTLP v1.0.0 compliant format
+        # Use proper OTLP v1.0.0 JSON format matching the working otel.ts
         TEST_TRACE_PAYLOAD=$(cat << EOF
         {
           "resourceSpans": [
@@ -235,13 +201,25 @@ runs:
                   {
                     "key": "service.version", 
                     "value": {
-                      "stringValue": "1.0.7"
+                      "stringValue": "github-actions"
                     }
                   },
                   {
-                    "key": "github.workflow",
+                    "key": "telemetry.sdk.name",
                     "value": {
-                      "stringValue": "${{ github.workflow }}"
+                      "stringValue": "opentelemetry"
+                    }
+                  },
+                  {
+                    "key": "telemetry.sdk.language",
+                    "value": {
+                      "stringValue": "shell"
+                    }
+                  },
+                  {
+                    "key": "telemetry.sdk.version",
+                    "value": {
+                      "stringValue": "1.0.0"
                     }
                   }
                 ]
@@ -256,8 +234,8 @@ runs:
                     {
                       "traceId": "$TRACE_ID",
                       "spanId": "$TEST_SPAN_ID",
-                      "name": "github-connectivity-test",
-                      "kind": 3,
+                      "name": "github.connectivity.test",
+                      "kind": 1,
                       "startTimeUnixNano": "$CURRENT_TIME_NS",
                       "endTimeUnixNano": "$((CURRENT_TIME_NS + 1000000000))",
                       "status": {
@@ -274,6 +252,12 @@ runs:
                           "key": "build.type",
                           "value": {
                             "stringValue": "$BUILD_TYPE"
+                          }
+                        },
+                        {
+                          "key": "github.workflow",
+                          "value": {
+                            "stringValue": "${{ github.workflow }}"
                           }
                         }
                       ]
@@ -358,21 +342,15 @@ runs:
                     }
                   },
                   {
-                    "key": "build.type",
+                    "key": "telemetry.sdk.name",
                     "value": {
-                      "stringValue": "$BUILD_TYPE"
+                      "stringValue": "opentelemetry"
                     }
                   },
                   {
-                    "key": "github.workflow",
+                    "key": "telemetry.sdk.language",
                     "value": {
-                      "stringValue": "${{ github.workflow }}"
-                    }
-                  },
-                  {
-                    "key": "github.run_id",
-                    "value": {
-                      "stringValue": "${{ github.run_id }}"
+                      "stringValue": "shell"
                     }
                   }
                 ]
@@ -387,8 +365,8 @@ runs:
                     {
                       "traceId": "$GITHUB_TRACE_ID",
                       "spanId": "$JOB_SPAN_ID",
-                      "name": "github-job-${{ inputs.job-name }}",
-                      "kind": 3,
+                      "name": "github.job.${{ inputs.job-name }}",
+                      "kind": 1,
                       "startTimeUnixNano": "$CURRENT_TIME_NS",
                       "status": {
                         "code": 1
@@ -404,6 +382,12 @@ runs:
                           "key": "github.actor",
                           "value": {
                             "stringValue": "${{ github.actor }}"
+                          }
+                        },
+                        {
+                          "key": "build.type",
+                          "value": {
+                            "stringValue": "$BUILD_TYPE"
                           }
                         }
                       ]

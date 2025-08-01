@@ -98,9 +98,15 @@ runs:
                     }
                   },
                   {
-                    "key": "build.type",
+                    "key": "telemetry.sdk.name",
                     "value": {
-                      "stringValue": "$BUILD_TYPE"
+                      "stringValue": "opentelemetry"
+                    }
+                  },
+                  {
+                    "key": "telemetry.sdk.language",
+                    "value": {
+                      "stringValue": "shell"
                     }
                   }
                 ]
@@ -116,8 +122,8 @@ runs:
                       "traceId": "$GITHUB_TRACE_ID",
                       "spanId": "$SPAN_ID",
                       "parentSpanId": "$GITHUB_JOB_SPAN_ID",
-                      "name": "step-${{ inputs.step-name }}",
-                      "kind": 3,
+                      "name": "github.step.${{ inputs.step-name }}",
+                      "kind": 1,
                       "startTimeUnixNano": "$START_TIME_NS",
                       "attributes": [
                         {
@@ -130,6 +136,12 @@ runs:
                           "key": "github.step",
                           "value": {
                             "stringValue": "${{ inputs.step-name }}"
+                          }
+                        },
+                        {
+                          "key": "build.type",
+                          "value": {
+                            "stringValue": "$BUILD_TYPE"
                           }
                         }
                       ]
@@ -180,6 +192,12 @@ runs:
                     "value": {
                       "stringValue": "dynatrace-mcp-server-build"
                     }
+                  },
+                  {
+                    "key": "telemetry.sdk.name",
+                    "value": {
+                      "stringValue": "opentelemetry"
+                    }
                   }
                 ]
               },
@@ -194,8 +212,8 @@ runs:
                       "traceId": "$GITHUB_TRACE_ID",
                       "spanId": "$SPAN_ID",
                       "parentSpanId": "$GITHUB_JOB_SPAN_ID",
-                      "name": "step-${{ inputs.step-name }}",
-                      "kind": 3,
+                      "name": "github.step.${{ inputs.step-name }}",
+                      "kind": 1,
                       "startTimeUnixNano": "$START_TIME_NS",
                       "endTimeUnixNano": "$END_TIME_NS",
                       "status": {
@@ -218,6 +236,12 @@ runs:
                           "key": "step.duration_ms",
                           "value": {
                             "intValue": $DURATION
+                          }
+                        },
+                        {
+                          "key": "build.type",
+                          "value": {
+                            "stringValue": "$BUILD_TYPE"
                           }
                         }
                       ]
