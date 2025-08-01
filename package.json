@@ -1,6 +1,6 @@
 {
-  "name": "dynatrace-mcp-server",
-  "version": "1.1.0",
+  "name": "@theharithsa/dynatrace-mcp-server",
+  "version": "1.1.1",
   "description": "Dynatrace Model Context Protocol (MCP) Server for AI assistants",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,7 +9,9 @@
     "README.md",
     "CHANGELOG.md",
     "prompt.md",
-    "SkillManifest.md"
+    "SkillManifest.md",
+    ".env.template",
+    "dynatrace-agent-rules"
   ],
   "keywords": [
     "dynatrace",
