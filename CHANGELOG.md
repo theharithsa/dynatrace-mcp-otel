@@ -2,7 +2,7 @@
 
 All notable changes to the Dynatrace MCP Server project will be documented in this file.
 
-## 1.0.8 - 2023-09-XX
+## 1.0.8 - 2025-01-31
 
 ### Added
 - Enhanced logging with `dt.security_context` and `logType` fields for better correlation
