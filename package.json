@@ -1,9 +1,12 @@
 {
   "name": "@theharithsa/dynatrace-mcp-server",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Dynatrace Model Context Protocol (MCP) Server for AI assistants",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "type": "commonjs",
+  "bin": {
+    "dynatrace-mcp-server": "./dist/index.js"
+  },
   "files": [
     "dist/**/*",
     "README.md",
@@ -11,15 +14,27 @@
     "prompt.md",
     "SkillManifest.md",
     ".env.template",
-    "dynatrace-agent-rules"
+    "dynatrace-agent-rules/**/*"
   ],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "keywords": [
     "dynatrace",
     "mcp",
     "model-context-protocol",
     "ai",
     "observability",
-    "monitoring"
+    "monitoring",
+    "server"
   ],
   "author": "Vishruth Harithsa",
   "license": "MIT",
@@ -31,11 +46,21 @@
   "bugs": {
     "url": "https://github.com/theharithsa/dynatrace-mcp-otel/issues"
   },
+  "directories": {
+    "dist": "dist",
+    "rules": "dynatrace-agent-rules"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "tsc --build",
     "prepare": "npm run build",
     "watch": "tsc --watch",
     "test": "jest",
+    "test:unit": "jest --selectProjects unit",
+    "test:integration": "jest --selectProjects integration --runInBand",
     "prettier": "prettier --check .",
     "prettier:fix": "prettier --write .",
     "start": "node dist/index.js",
@@ -70,6 +95,6 @@
     "prettier": "^3.6.2",
     "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.6.2"
   }
 }
