@@ -1,5 +1,5 @@
 const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-proto');
-const ResourceCtor = require('@opentelemetry/resources').Resource;
+const { Resource } = require('@opentelemetry/resources');
 const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
 
 /**
@@ -73,7 +73,7 @@ async function sendTrace(endpoint, apiToken, spanData) {
     console.log('📋 Parsed span:', { name, traceId, spanId, parentSpanId });
 
     // Create resource with defaults like otel.ts
-    const resource = new ResourceCtor({
+    const resource = new Resource({
       [SemanticResourceAttributes.SERVICE_NAME]: resourceAttrs[SemanticResourceAttributes.SERVICE_NAME] || 'dynatrace-mcp-server-build',
       [SemanticResourceAttributes.TELEMETRY_SDK_NAME]: 'opentelemetry',
       [SemanticResourceAttributes.TELEMETRY_SDK_LANGUAGE]: 'nodejs',
