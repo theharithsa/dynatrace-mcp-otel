@@ -72,15 +72,6 @@ async function sendTrace(endpoint, apiToken, spanData) {
 
     console.log('📋 Parsed span:', { name, traceId, spanId, parentSpanId });
 
-    // Create resource with defaults like otel.ts
-    const resource = new Resource({
-      [SemanticResourceAttributes.SERVICE_NAME]: resourceAttrs[SemanticResourceAttributes.SERVICE_NAME] || 'dynatrace-mcp-server-build',
-      [SemanticResourceAttributes.TELEMETRY_SDK_NAME]: 'opentelemetry',
-      [SemanticResourceAttributes.TELEMETRY_SDK_LANGUAGE]: 'nodejs',
-      [SemanticResourceAttributes.TELEMETRY_SDK_VERSION]: '1.0.0',
-      ...resourceAttrs
-    });
-
     // Create exporter exactly like otel.ts
     const exporter = new OTLPTraceExporter({
       url: endpoint,
@@ -109,7 +100,6 @@ async function sendTrace(endpoint, apiToken, spanData) {
       events: [],
       duration: endTime ? [Math.floor((parseInt(endTime) - parseInt(startTime)) / 1000000000), (parseInt(endTime) - parseInt(startTime)) % 1000000000] : [0, 0],
       ended: !!endTime,
-      resource: resource,
       instrumentationLibrary: {
         name: 'github-actions-otel',
         version: '1.0.0'
