@@ -10,6 +10,7 @@ permissions:
   packages: write # Optional, for GitHub Packages
   pull-requests: write # Required for PR events
   actions: read
+  
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -22,7 +23,7 @@ jobs:
           OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
           OTEL_EXPORTER_OTLP_HEADERS: Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}
           OTEL_SERVICE_NAME: dynatrace-mcp-server-build
-          OTEL_RESOURCE_ATTRIBUTES: service.version=${{ steps.package-version.outputs.version }},deployment.environment=${{ (github.ref_name == 'main' && 'production') || 'development' }}
+          OTEL_RESOURCE_ATTRIBUTES: service.version=${{ steps['package-version'].outputs.version }},deployment.environment=${{ (github.ref_name == 'main' && 'production') || 'development' }}
         with:
           secrets_to_redact: '["${{ github.token }}","${{ secrets.DEPLOY_OBSERVABILITY_TOKEN }}","${{ secrets.DYNATRACE_API_TOKEN }}"]'
       - uses: actions/checkout@v4
@@ -36,6 +37,6 @@ jobs:
           OTEL_EXPORTER_OTLP_ENDPOINT: '${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}'
           OTEL_EXPORTER_OTLP_HEADERS: 'Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}'
           OTEL_SERVICE_NAME: 'dynatrace-mcp-server-build'
-          OTEL_RESOURCE_ATTRIBUTES: "service.version=${{ steps.package-version.outputs.version }},deployment.environment=${{ (github.ref_name == 'main' && 'production') || 'development' }}"
+          OTEL_RESOURCE_ATTRIBUTES: "service.version=${{ steps['package-version'].outputs.version }},deployment.environment=${{ (github.ref_name == 'main' && 'production') || 'development' }}"
     permissions:
       actions: read

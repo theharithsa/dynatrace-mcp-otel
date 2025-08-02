@@ -44,6 +44,7 @@ Configure your MCP client (Claude Desktop, Cline, etc.) by adding this server to
 ### 3. Start Using
 
 Your AI assistant can now:
+
 - Query problems and vulnerabilities
 - Execute DQL (Dynatrace Query Language) queries
 - Get entity details and ownership information
