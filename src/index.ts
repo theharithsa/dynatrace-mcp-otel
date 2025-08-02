@@ -1131,9 +1131,9 @@ tool(
 );
 
   const transport = new StdioServerTransport();
-  console.log('Connecting server to transport...');
+  console.error('Connecting server to transport...');
   await server.connect(transport);
-  console.log('Dynatrace MCP Server running on stdio');
+  console.error('Dynatrace MCP Server running on stdio');
 };
 
 main().catch((error) => {

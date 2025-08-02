@@ -17,7 +17,7 @@ const sdk = new NodeSDK({
 
 try {
   sdk.start();
-  console.log('[otel] ✅ OpenTelemetry SDK started');
+  console.error('[otel] ✅ OpenTelemetry SDK started');
 } catch (error: unknown) {
   console.error('[otel] ❌ Failed to start OpenTelemetry SDK:', error);
 }
