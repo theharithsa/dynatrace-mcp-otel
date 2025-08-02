@@ -24,10 +24,10 @@ Configure your MCP client (Claude Desktop, Cline, etc.) by adding this server to
   "mcpServers": {
     "dynatrace": {
       "command": "npx",
-      "args": ["dynatrace-mcp-server"],
+      "args": ["@theharithsa/dynatrace-mcp-server"],
       "env": {
-        "OAUTH_CLIENT_ID": "dt0c01.ABC123...",
-        "OAUTH_CLIENT_SECRET": "dt0s01.DEF456...",
+        "OAUTH_CLIENT_ID": "dt0s02.ABC123...",
+        "OAUTH_CLIENT_SECRET": "dt0s02.ABC123.DEF456...",
         "DT_ENVIRONMENT": "https://abc12345.apps.dynatrace.com"
       }
     }
@@ -60,10 +60,10 @@ Your AI assistant can now:
   "mcpServers": {
     "dynatrace": {
       "command": "npx",
-      "args": ["dynatrace-mcp-server"],
+      "args": ["@theharithsa/dynatrace-mcp-server"],
       "env": {
-        "OAUTH_CLIENT_ID": "your-client-id",
-        "OAUTH_CLIENT_SECRET": "your-client-secret",
+        "OAUTH_CLIENT_ID": "dt0s02.your-client-id",
+        "OAUTH_CLIENT_SECRET": "dt0s02.your-client-id.your-client-secret",
         "DT_ENVIRONMENT": "https://your-tenant.apps.dynatrace.com"
       }
     }
@@ -71,19 +71,20 @@ Your AI assistant can now:
 }
 ```
 
-### Development Version
+### Alternative: Global Installation
 
-For latest features and testing:
+```bash
+# Install globally
+npm install -g @theharithsa/dynatrace-mcp-server
 
-```json
+# Then use in mcp.json
 {
   "mcpServers": {
-    "dynatrace-dev": {
-      "command": "npx",
-      "args": ["dynatrace-mcp-server-dev"],
+    "dynatrace": {
+      "command": "dynatrace-mcp-server",
       "env": {
-        "OAUTH_CLIENT_ID": "your-client-id",
-        "OAUTH_CLIENT_SECRET": "your-client-secret",
+        "OAUTH_CLIENT_ID": "dt0s02.your-client-id",
+        "OAUTH_CLIENT_SECRET": "dt0s02.your-client-id.your-client-secret",
         "DT_ENVIRONMENT": "https://your-tenant.apps.dynatrace.com"
       }
     }
@@ -94,6 +95,7 @@ For latest features and testing:
 ## Available Tools
 
 ### 🔍 Monitoring & Observability
+
 - **`get_environment_info`** - Get Dynatrace environment details
 - **`list_problems`** - List all active problems
 - **`get_problem_details`** - Get detailed problem information
@@ -101,54 +103,97 @@ For latest features and testing:
 - **`get_vulnerabilty_details`** - Get vulnerability details and affected entities
 
 ### 📊 Data Querying
+
 - **`execute_dql`** - Execute Dynatrace Query Language statements
 - **`verify_dql`** - Validate DQL syntax before execution
 - **`get_logs_for_entity`** - Retrieve logs for specific entities
 - **`get_kubernetes_events`** - Get Kubernetes cluster events
 
 ### 🏗️ Entity Management
+
 - **`find_entity_by_name`** - Find monitored entities by name
 - **`get_entity_details`** - Get detailed entity information
 - **`get_ownership`** - Get ownership information for entities
 
 ### 📈 Dashboard & Reporting
+
 - **`create_dashboard`** - Create dashboards from JSON files
 - **`bulk_delete_dashboards`** - Delete multiple dashboards
 - **`share_document_env`** - Share documents across environments
 - **`direct_share_document`** - Share documents with specific users
 
 ### 🤖 Automation
+
 - **`create_workflow_for_notification`** - Create notification workflows
 - **`make_workflow_public`** - Make workflows publicly accessible
 - **`execute_typescript`** - Execute custom TypeScript code via Function Executor
 
 ### 💬 Communication
+
 - **`send_slack_message`** - Send messages via Slack integration
 
 ## Environment Variables
 
-### Required
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `OAUTH_CLIENT_ID` | Dynatrace OAuth Client ID | `dt0c01.ABC123...` |
-| `OAUTH_CLIENT_SECRET` | Dynatrace OAuth Client Secret | `dt0s01.DEF456...` |
-| `DT_ENVIRONMENT` | Dynatrace environment URL | `https://abc12345.apps.dynatrace.com` |
+### Core Required Variables
 
-### Optional
+| Variable | Description | Example | Required |
+|----------|-------------|---------|----------|
+| `OAUTH_CLIENT_ID` | Dynatrace OAuth Client ID | `dt0s02.ABC123...` | ✅ |
+| `OAUTH_CLIENT_SECRET` | Dynatrace OAuth Client Secret | `dt0s02.ABC123.DEF456...` | ✅ |
+| `DT_ENVIRONMENT` | Dynatrace environment URL (Platform API) | `https://abc12345.apps.dynatrace.com` | ✅ |
+
+### OAuth Configuration (Optional)
+
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SLACK_CONNECTION_ID` | Slack connection ID for notifications | `fake-slack-connection-id` |
-| `DT_SHARE_RECIPIENTS` | Comma-separated list of user/group IDs for document sharing | None |
-| `DT_SHARE_TYPE` | Type of recipients (user/group) | `group` |
 | `OAUTH_TOKEN_URL` | OAuth token endpoint | `https://sso.dynatrace.com/sso/oauth2/token` |
-| `OAUTH_URN` | OAuth resource URN | Auto-detected |
+| `OAUTH_URN` | OAuth resource URN | `urn:dtaccount:<your-account-urn-guid>` |
 
-### OpenTelemetry (Optional)
-| Variable | Description |
-|----------|-------------|
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry endpoint for traces |
-| `DYNATRACE_API_TOKEN` | API token for trace export |
-| `DYNATRACE_LOG_INGEST_URL` | Log ingest endpoint |
+### OpenTelemetry Tracing (Optional)
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP endpoint for traces | `https://abc12345.live.dynatrace.com/api/v2/otlp/v1/traces` |
+| `DYNATRACE_API_TOKEN` | API token for trace/log export | `dt0c01.ABC123...` |
+| `DYNATRACE_LOG_INGEST_URL` | Log ingest endpoint | `https://abc12345.live.dynatrace.com/api/v2/logs/ingest` |
+| `OTEL_RESOURCE_ATTRIBUTES` | OpenTelemetry resource attributes | `service.name=dynatrace-mcp-server,service.version=2.0.0` |
+
+### Slack Integration (Optional)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SLACK_CONNECTION_ID` | Slack connection ID from Dynatrace | None |
+
+### Document Sharing (Optional)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DT_SHARE_RECIPIENTS` | Comma-separated list of user/group IDs | None |
+| `DT_SHARE_TYPE` | Type of recipients (user/group) | `group` |
+
+### Complete Configuration Example
+
+```json
+{
+  "mcpServers": {
+    "dynatrace": {
+      "command": "npx",
+      "args": ["@theharithsa/dynatrace-mcp-server"],
+      "env": {
+        "OAUTH_CLIENT_ID": "dt0s02.ABC123...",
+        "OAUTH_CLIENT_SECRET": "dt0s02.ABC123.DEF456...",
+        "DT_ENVIRONMENT": "https://abc12345.apps.dynatrace.com",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "https://abc12345.live.dynatrace.com/api/v2/otlp/v1/traces",
+        "DYNATRACE_API_TOKEN": "dt0c01.XYZ789...",
+        "DYNATRACE_LOG_INGEST_URL": "https://abc12345.live.dynatrace.com/api/v2/logs/ingest",
+        "SLACK_CONNECTION_ID": "your-slack-connection-id",
+        "DT_SHARE_RECIPIENTS": "group-id-1,group-id-2",
+        "DT_SHARE_TYPE": "group"
+      }
+    }
+  }
+}
+```
 
 ## Authentication
 
@@ -157,10 +202,12 @@ For latest features and testing:
 Your OAuth client needs these scopes:
 
 **Core Scopes:**
+
 - `app-engine:apps:run`
 - `app-engine:functions:run`
 
 **Feature-Specific Scopes:**
+
 - `environment-api:security-problems:read` - For vulnerability management
 - `environment-api:problems:read` - For problem analysis
 - `environment-api:entities:read` - For entity information
@@ -213,13 +260,10 @@ If you need to modify the server code:
 
 ```bash
 # Install the package for customization
-npm install dynatrace-mcp-server
-
-# Or for development version
-npm install dynatrace-mcp-server-dev
+npm install @theharithsa/dynatrace-mcp-server
 
 # Clone and modify the source
-git clone https://github.com/your-repo/dynatrace-mcp-otel.git
+git clone https://github.com/theharithsa/dynatrace-mcp-otel.git
 cd dynatrace-mcp-otel
 npm install
 npm run build
@@ -235,8 +279,8 @@ npm run build
       "args": ["dist/index.js"],
       "cwd": "/path/to/dynatrace-mcp-otel",
       "env": {
-        "OAUTH_CLIENT_ID": "your-client-id",
-        "OAUTH_CLIENT_SECRET": "your-client-secret",
+        "OAUTH_CLIENT_ID": "dt0s02.your-client-id",
+        "OAUTH_CLIENT_SECRET": "dt0s02.your-client-id.your-client-secret",
         "DT_ENVIRONMENT": "https://your-tenant.apps.dynatrace.com"
       }
     }
@@ -244,16 +288,25 @@ npm run build
 }
 ```
 
-### Package Variants
+### Installation Options
 
-- **`dynatrace-mcp-server`** - Production release (stable)
-- **`dynatrace-mcp-server-dev`** - Development release (latest features)
+```bash
+# NPX (recommended for most users)
+npx @theharithsa/dynatrace-mcp-server
+
+# Global installation
+npm install -g @theharithsa/dynatrace-mcp-server
+
+# Local project installation
+npm install @theharithsa/dynatrace-mcp-server
+```
 
 ## Dynatrace MCP OpenTelemetry Integration
 
 ### Observability Features
 
 #### Log Correlation
+
 - All logs include `dt.security_context` field set to `dynatrace_mcp_otel`
 - Logs are tagged with `logType: build-logs` for filtering
 - Logs are automatically correlated with traces via standard OpenTelemetry attributes
@@ -282,15 +335,18 @@ Our GitHub Actions workflows are instrumented with OpenTelemetry using [inceptio
 - `DYNATRACE_LOG_INGEST_URL`: Dynatrace log ingest URL
 
 #### Known Issues
+
 - In version 1.0.8, trace ingestion might not work correctly in all environments, but logging functionality works as expected
 
 ## Version History
+
+- 2.0.0: Updated package structure and naming; enhanced configuration options
 - 1.0.8: Switched to standard OpenTelemetry GitHub Action; enhanced logging with security context
 - 1.0.7: // ...existing version history...
 
 ## Support
 
-- **Issues**: Report issues on GitHub
+- **Issues**: Report issues on [GitHub](https://github.com/theharithsa/dynatrace-mcp-otel/issues)
 - **Documentation**: [Dynatrace Platform Documentation](https://docs.dynatrace.com)
 - **MCP Protocol**: [Model Context Protocol](https://modelcontextprotocol.io)
 
