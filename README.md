@@ -1,5 +1,12 @@
 # Dynatrace MCP Server
 
+[![NPM Version](https://img.shields.io/npm/v/@theharithsa/dynatrace-mcp-server?logo=npm&logoColor=white)](https://www.npmjs.com/package/@theharithsa/dynatrace-mcp-server)
+[![NPM Downloads](https://img.shields.io/npm/dm/@theharithsa/dynatrace-mcp-server?logo=npm&logoColor=white)](https://www.npmjs.com/package/@theharithsa/dynatrace-mcp-server)
+[![License](https://img.shields.io/npm/l/@theharithsa/dynatrace-mcp-server?color=blue)](https://github.com/theharithsa/dynatrace-mcp-otel/blob/main/LICENSE)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/theharithsa/dynatrace-mcp-otel/npm-publish.yml?branch=main&logo=github&logoColor=white)](https://github.com/theharithsa/dynatrace-mcp-otel/actions)
+[![Node.js Version](https://img.shields.io/node/v/@theharithsa/dynatrace-mcp-server?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+
 A Model Context Protocol (MCP) server that provides AI assistants with comprehensive access to Dynatrace observability data, automation capabilities, and operational insights.
 
 ## Table of Contents

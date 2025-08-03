@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import './otel';
-import { trace, context, SpanStatusCode } from '@opentelemetry/api';
+import '@theharithsa/opentelemetry-instrumentation-mcp/register';
 import { config } from 'dotenv';
 config();
 
+import { trace, context, SpanStatusCode, SpanKind } from '@opentelemetry/api';
 import { EnvironmentInformationClient } from '@dynatrace-sdk/client-platform-management-service';
 import {
   ClientRequestError,
@@ -33,7 +33,6 @@ import { executeDql, verifyDqlStatement } from './capabilities/execute-dql';
 import { sendSlackMessage } from './capabilities/send-slack-message';
 import { findMonitoredEntityByName } from './capabilities/find-monitored-entity-by-name';
 import { DynatraceEnv, getDynatraceEnv } from './getDynatraceEnv';
-import '@theharithsa/opentelemetry-instrumentation-mcp/register';
 
 // Adding New Tools
 import { createDashboard } from './capabilities/create-dashboard';
@@ -45,9 +44,9 @@ import { executeTypescript } from './capabilities/execute-typescript';
 import fs from 'fs/promises';
 import path from 'path';
 
-
-
 let scopesBase = ['app-engine:apps:run', 'app-engine:functions:run'];
+
+const tracer = trace.getTracer('dynatrace-mcp-server', VERSION);
 
 const main = async () => {
   let dynatraceEnv: DynatraceEnv;
@@ -80,44 +79,68 @@ const main = async () => {
     cb: (args: z.infer<z.ZodObject<ZodRawShape>>, _extra?: any) => Promise<string>
   ) => {
     server.tool(name, description, paramsSchema, async (args, _extra) => {
-      
-      return await context.with(trace.setSpan(context.active(), span), async () => {
-        try {
-          const result = await cb(args, _extra);
-          span.setStatus({ code: SpanStatusCode.OK });
-          return {
-            content: [
-              {
-                type: 'text',
-                text: result,
-              } as {
-                [x: string]: unknown;
-                type: 'text';
-                text: string;
-              }
-            ],
-          };
-        } catch (error: any) {
-          
-          // Since our tool callbacks now handle errors internally and return error strings,
-          // we shouldn't reach this catch block. But if we do, handle it gracefully.
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Unexpected error: ${error.message}`,
-              } as {
-                [x: string]: unknown;
-                type: 'text';
-                text: string;
-              }
-            ],
-            isError: true,
-          };
-        } finally {
-          
+      return await tracer.startActiveSpan(
+        `Tool.${name}`,
+        {
+          kind: SpanKind.SERVER,
+          attributes: {
+            'Tool.name': name,
+            'Tool.args': JSON.stringify(args),
+          },
+        },
+        async (span) => {
+          try {
+            const result = await context.with(trace.setSpan(context.active(), span), async () => {
+              return await cb(args, _extra);
+            });
+            
+            span.setStatus({ code: SpanStatusCode.OK });
+            span.setAttributes({
+              'mcp.tool.result.length': result.length,
+              'mcp.tool.success': true,
+            });
+            
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: result,
+                } as {
+                  [x: string]: unknown;
+                  type: 'text';
+                  text: string;
+                }
+              ],
+            };
+          } catch (error: any) {
+            span.recordException(error);
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+              message: error.message,
+            });
+            span.setAttributes({
+              'mcp.tool.success': false,
+              'mcp.tool.error': error.message,
+            });
+            
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Unexpected error: ${error.message}`,
+                } as {
+                  [x: string]: unknown;
+                  type: 'text';
+                  text: string;
+                }
+              ],
+              isError: true,
+            };
+          } finally {
+            span.end();
+          }
         }
-      });
+      );
     });
   };
   
