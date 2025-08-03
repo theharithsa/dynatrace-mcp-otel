@@ -10,7 +10,6 @@ permissions:
   packages: write # Optional, for GitHub Packages
   pull-requests: write # Required for PR events
   actions: read
-  
 jobs:
   deploy:
     runs-on: ubuntu-latest
