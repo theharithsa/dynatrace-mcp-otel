@@ -33,6 +33,7 @@ import { executeDql, verifyDqlStatement } from './capabilities/execute-dql';
 import { sendSlackMessage } from './capabilities/send-slack-message';
 import { findMonitoredEntityByName } from './capabilities/find-monitored-entity-by-name';
 import { DynatraceEnv, getDynatraceEnv } from './getDynatraceEnv';
+import '@theharithsa/opentelemetry-instrumentation-mcp/register';
 
 // Adding New Tools
 import { createDashboard } from './capabilities/create-dashboard';
@@ -47,9 +48,6 @@ import path from 'path';
 
 
 let scopesBase = ['app-engine:apps:run', 'app-engine:functions:run'];
-
-// Add tracer declaration
-const tracer = trace.getTracer('dynatrace-mcp-server');
 
 const main = async () => {
   let dynatraceEnv: DynatraceEnv;
@@ -82,7 +80,7 @@ const main = async () => {
     cb: (args: z.infer<z.ZodObject<ZodRawShape>>, _extra?: any) => Promise<string>
   ) => {
     server.tool(name, description, paramsSchema, async (args, _extra) => {
-      const span = tracer.startSpan(`Tool: ${name}`);
+      
       return await context.with(trace.setSpan(context.active(), span), async () => {
         try {
           const result = await cb(args, _extra);
@@ -100,8 +98,6 @@ const main = async () => {
             ],
           };
         } catch (error: any) {
-          span.recordException(error);
-          span.setStatus({ code: SpanStatusCode.ERROR });
           
           // Since our tool callbacks now handle errors internally and return error strings,
           // we shouldn't reach this catch block. But if we do, handle it gracefully.
@@ -119,7 +115,7 @@ const main = async () => {
             isError: true,
           };
         } finally {
-          span.end();
+          
         }
       });
     });
