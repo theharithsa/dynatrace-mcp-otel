@@ -28,7 +28,6 @@ jobs:
           OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
           OTEL_EXPORTER_OTLP_HEADERS: Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}
           OTEL_SERVICE_NAME: dynatrace-mcp-server-build
-          
         with:
           secrets_to_redact: '["${{ github.token }}"]'
       - name: Checkout code
@@ -62,7 +61,6 @@ jobs:
           OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
           OTEL_EXPORTER_OTLP_HEADERS: Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}
           OTEL_SERVICE_NAME: dynatrace-mcp-server-build
-          
         with:
           secrets_to_redact: '["${{ github.token }}"]'
       - name: Checkout code
@@ -119,7 +117,6 @@ jobs:
           OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT }}
           OTEL_EXPORTER_OTLP_HEADERS: Authorization=Api-Token ${{ secrets.DYNATRACE_API_TOKEN }}
           OTEL_SERVICE_NAME: dynatrace-mcp-server-build
-          
         with:
           secrets_to_redact: '["${{ github.token }}","${{ secrets.GITHUB_TOKEN }}","${{ secrets.NPM_TOKEN }}"]'
       - name: Checkout code
