@@ -6,14 +6,19 @@
 [![Build Status](https://img.shields.io/github/actions/workflow/status/theharithsa/dynatrace-mcp-otel/npm-publish.yml?branch=main&logo=github&logoColor=white)](https://github.com/theharithsa/dynatrace-mcp-otel/actions)
 [![Node.js Version](https://img.shields.io/node/v/@theharithsa/dynatrace-mcp-server?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-Enabled-orange?logo=opentelemetry&logoColor=white)](https://opentelemetry.io/)
+[![Davis CoPilot](https://img.shields.io/badge/Davis%20CoPilot-AI%20Powered-purple?logo=dynatrace&logoColor=white)](https://docs.dynatrace.com/docs/platform-modules/davis-copilot)
+[![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-green?logo=anthropic&logoColor=white)](https://modelcontextprotocol.io/)
+[![Dynatrace Platform](https://img.shields.io/badge/Dynatrace-Platform%20Ready-blue?logo=dynatrace&logoColor=white)](https://docs.dynatrace.com/)
 
-A Model Context Protocol (MCP) server that provides AI assistants with comprehensive access to Dynatrace observability data, automation capabilities, and operational insights.
+A Model Context Protocol (MCP) server that provides AI assistants with comprehensive access to Dynatrace observability data, automation capabilities, and operational insights. Enhanced with Davis CoPilot AI for intelligent query generation and natural language explanations.
 
 ## Table of Contents
 
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [Available Tools](#available-tools)
+- [Davis CoPilot AI Integration](#davis-copilot-ai-integration)
 - [Environment Variables](#environment-variables)
 - [Authentication](#authentication)
 - [Advanced Usage](#advanced-usage)
@@ -102,6 +107,12 @@ npm install -g @theharithsa/dynatrace-mcp-server
 
 ## Available Tools
 
+### 🤖 Davis CoPilot AI (NEW!)
+
+- **`generate_dql_from_natural_language`** - Convert natural language to DQL queries using Davis CoPilot AI
+- **`explain_dql_in_natural_language`** - Get plain English explanations of complex DQL statements  
+- **`chat_with_davis_copilot`** - AI-powered assistant for Dynatrace questions and troubleshooting
+
 ### 🔍 Monitoring & Observability
 
 - **`get_environment_info`** - Get Dynatrace environment details
@@ -140,6 +151,88 @@ npm install -g @theharithsa/dynatrace-mcp-server
 
 - **`send_slack_message`** - Send messages via Slack integration
 
+## Davis CoPilot AI Integration
+
+### Overview
+
+Davis CoPilot AI integration brings intelligent query generation and natural language processing to your Dynatrace MCP workflows. This feature is perfect for:
+
+- Converting natural language requests into powerful DQL queries
+- Understanding complex DQL statements in plain English
+- Getting AI-powered assistance for Dynatrace-related questions
+
+### Key Features
+
+#### Natural Language to DQL
+Transform plain English into powerful queries:
+```
+"Show me errors in the payment service from the last hour"
+↓
+fetch logs | filter contains(content, "error") and dt.entity.service == "payment-service" | sort timestamp desc | limit 100
+```
+
+#### DQL Explanation
+Understand complex queries in plain English:
+```
+fetch spans | filter duration > 5s | summarize avg(duration) by service.name
+↓
+"This query retrieves all spans with duration longer than 5 seconds, then calculates the average duration grouped by service name"
+```
+
+#### AI Assistant
+Get contextual help for any Dynatrace topic, from troubleshooting to best practices.
+
+### Workflow Integration
+
+The recommended AI workflow is:
+1. **Generate**: Use `generate_dql_from_natural_language` to create queries
+2. **Verify**: Use `verify_dql` to validate syntax
+3. **Execute**: Use `execute_dql` to run the query
+4. **Iterate**: Refine based on results and repeat
+
+### Required Scopes for Davis CoPilot
+
+Add these scopes to your OAuth client:
+
+```
+davis-copilot:nl2dql:execute
+davis-copilot:dql2nl:execute
+davis-copilot:conversations:execute
+```
+
+### Usage Examples
+
+#### Generate DQL from Natural Language
+```json
+{
+  "tool": "generate_dql_from_natural_language",
+  "arguments": {
+    "text": "Find all HTTP 500 errors in the last 2 hours for the checkout service"
+  }
+}
+```
+
+#### Explain Complex DQL
+```json
+{
+  "tool": "explain_dql_in_natural_language", 
+  "arguments": {
+    "dql": "fetch logs | filter status_code == 500 | summarize count() by service.name | sort count desc"
+  }
+}
+```
+
+#### Chat with Davis CoPilot
+```json
+{
+  "tool": "chat_with_davis_copilot",
+  "arguments": {
+    "text": "How do I optimize database query performance in my Java application?",
+    "context": "We're seeing high response times in our e-commerce application"
+  }
+}
+```
+
 ## Environment Variables
 
 ### Core Required Variables
@@ -149,6 +242,7 @@ npm install -g @theharithsa/dynatrace-mcp-server
 | `OAUTH_CLIENT_ID` | Dynatrace OAuth Client ID | `dt0s02.ABC123...` | ✅ |
 | `OAUTH_CLIENT_SECRET` | Dynatrace OAuth Client Secret | `dt0s02.ABC123.DEF456...` | ✅ |
 | `DT_ENVIRONMENT` | Dynatrace environment URL (Platform API) | `https://abc12345.apps.dynatrace.com` | ✅ |
+| `DT_PLATFORM_TOKEN` | Platform API token for Davis CoPilot | `dt0c01.XYZ789...` | ✅ (for Davis CoPilot) |
 
 ### OAuth Configuration (Optional)
 
@@ -213,6 +307,12 @@ Your OAuth client needs these scopes:
 
 - `app-engine:apps:run`
 - `app-engine:functions:run`
+
+**Davis CoPilot Scopes (NEW!):**
+
+- `davis-copilot:nl2dql:execute` - For natural language to DQL conversion
+- `davis-copilot:dql2nl:execute` - For DQL explanation in natural language
+- `davis-copilot:conversations:execute` - For AI-powered conversations
 
 **Feature-Specific Scopes:**
 
@@ -348,6 +448,7 @@ Our GitHub Actions workflows are instrumented with OpenTelemetry using [inceptio
 
 ## Version History
 
+- 2.1.0: Added Davis CoPilot AI integration with natural language processing capabilities
 - 2.0.0: Updated package structure and naming; enhanced configuration options
 - 1.0.8: Switched to standard OpenTelemetry GitHub Action; enhanced logging with security context
 - 1.0.7: // ...existing version history...

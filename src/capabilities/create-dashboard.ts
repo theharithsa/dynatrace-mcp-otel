@@ -2,7 +2,6 @@ import fs from 'fs/promises';
 import path from 'path';
 import axios from 'axios';
 import FormData from 'form-data';
-import { trace, context, SpanStatusCode } from '@opentelemetry/api';
 import { sendToDynatraceLog } from '../logging'; // Adjust path if needed
 
 // Helper to get OAuth Bearer token (matches your cURL)
@@ -38,105 +37,88 @@ export const createDashboard = async (
     description?: string,
     externalId?: string
 ) => {
-    const tracer = trace.getTracer('dynatrace-mcp');
-    const span = tracer.startSpan('sendRequestToDT', {
-        attributes: {
-            traceIdFromParent: traceId || '',
-            filePath,
-        }
-    });
+    try {
+        // Read file as Buffer (binary) for upload
+        const fileBuffer = await fs.readFile(filePath);
 
-    return await context.with(trace.setSpan(context.active(), span), async () => {
+        // Parse name from JSON, fallback to filename
+        let name: string;
         try {
-            // Read file as Buffer (binary) for upload
-            const fileBuffer = await fs.readFile(filePath);
-
-            // Parse name from JSON, fallback to filename
-            let name: string;
-            try {
-                const fileString = fileBuffer.toString('utf-8');
-                const dashboardJson = JSON.parse(fileString);
-                name = dashboardJson?.dashboardMetadata?.name ||
-                    path.basename(filePath);
-            } catch {
-                name = path.basename(filePath);
-            }
-
-            // Get the OAuth Bearer token (via HTTP request)
-            const token = await getDynatraceOAuthToken();
-
-            // Get Dynatrace environment URL for document API (not the SSO URL!)
-            const envUrl = process.env.DT_ENVIRONMENT;
-            if (!envUrl) throw new Error('Dynatrace environment URL not configured!');
-            const apiUrl = `${envUrl}/platform/document/v1/documents`;
-
-            // Prepare FormData for multipart upload
-            const form = new FormData();
-            form.append('content', fileBuffer, {
-                filename: path.basename(filePath),
-                contentType: 'application/json',
-            });
-            form.append('name', name);
-            form.append('type', type);
-            if (description) form.append('description', description);
-            if (externalId) form.append('externalId', externalId);
-
-            // Axios POST request for document upload
-            const response = await axios.post(apiUrl, form, {
-                headers: {
-                    ...form.getHeaders(),
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-                maxBodyLength: Infinity,
-            });
-
-            const result = response.data;
-
-            // Log success
-            await sendToDynatraceLog({
-                tool: 'create_dashboard',
-                traceId: traceId || span.spanContext().traceId,
-                spanId: span.spanContext().spanId,
-                parentSpanId: '',
-                args: { filePath, name, type, description, externalId },
-                result,
-                isError: false,
-            });
-            span.setStatus({ code: SpanStatusCode.OK });
-            span.setAttribute('dashboard.id', result?.id || '');
-            span.setAttribute('dashboard.name', name);
-
-            return result;
-
-        } catch (err: any) {
-            span.recordException(err);
-            span.setStatus({ code: SpanStatusCode.ERROR });
-
-            // Log only the API error message, never the whole error object
-            let errorMsg = err.message;
-            if (err.response && err.response.data) {
-                console.error('Dynatrace API error response:', err.response.data);
-                errorMsg = typeof err.response.data === 'object'
-                    ? JSON.stringify(err.response.data, null, 2)
-                    : String(err.response.data);
-            } else {
-                console.error('Error:', err.message);
-            }
-
-            await sendToDynatraceLog({
-                tool: 'create_dashboard',
-                traceId: traceId || span.spanContext().traceId,
-                spanId: span.spanContext().spanId,
-                parentSpanId: '',
-                args: { filePath, type, description, externalId },
-                result: errorMsg,
-                isError: true,
-            });
-
-            throw err;
-        } finally {
-            span.end();
+            const fileString = fileBuffer.toString('utf-8');
+            const dashboardJson = JSON.parse(fileString);
+            name = dashboardJson?.dashboardMetadata?.name ||
+                path.basename(filePath);
+        } catch {
+            name = path.basename(filePath);
         }
-    });
+
+        // Get the OAuth Bearer token (via HTTP request)
+        const token = await getDynatraceOAuthToken();
+
+        // Get Dynatrace environment URL for document API (not the SSO URL!)
+        const envUrl = process.env.DT_ENVIRONMENT;
+        if (!envUrl) throw new Error('Dynatrace environment URL not configured!');
+        const apiUrl = `${envUrl}/platform/document/v1/documents`;
+
+        // Prepare FormData for multipart upload
+        const form = new FormData();
+        form.append('content', fileBuffer, {
+            filename: path.basename(filePath),
+            contentType: 'application/json',
+        });
+        form.append('name', name);
+        form.append('type', type);
+        if (description) form.append('description', description);
+        if (externalId) form.append('externalId', externalId);
+
+        // Axios POST request for document upload
+        const response = await axios.post(apiUrl, form, {
+            headers: {
+                ...form.getHeaders(),
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json',
+            },
+            maxBodyLength: Infinity,
+        });
+
+        const result = response.data;
+
+        // Log success
+        await sendToDynatraceLog({
+            tool: 'create_dashboard',
+            traceId: traceId || '',
+            spanId: '',
+            parentSpanId: '',
+            args: { filePath, name, type, description, externalId },
+            result,
+            isError: false,
+        });
+
+        return result;
+
+    } catch (err: any) {
+        // Log only the API error message, never the whole error object
+        let errorMsg = err.message;
+        if (err.response && err.response.data) {
+            console.error('Dynatrace API error response:', err.response.data);
+            errorMsg = typeof err.response.data === 'object'
+                ? JSON.stringify(err.response.data, null, 2)
+                : String(err.response.data);
+        } else {
+            console.error('Error:', err.message);
+        }
+
+        await sendToDynatraceLog({
+            tool: 'create_dashboard',
+            traceId: traceId || '',
+            spanId: '',
+            parentSpanId: '',
+            args: { filePath, type, description, externalId },
+            result: errorMsg,
+            isError: true,
+        });
+
+        throw err;
+    }
 };
+ 

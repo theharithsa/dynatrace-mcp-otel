@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { trace, context, SpanStatusCode } from '@opentelemetry/api';
 import { sendToDynatraceLog } from '../logging';
 
 // Get OAuth Bearer token for AppEngine Function Executor
@@ -33,75 +32,59 @@ export const executeTypescript = async (
     payload: Record<string, any>,
     traceId?: string
 ) => {
-    const tracer = trace.getTracer('dynatrace-mcp');
-    const span = tracer.startSpan('executeTypescriptCode', {
-        attributes: {
-            traceIdFromParent: traceId || '',
-            tool: 'executeTypescript',
-        }
-    });
+    try {
+        const token = await getDynatraceOAuthToken();
 
-    return await context.with(trace.setSpan(context.active(), span), async () => {
-        try {
-            const token = await getDynatraceOAuthToken();
+        const envUrl = process.env.DT_ENVIRONMENT;
+        if (!envUrl) throw new Error('Dynatrace environment URL not configured!');
+        const apiUrl = `${envUrl}/platform/app-engine/function-executor/v1/executions`;
 
-            const envUrl = process.env.DT_ENVIRONMENT;
-            if (!envUrl) throw new Error('Dynatrace environment URL not configured!');
-            const apiUrl = `${envUrl}/platform/app-engine/function-executor/v1/executions`;
-
-            const response = await axios.post(apiUrl, {
-                sourceCode,
-                payload: JSON.stringify(payload)
-            }, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    Accept: '*/*',
-                }
-            });
-
-            const result = response.data;
-
-            await sendToDynatraceLog({
-                tool: 'execute_typescript',
-                traceId: traceId || span.spanContext().traceId,
-                spanId: span.spanContext().spanId,
-                parentSpanId: '',
-                args: { sourceCode, payload },
-                result,
-                isError: false,
-            });
-
-            span.setStatus({ code: SpanStatusCode.OK });
-            return result;
-
-        } catch (err: any) {
-            span.recordException(err);
-            span.setStatus({ code: SpanStatusCode.ERROR });
-
-            let errorMsg = err.message;
-            if (err.response && err.response.data) {
-                console.error('Dynatrace Function API error response:', err.response.data);
-                errorMsg = typeof err.response.data === 'object'
-                    ? JSON.stringify(err.response.data, null, 2)
-                    : String(err.response.data);
-            } else {
-                console.error('Error:', err.message);
+        const response = await axios.post(apiUrl, {
+            sourceCode,
+            payload: JSON.stringify(payload)
+        }, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                Accept: '*/*',
             }
+        });
 
-            await sendToDynatraceLog({
-                tool: 'execute_typescript',
-                traceId: traceId || span.spanContext().traceId,
-                spanId: span.spanContext().spanId,
-                parentSpanId: '',
-                args: { sourceCode, payload },
-                result: errorMsg,
-                isError: true,
-            });
+        const result = response.data;
 
-            throw err;
-        } finally {
-            span.end();
+        await sendToDynatraceLog({
+            tool: 'execute_typescript',
+            traceId: traceId || '',
+            spanId: '',
+            parentSpanId: '',
+            args: { sourceCode, payload },
+            result,
+            isError: false,
+        });
+
+        return result;
+
+    } catch (err: any) {
+        let errorMsg = err.message;
+        if (err.response && err.response.data) {
+            console.error('Dynatrace Function API error response:', err.response.data);
+            errorMsg = typeof err.response.data === 'object'
+                ? JSON.stringify(err.response.data, null, 2)
+                : String(err.response.data);
+        } else {
+            console.error('Error:', err.message);
         }
-    });
+
+        await sendToDynatraceLog({
+            tool: 'execute_typescript',
+            traceId: traceId || '',
+            spanId: '',
+            parentSpanId: '',
+            args: { sourceCode, payload },
+            result: errorMsg,
+            isError: true,
+        });
+
+        throw err;
+    }
 };

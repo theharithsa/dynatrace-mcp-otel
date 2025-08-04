@@ -11,14 +11,11 @@ import {
 } from '@dynatrace-sdk/shared-errors';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import {
-  CallToolResult,
-  Tool,
-} from '@modelcontextprotocol/sdk/types.js';
+
 import { z, ZodRawShape, ZodTypeAny } from 'zod';
 import { version as VERSION } from '../package.json';
 import { sendToDynatraceLog } from './logging';
-import { createOAuthClient } from './authentication/dynatrace-clients';
+import { createOAuthClient, createDtHttpClient } from './authentication/dynatrace-clients';
 import { listVulnerabilities } from './capabilities/list-vulnerabilities';
 import { listProblems } from './capabilities/list-problems';
 import { getProblemDetails } from './capabilities/get-problem-details';
@@ -32,6 +29,11 @@ import { getVulnerabilityDetails } from './capabilities/get-vulnerability-detail
 import { executeDql, verifyDqlStatement } from './capabilities/execute-dql';
 import { sendSlackMessage } from './capabilities/send-slack-message';
 import { findMonitoredEntityByName } from './capabilities/find-monitored-entity-by-name';
+import {
+  chatWithDavisCopilot,
+  explainDqlInNaturalLanguage,
+  generateDqlFromNaturalLanguage,
+} from './capabilities/davis-copilot';
 import { DynatraceEnv, getDynatraceEnv } from './getDynatraceEnv';
 
 // Adding New Tools
@@ -57,7 +59,7 @@ const main = async () => {
     process.exit(1);
   }
 
-  const { oauthClient, oauthClientSecret, dtEnvironment, slackConnectionId } = dynatraceEnv;
+  const { oauthClient, oauthClientSecret, dtEnvironment, slackConnectionId, dtPlatformToken } = dynatraceEnv;
   console.error(`Starting Dynatrace MCP Server v${VERSION}...`);
 
   const server = new McpServer(
@@ -770,6 +772,148 @@ const main = async () => {
       }
     }
   );
+
+
+  tool(
+      'generate_dql_from_natural_language',
+      "Convert natural language queries to Dynatrace Query Language (DQL) using Davis CoPilot AI. You can ask for problem events, security issues, logs, metrics, spans, and custom data. Workflow: 1) Generate DQL, 2) Verify with verify_dql tool, 3) Execute with execute_dql tool, 4) Iterate if results don't match expectations.",
+      {
+        text: z
+          .string()
+          .describe(
+            'Natural language description of what you want to query. Be specific and include time ranges, entities, and metrics of interest.',
+          ),
+      },
+      async ({ text }) => {
+        const dtClient = await createDtHttpClient(
+          dtEnvironment,
+          scopesBase.concat('davis-copilot:nl2dql:execute'),
+          oauthClient,
+          oauthClientSecret,
+          dtPlatformToken,
+        );
+  
+        const response = await generateDqlFromNaturalLanguage(dtClient, text);
+  
+        let resp = `🔤 Natural Language to DQL:\n\n`;
+        resp += `**Query:** "${text}"\n\n`;
+        resp += `**Generated DQL:**\n\`\`\`\n${response.dql}\n\`\`\`\n\n`;
+        resp += `**Status:** ${response.status}\n`;
+        resp += `**Message Token:** ${response.messageToken}\n`;
+  
+        if (response.metadata?.notifications && response.metadata.notifications.length > 0) {
+          resp += `\n**Notifications:**\n`;
+          response.metadata.notifications.forEach((notification) => {
+            resp += `- ${notification.severity}: ${notification.message}\n`;
+          });
+        }
+  
+        resp += `\n💡 **Next Steps:**\n`;
+        resp += `1. Use "verify_dql" tool to validate this query\n`;
+        resp += `2. Use "execute_dql" tool to run the query\n`;
+        resp += `3. If results don't match expectations, refine your natural language description and try again\n`;
+  
+        return resp;
+      },
+    );
+  
+    tool(
+      'explain_dql_in_natural_language',
+      'Explain Dynatrace Query Language (DQL) statements in natural language using Davis CoPilot AI.',
+      {
+        dql: z.string().describe('The DQL statement to explain'),
+      },
+      async ({ dql }) => {
+        const dtClient = await createDtHttpClient(
+          dtEnvironment,
+          scopesBase.concat('davis-copilot:dql2nl:execute'),
+          oauthClient,
+          oauthClientSecret,
+          dtPlatformToken,
+        );
+  
+        const response = await explainDqlInNaturalLanguage(dtClient, dql);
+  
+        let resp = `📝 DQL to Natural Language:\n\n`;
+        resp += `**DQL Query:**\n\`\`\`\n${dql}\n\`\`\`\n\n`;
+        resp += `**Summary:** ${response.summary}\n\n`;
+        resp += `**Detailed Explanation:**\n${response.explanation}\n\n`;
+        resp += `**Status:** ${response.status}\n`;
+        resp += `**Message Token:** ${response.messageToken}\n`;
+  
+        if (response.metadata?.notifications && response.metadata.notifications.length > 0) {
+          resp += `\n**Notifications:**\n`;
+          response.metadata.notifications.forEach((notification) => {
+            resp += `- ${notification.severity}: ${notification.message}\n`;
+          });
+        }
+  
+        return resp;
+      },
+    );
+  
+    tool(
+      'chat_with_davis_copilot',
+      'Use this tool in case no specific tool is available. Get an answer to any Dynatrace related question as well as troubleshooting, and guidance. *(Note: Davis CoPilot AI is GA, but the Davis CoPilot APIs are in preview)*',
+      {
+        text: z.string().describe('Your question or request for Davis CoPilot'),
+        context: z.string().optional().describe('Optional context to provide additional information'),
+        instruction: z.string().optional().describe('Optional instruction for how to format the response'),
+      },
+      async ({ text, context, instruction }) => {
+        const dtClient = await createDtHttpClient(
+          dtEnvironment,
+          scopesBase.concat('davis-copilot:conversations:execute'),
+          oauthClient,
+          oauthClientSecret,
+          dtPlatformToken,
+        );
+  
+        const conversationContext: any[] = [];
+  
+        if (context) {
+          conversationContext.push({
+            type: 'supplementary',
+            value: context,
+          });
+        }
+  
+        if (instruction) {
+          conversationContext.push({
+            type: 'instruction',
+            value: instruction,
+          });
+        }
+  
+        const response = await chatWithDavisCopilot(dtClient, text, conversationContext);
+  
+        let resp = `🤖 Davis CoPilot Response:\n\n`;
+        resp += `**Your Question:** "${text}"\n\n`;
+        resp += `**Answer:**\n${response.text}\n\n`;
+        resp += `**Status:** ${response.status}\n`;
+        resp += `**Message Token:** ${response.messageToken}\n`;
+  
+        if (response.metadata?.sources && response.metadata.sources.length > 0) {
+          resp += `\n**Sources:**\n`;
+          response.metadata.sources.forEach((source) => {
+            resp += `- ${source.title || 'Untitled'}: ${source.url || 'No URL'}\n`;
+          });
+        }
+  
+        if (response.metadata?.notifications && response.metadata.notifications.length > 0) {
+          resp += `\n**Notifications:**\n`;
+          response.metadata.notifications.forEach((notification) => {
+            resp += `- ${notification.severity}: ${notification.message}\n`;
+          });
+        }
+  
+        if (response.state?.conversationId) {
+          resp += `\n**Conversation ID:** ${response.state.conversationId}`;
+        }
+  
+        return resp;
+      },
+    );
 
   const transport = new StdioServerTransport();
   console.error('Connecting server to transport...');
