@@ -6,6 +6,7 @@ describe('getDynatraceEnv', () => {
     OAUTH_CLIENT_SECRET: 'dt0s02.SAMPLE.abcd1234',
     DT_ENVIRONMENT: 'https://abc123.apps.dynatrace.com',
     SLACK_CONNECTION_ID: 'slack-conn-id',
+    DT_PLATFORM_TOKEN: 'dt0c01.SAMPLE.platform-token',
   };
 
   it('returns all required values when environment is valid', () => {
@@ -16,6 +17,7 @@ describe('getDynatraceEnv', () => {
       oauthClientSecret: env.OAUTH_CLIENT_SECRET,
       dtEnvironment: env.DT_ENVIRONMENT,
       slackConnectionId: env.SLACK_CONNECTION_ID,
+      dtPlatformToken: env.DT_PLATFORM_TOKEN,
     });
   });
 
@@ -38,6 +40,11 @@ describe('getDynatraceEnv', () => {
   it('throws if DT_ENVIRONMENT is missing', () => {
     const env = { ...baseEnv, DT_ENVIRONMENT: undefined };
     expect(() => getDynatraceEnv(env)).toThrow(/DT_ENVIRONMENT/);
+  });
+
+  it('throws if DT_PLATFORM_TOKEN is missing', () => {
+    const env = { ...baseEnv, DT_PLATFORM_TOKEN: undefined };
+    expect(() => getDynatraceEnv(env)).toThrow(/DT_PLATFORM_TOKEN/);
   });
 
   it('throws if DT_ENVIRONMENT does not start with https://', () => {
