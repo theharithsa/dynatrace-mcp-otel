@@ -4,6 +4,7 @@ export interface DynatraceEnv {
   oauthClientSecret: string;
   dtEnvironment: string;
   slackConnectionId: string;
+  dtPlatformToken: string;
 }
 
 /**
@@ -15,9 +16,14 @@ export function getDynatraceEnv(env: NodeJS.ProcessEnv = process.env): Dynatrace
   const oauthClientSecret = env.OAUTH_CLIENT_SECRET;
   const dtEnvironment = env.DT_ENVIRONMENT;
   const slackConnectionId = env.SLACK_CONNECTION_ID || 'fake-slack-connection-id';
+  const dtPlatformToken = env.DT_PLATFORM_TOKEN;
 
   if (!oauthClient || !oauthClientSecret || !dtEnvironment) {
     throw new Error('Please set OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and DT_ENVIRONMENT environment variables');
+  }
+
+  if (!dtPlatformToken) {
+    throw new Error('Please set DT_PLATFORM_TOKEN environment variable');
   }
 
   if (!dtEnvironment.startsWith('https://')) {
@@ -32,5 +38,5 @@ export function getDynatraceEnv(env: NodeJS.ProcessEnv = process.env): Dynatrace
     );
   }
 
-  return { oauthClient, oauthClientSecret, dtEnvironment, slackConnectionId };
+  return { oauthClient, oauthClientSecret, dtEnvironment, slackConnectionId, dtPlatformToken };
 }

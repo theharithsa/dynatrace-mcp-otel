@@ -1,8 +1,8 @@
 # Dynatrace MCP OpenTelemetry Integration Skill Manifest
 
-version: 1.0.8
+version: 2.1.0
 name: dynatrace-mcp-otel
 displayName: Dynatrace MCP OpenTelemetry Integration
 
 metadata:
-  buildVersion: 1.0.8
+  buildVersion: 2.1.0

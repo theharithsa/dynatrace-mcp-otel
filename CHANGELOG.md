@@ -2,6 +2,37 @@
 
 All notable changes to the Dynatrace MCP Server project will be documented in this file.
 
+## 2.1.0 - 2025-01-31
+
+### Added
+
+- **Davis CoPilot AI Integration** - Three powerful new tools for AI-assisted query generation and explanation
+- `generate_dql_from_natural_language` - Convert natural language descriptions to DQL queries using Davis CoPilot AI
+- `explain_dql_in_natural_language` - Get plain English explanations of complex DQL statements
+- `chat_with_davis_copilot` - General-purpose AI assistant for Dynatrace-related questions and troubleshooting
+- Enhanced tool descriptions with workflow guidance (generate → verify → execute → iterate)
+- Davis CoPilot API integration with comprehensive error handling and metadata support
+
+### Enhanced
+
+- Improved tool discovery with better descriptions emphasizing AI workflow capabilities
+- Better error messages and response formatting for Davis CoPilot interactions
+- Enhanced observability with trace correlation for AI-assisted operations
+- Comprehensive documentation for Davis CoPilot features and limitations
+
+### Technical
+
+- Added TypeScript interfaces for Davis CoPilot API responses based on OpenAPI specifications
+- Implemented proper HTTP client handling for Davis CoPilot endpoints
+- Added required OAuth scopes for Davis CoPilot functionality
+- Enhanced README with Davis CoPilot configuration and usage examples
+
+### Notes
+
+- Davis CoPilot AI is generally available (GA), but the Davis CoPilot APIs are in preview
+- DQL generation and explanation capabilities significantly enhance AI assistant workflows
+- Natural language to DQL conversion enables non-technical users to query Dynatrace data effectively
+
 ## 2.0.1 - 2025-01-31
 
 ### Changed
