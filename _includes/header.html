@@ -1,0 +1,257 @@
+<header class="site-header" role="banner">
+  <div class="wrapper">
+    <div class="site-header-content">
+      <div class="site-branding">
+        <a class="site-title" rel="author" href="{{ "/" | relative_url }}">
+          <span class="site-logo">🔧</span>
+          {{ site.title | escape }}
+        </a>
+      </div>
+      
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="m18,1.484c0,1.484-1.2,1.484-1.484,1.484l-15.032,0c-0.82,0-1.484-0.665-1.484-1.484s0.665-1.484,1.484-1.484l15.032,0c0.823,0,1.484,0.665,1.484,1.484z"/>
+              <path d="m18,7.516c0,0.82-0.665,1.484-1.484,1.484l-15.032,0c-0.82,0-1.484-0.665-1.484-1.484s0.665-1.484,1.484-1.484l15.032,0c0.82,0,1.484,0.665,1.484,1.484z"/>
+              <path d="m18,13.516c0,0.82-0.665,1.484-1.484,1.484l-15.032,0c-0.82,0-1.484-0.665-1.484-1.484s0.665-1.484,1.484-1.484l15.032,0c0.82,0,1.484,0.665,1.484,1.484z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger">
+          <a class="page-link" href="{{ '/docs/' | relative_url }}">📚 Documentation</a>
+          <a class="page-link" href="{{ '/docs/getting-started.html' | relative_url }}">🚀 Getting Started</a>
+          <a class="page-link" href="#" onclick="toggleSearch()">🔍 Search</a>
+          <a class="page-link" href="https://github.com/{{ site.github_username }}/{{ site.repository }}" target="_blank">
+            <svg class="github-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+            GitHub
+          </a>
+        </div>
+      </nav>
+    </div>
+  </div>
+
+  <!-- Global search overlay -->
+  <div id="search-overlay" class="search-overlay">
+    <div class="search-overlay-content">
+      <div class="search-overlay-header">
+        <h3>🔍 Search Documentation</h3>
+        <button onclick="toggleSearch()" class="search-close">✕</button>
+      </div>
+      <div class="search-input-wrapper">
+        <input type="text" id="global-search-input" placeholder="Search tools, guides, and documentation..." autocomplete="off">
+        <div id="global-search-results" class="search-results"></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<style>
+.site-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 55.95px;
+}
+
+.site-branding {
+  display: flex;
+  align-items: center;
+}
+
+.site-logo {
+  margin-right: 0.5rem;
+  font-size: 1.5rem;
+}
+
+.github-icon {
+  margin-right: 0.25rem;
+  vertical-align: text-bottom;
+}
+
+/* Search Overlay Styles */
+.search-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 9999;
+  animation: fadeIn 0.3s ease;
+}
+
+.search-overlay-content {
+  position: relative;
+  margin: 5% auto;
+  max-width: 800px;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.search-overlay-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background: linear-gradient(135deg, #1496ff 0%, #6f42c1 100%);
+  color: white;
+}
+
+.search-overlay-header h3 {
+  margin: 0;
+  font-weight: 600;
+}
+
+.search-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.search-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.search-input-wrapper {
+  padding: 2rem;
+}
+
+#global-search-input {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+#global-search-input:focus {
+  border-color: #1496ff;
+}
+
+#global-search-results {
+  position: static;
+  display: block;
+  background: none;
+  border: none;
+  box-shadow: none;
+  max-height: 400px;
+  margin-top: 1rem;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 768px) {
+  .search-overlay-content {
+    margin: 10% auto;
+    max-width: 95%;
+  }
+  
+  .search-overlay-header {
+    padding: 1rem 1.5rem;
+  }
+  
+  .search-input-wrapper {
+    padding: 1.5rem;
+  }
+}
+</style>
+
+<script>
+function toggleSearch() {
+  const overlay = document.getElementById('search-overlay');
+  const input = document.getElementById('global-search-input');
+  
+  if (overlay.style.display === 'none' || !overlay.style.display) {
+    overlay.style.display = 'block';
+    setTimeout(() => input.focus(), 100);
+  } else {
+    overlay.style.display = 'none';
+  }
+}
+
+// Close search on escape key
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    document.getElementById('search-overlay').style.display = 'none';
+  }
+});
+
+// Close search when clicking outside
+document.getElementById('search-overlay').addEventListener('click', function(e) {
+  if (e.target === this) {
+    this.style.display = 'none';
+  }
+});
+
+// Enhanced global search functionality
+document.addEventListener('DOMContentLoaded', function() {
+  const globalSearchInput = document.getElementById('global-search-input');
+  const globalSearchResults = document.getElementById('global-search-results');
+  
+  // Extended tool data with more search terms
+  const searchData = [
+    { name: 'get_environment_info', title: 'Get Environment Info', category: 'Environment & Setup', description: 'Retrieves information about the connected Dynatrace environment', keywords: ['environment', 'tenant', 'connection', 'info'] },
+    { name: 'list_problems', title: 'List Problems', category: 'Problems & Incidents', description: 'List all operational problems in your environment', keywords: ['problems', 'incidents', 'issues', 'alerts'] },
+    { name: 'get_problem_details', title: 'Get Problem Details', category: 'Problems & Incidents', description: 'Get detailed information about specific problems', keywords: ['problem', 'incident', 'details', 'analysis'] },
+    { name: 'list_vulnerabilities', title: 'List Vulnerabilities', category: 'Security & Vulnerabilities', description: 'List all security vulnerabilities detected', keywords: ['security', 'vulnerabilities', 'CVE', 'threats'] },
+    { name: 'get_vulnerability_details', title: 'Get Vulnerability Details', category: 'Security & Vulnerabilities', description: 'Get detailed vulnerability information', keywords: ['vulnerability', 'security', 'CVE', 'risk'] },
+    { name: 'execute_dql', title: 'Execute DQL', category: 'Data Analysis', description: 'Execute DQL queries and get results', keywords: ['DQL', 'query', 'data', 'execute', 'search'] },
+    { name: 'generate_dql_from_natural_language', title: 'Generate DQL from Natural Language', category: 'Data Analysis', description: 'Convert natural language to DQL queries', keywords: ['natural language', 'DQL', 'generate', 'AI', 'query'] },
+    { name: 'send_slack_message', title: 'Send Slack Message', category: 'Communication', description: 'Send messages to Slack channels', keywords: ['slack', 'message', 'notification', 'alert', 'communication'] }
+    // Add more tools as needed
+  ];
+
+  globalSearchInput.addEventListener('input', function() {
+    const query = this.value.toLowerCase().trim();
+    
+    if (query.length < 2) {
+      globalSearchResults.innerHTML = '';
+      return;
+    }
+
+    const results = searchData.filter(item => 
+      item.title.toLowerCase().includes(query) ||
+      item.category.toLowerCase().includes(query) ||
+      item.description.toLowerCase().includes(query) ||
+      item.name.toLowerCase().includes(query) ||
+      item.keywords.some(keyword => keyword.toLowerCase().includes(query))
+    );
+
+    if (results.length > 0) {
+      globalSearchResults.innerHTML = results.map(item => `
+        <div class="search-result">
+          <a href="/docs/${item.name}.html" onclick="toggleSearch()">
+            <strong>${item.title}</strong>
+            <span class="search-category">${item.category}</span>
+            <p>${item.description}</p>
+          </a>
+        </div>
+      `).join('');
+    } else {
+      globalSearchResults.innerHTML = '<div class="search-no-results">No results found. Try different keywords.</div>';
+    }
+  });
+});
+</script>

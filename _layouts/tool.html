@@ -1,0 +1,104 @@
+---
+layout: default
+---
+
+<article class="post tool-documentation">
+  <header class="post-header">
+    <div class="tool-header">
+      <h1 class="post-title">{{ page.title | escape }}</h1>
+      {%- if page.tool_category -%}
+        <span class="tool-category">{{ page.tool_category }}</span>
+      {%- endif -%}
+    </div>
+    {%- if page.description -%}
+      <p class="post-description">{{ page.description }}</p>
+    {%- endif -%}
+  </header>
+
+  <!-- Tool navigation -->
+  <nav class="tool-nav">
+    <a href="{{ '/docs/' | relative_url }}" class="nav-link">← Back to All Tools</a>
+    <div class="tool-actions">
+      <button class="copy-link" onclick="copyPageLink()">📋 Copy Link</button>
+      <button class="print-page" onclick="window.print()">🖨️ Print</button>
+    </div>
+  </nav>
+
+  <div class="post-content">
+    {{ content }}
+  </div>
+
+  <!-- Tool footer with related tools -->
+  {%- if page.related_tools -%}
+  <footer class="tool-footer">
+    <h3>Related Tools</h3>
+    <div class="related-tools">
+      {%- for tool in page.related_tools -%}
+        <a href="{{ tool.link | relative_url }}" class="related-tool">
+          <span class="tool-name">{{ tool.name }}</span>
+          <span class="tool-desc">{{ tool.description }}</span>
+        </a>
+      {%- endfor -%}
+    </div>
+  </footer>
+  {%- endif -%}
+
+  <!-- Navigation to next/previous tool -->
+  <nav class="tool-pagination">
+    <div class="pagination-links">
+      {%- if page.previous_tool -%}
+        <a href="{{ page.previous_tool.url | relative_url }}" class="prev-tool">
+          ← {{ page.previous_tool.title }}
+        </a>
+      {%- endif -%}
+      
+      {%- if page.next_tool -%}
+        <a href="{{ page.next_tool.url | relative_url }}" class="next-tool">
+          {{ page.next_tool.title }} →
+        </a>
+      {%- endif -%}
+    </div>
+  </nav>
+</article>
+
+<script>
+function copyPageLink() {
+  navigator.clipboard.writeText(window.location.href).then(function() {
+    const button = document.querySelector('.copy-link');
+    const originalText = button.textContent;
+    button.textContent = '✅ Copied!';
+    button.style.background = '#28a745';
+    setTimeout(() => {
+      button.textContent = originalText;
+      button.style.background = '';
+    }, 2000);
+  });
+}
+
+// Highlight active section in table of contents
+document.addEventListener('DOMContentLoaded', function() {
+  const headings = document.querySelectorAll('h2, h3');
+  const tocLinks = document.querySelectorAll('.toc a');
+
+  function updateActiveSection() {
+    let current = '';
+    
+    headings.forEach(heading => {
+      const rect = heading.getBoundingClientRect();
+      if (rect.top <= 100) {
+        current = heading.id;
+      }
+    });
+
+    tocLinks.forEach(link => {
+      link.classList.remove('active');
+      if (link.getAttribute('href') === '#' + current) {
+        link.classList.add('active');
+      }
+    });
+  }
+
+  window.addEventListener('scroll', updateActiveSection);
+  updateActiveSection();
+});
+</script>

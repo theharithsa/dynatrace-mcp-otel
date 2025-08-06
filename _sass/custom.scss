@@ -1,0 +1,548 @@
+// Dynatrace MCP Documentation Custom Styles
+
+// Brand colors
+$brand-color: #1496ff;
+$secondary-color: #6f42c1;
+$accent-color: #fd7e14;
+$success-color: #28a745;
+$warning-color: #ffc107;
+$danger-color: #dc3545;
+$dark-color: #343a40;
+$light-gray: #f8f9fa;
+$medium-gray: #6c757d;
+
+// Typography
+$font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif;
+$font-family-mono: "SFMono-Regular", "Monaco", "Inconsolata", "Liberation Mono", "Courier New", monospace;
+
+// Layout
+$max-content-width: 1200px;
+$header-height: 60px;
+
+// Import base minima styles
+@import "minima";
+
+// Custom overrides
+body {
+  font-family: $font-family-base;
+  line-height: 1.6;
+  color: #2c3e50;
+}
+
+// Header customization
+.site-header {
+  background: linear-gradient(135deg, $brand-color 0%, $secondary-color 100%);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  
+  .site-title {
+    color: white !important;
+    font-weight: 600;
+    font-size: 1.5rem;
+    
+    &:hover {
+      color: rgba(255, 255, 255, 0.8) !important;
+    }
+  }
+  
+  .site-nav .page-link {
+    color: rgba(255, 255, 255, 0.9) !important;
+    font-weight: 500;
+    
+    &:hover {
+      color: white !important;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      padding: 8px 12px;
+    }
+  }
+}
+
+// Search functionality
+.search-container {
+  position: relative;
+  margin: 2rem 0;
+  max-width: 600px;
+  
+  #search-input {
+    width: 100%;
+    padding: 12px 20px;
+    border: 2px solid #e9ecef;
+    border-radius: 25px;
+    font-size: 16px;
+    outline: none;
+    transition: all 0.3s ease;
+    
+    &:focus {
+      border-color: $brand-color;
+      box-shadow: 0 0 0 3px rgba(20, 150, 255, 0.1);
+    }
+  }
+}
+
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  max-height: 400px;
+  overflow-y: auto;
+  z-index: 1000;
+  display: none;
+  
+  .search-result {
+    border-bottom: 1px solid #f8f9fa;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+    
+    a {
+      display: block;
+      padding: 12px 20px;
+      color: inherit;
+      text-decoration: none;
+      transition: background-color 0.2s ease;
+      
+      &:hover {
+        background-color: #f8f9fa;
+        color: $brand-color;
+      }
+      
+      strong {
+        color: $brand-color;
+        font-weight: 600;
+      }
+      
+      .search-category {
+        background: $light-gray;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        color: $medium-gray;
+        margin-left: 8px;
+      }
+      
+      p {
+        margin: 4px 0 0 0;
+        font-size: 0.9rem;
+        color: $medium-gray;
+      }
+    }
+  }
+  
+  .search-no-results {
+    padding: 20px;
+    text-align: center;
+    color: $medium-gray;
+    font-style: italic;
+  }
+}
+
+// Category navigation
+.tool-categories {
+  margin: 3rem 0;
+  
+  h2 {
+    color: $dark-color;
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+  }
+}
+
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 3rem;
+}
+
+.category-card {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: white;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: $brand-color;
+    box-shadow: 0 4px 20px rgba(20, 150, 255, 0.1);
+    transform: translateY(-2px);
+    color: $brand-color;
+  }
+  
+  .category-icon {
+    font-size: 1.5rem;
+    margin-right: 1rem;
+  }
+  
+  .category-title {
+    font-weight: 600;
+  }
+}
+
+// Tool tables
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 2rem 0;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  
+  th {
+    background: linear-gradient(135deg, $brand-color 0%, $secondary-color 100%);
+    color: white;
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+  }
+  
+  td {
+    padding: 1rem;
+    border-bottom: 1px solid #f8f9fa;
+    vertical-align: top;
+    
+    &:first-child {
+      font-weight: 600;
+      color: $brand-color;
+    }
+  }
+  
+  tr:hover {
+    background-color: rgba(20, 150, 255, 0.02);
+  }
+}
+
+// Tool documentation specific styles
+.tool-documentation {
+  .tool-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .tool-category {
+    background: linear-gradient(135deg, $brand-color 0%, $secondary-color 100%);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+
+.tool-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 1rem 0 2rem 0;
+  padding: 1rem;
+  background: $light-gray;
+  border-radius: 8px;
+  
+  .nav-link {
+    color: $brand-color;
+    text-decoration: none;
+    font-weight: 500;
+    
+    &:hover {
+      color: $secondary-color;
+    }
+  }
+  
+  .tool-actions {
+    display: flex;
+    gap: 0.5rem;
+    
+    button {
+      background: white;
+      border: 1px solid #dee2e6;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        background: $brand-color;
+        color: white;
+        border-color: $brand-color;
+      }
+    }
+  }
+}
+
+// Code blocks and examples
+pre, code {
+  font-family: $font-family-mono;
+}
+
+pre {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  
+  code {
+    background: none;
+    border: none;
+    padding: 0;
+  }
+}
+
+code {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.9em;
+}
+
+// Alerts and callouts
+.alert {
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  margin: 1.5rem 0;
+  border-left: 4px solid;
+  
+  &.alert-success {
+    background: rgba(40, 167, 69, 0.1);
+    border-color: $success-color;
+    color: darken($success-color, 10%);
+  }
+  
+  &.alert-warning {
+    background: rgba(255, 193, 7, 0.1);
+    border-color: $warning-color;
+    color: darken($warning-color, 20%);
+  }
+  
+  &.alert-danger {
+    background: rgba(220, 53, 69, 0.1);
+    border-color: $danger-color;
+    color: darken($danger-color, 10%);
+  }
+  
+  &.alert-info {
+    background: rgba(20, 150, 255, 0.1);
+    border-color: $brand-color;
+    color: darken($brand-color, 10%);
+  }
+}
+
+// Lists with better styling
+ul, ol {
+  li {
+    margin-bottom: 0.5rem;
+    
+    &::marker {
+      color: $brand-color;
+    }
+  }
+}
+
+// Good/bad examples styling
+h3 {
+  &:contains("✅") {
+    color: $success-color;
+  }
+  
+  &:contains("❌") {
+    color: $danger-color;
+  }
+}
+
+// Back to top button
+.back-to-top {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: $brand-color;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  cursor: pointer;
+  display: none;
+  font-size: 1.2rem;
+  box-shadow: 0 4px 20px rgba(20, 150, 255, 0.3);
+  transition: all 0.3s ease;
+  z-index: 1000;
+  
+  &:hover {
+    background: $secondary-color;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(111, 66, 193, 0.3);
+  }
+}
+
+// Footer customization
+.site-footer {
+  background: $dark-color;
+  color: white;
+  
+  .footer-heading {
+    color: white;
+  }
+  
+  a {
+    color: rgba(255, 255, 255, 0.8);
+    
+    &:hover {
+      color: white;
+    }
+  }
+}
+
+// Related tools section
+.tool-footer {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 2px solid #e9ecef;
+  
+  h3 {
+    color: $dark-color;
+    margin-bottom: 1rem;
+  }
+}
+
+.related-tools {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.related-tool {
+  display: block;
+  padding: 1rem;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: $brand-color;
+    box-shadow: 0 2px 10px rgba(20, 150, 255, 0.1);
+    transform: translateY(-1px);
+  }
+  
+  .tool-name {
+    display: block;
+    font-weight: 600;
+    color: $brand-color;
+    margin-bottom: 0.5rem;
+  }
+  
+  .tool-desc {
+    font-size: 0.9rem;
+    color: $medium-gray;
+  }
+}
+
+// Tool pagination
+.tool-pagination {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.pagination-links {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  
+  a {
+    padding: 0.8rem 1.5rem;
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    text-decoration: none;
+    color: $brand-color;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      border-color: $brand-color;
+      box-shadow: 0 2px 10px rgba(20, 150, 255, 0.1);
+    }
+    
+    &.prev-tool {
+      margin-right: auto;
+    }
+    
+    &.next-tool {
+      margin-left: auto;
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .category-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .search-container {
+    margin: 1rem 0;
+  }
+  
+  .tool-nav {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  table {
+    font-size: 0.9rem;
+    
+    th, td {
+      padding: 0.75rem 0.5rem;
+    }
+  }
+  
+  .pagination-links {
+    flex-direction: column;
+    
+    a {
+      text-align: center;
+    }
+  }
+  
+  .back-to-top {
+    bottom: 1rem;
+    right: 1rem;
+    width: 45px;
+    height: 45px;
+  }
+}
+
+@media print {
+  .search-container,
+  .tool-nav,
+  .back-to-top,
+  .site-header,
+  .site-footer {
+    display: none !important;
+  }
+  
+  .post-content {
+    max-width: none;
+  }
+}

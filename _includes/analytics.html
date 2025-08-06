@@ -1,0 +1,97 @@
+<!-- Google Analytics -->
+{% if jekyll.environment == 'production' and site.google_analytics %}
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ site.google_analytics }}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '{{ site.google_analytics }}', {
+      'anonymize_ip': true,
+      'allow_google_signals': false,
+      'allow_ad_personalization_signals': false
+    });
+  </script>
+{% endif %}
+
+<!-- Microsoft Clarity (optional - add your project ID) -->
+{% if jekyll.environment == 'production' and site.clarity_id %}
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "{{ site.clarity_id }}");
+  </script>
+{% endif %}
+
+<!-- Plausible Analytics (privacy-friendly alternative) -->
+{% if jekyll.environment == 'production' and site.plausible_domain %}
+  <script defer data-domain="{{ site.plausible_domain }}" src="https://plausible.io/js/script.js"></script>
+{% endif %}
+
+<!-- Custom tracking events -->
+<script>
+  // Track tool page views
+  if (typeof gtag !== 'undefined' && window.location.pathname.includes('/docs/')) {
+    const toolName = window.location.pathname.split('/').pop().replace('.html', '');
+    if (toolName && toolName !== 'index') {
+      gtag('event', 'tool_page_view', {
+        'tool_name': toolName,
+        'page_title': document.title
+      });
+    }
+  }
+
+  // Track search usage
+  document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+      let searchTimer;
+      searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimer);
+        const query = this.value.trim();
+        if (query.length > 2) {
+          searchTimer = setTimeout(() => {
+            if (typeof gtag !== 'undefined') {
+              gtag('event', 'search', {
+                'search_term': query
+              });
+            }
+          }, 1000);
+        }
+      });
+    }
+  });
+
+  // Track external link clicks
+  document.addEventListener('click', function(e) {
+    if (e.target.tagName === 'A' && e.target.hostname !== window.location.hostname) {
+      if (typeof gtag !== 'undefined') {
+        gtag('event', 'click', {
+          'event_category': 'external_link',
+          'event_label': e.target.href
+        });
+      }
+    }
+  });
+
+  // Track copy link usage
+  function trackCopyLink() {
+    if (typeof gtag !== 'undefined') {
+      gtag('event', 'copy_link', {
+        'page_url': window.location.href,
+        'page_title': document.title
+      });
+    }
+  }
+
+  // Track print usage
+  window.addEventListener('beforeprint', function() {
+    if (typeof gtag !== 'undefined') {
+      gtag('event', 'print_page', {
+        'page_url': window.location.href,
+        'page_title': document.title
+      });
+    }
+  });
+</script>

@@ -1,0 +1,156 @@
+---
+layout: default
+---
+
+<article class="post">
+  <header class="post-header">
+    <h1 class="post-title">{{ page.title | escape }}</h1>
+    {%- if page.description -%}
+      <p class="post-description">{{ page.description }}</p>
+    {%- endif -%}
+  </header>
+
+  <div class="post-content">
+    <!-- Search functionality -->
+    <div class="search-container">
+      <input type="text" id="search-input" placeholder="Search tools and documentation..." autocomplete="off">
+      <div id="search-results" class="search-results"></div>
+    </div>
+
+    <!-- Quick navigation -->
+    <nav class="tool-categories">
+      <h2>Tool Categories</h2>
+      <div class="category-grid">
+        <a href="#environment-setup" class="category-card">
+          <span class="category-icon">🔧</span>
+          <span class="category-title">Environment & Setup</span>
+        </a>
+        <a href="#problem-incident" class="category-card">
+          <span class="category-icon">🚨</span>
+          <span class="category-title">Problems & Incidents</span>
+        </a>
+        <a href="#security-vulnerability" class="category-card">
+          <span class="category-icon">🔒</span>
+          <span class="category-title">Security & Vulnerabilities</span>
+        </a>
+        <a href="#entity-infrastructure" class="category-card">
+          <span class="category-icon">🏢</span>
+          <span class="category-title">Entities & Infrastructure</span>
+        </a>
+        <a href="#data-analysis" class="category-card">
+          <span class="category-icon">📊</span>
+          <span class="category-title">Data Analysis</span>
+        </a>
+        <a href="#dashboards-reporting" class="category-card">
+          <span class="category-icon">📈</span>
+          <span class="category-title">Dashboards & Reporting</span>
+        </a>
+        <a href="#communication" class="category-card">
+          <span class="category-icon">💬</span>
+          <span class="category-title">Communication</span>
+        </a>
+        <a href="#advanced-operations" class="category-card">
+          <span class="category-icon">🔧</span>
+          <span class="category-title">Advanced Operations</span>
+        </a>
+      </div>
+    </nav>
+
+    {{ content }}
+
+    <!-- Back to top button -->
+    <button id="back-to-top" class="back-to-top" onclick="scrollToTop()">
+      ↑ Back to Top
+    </button>
+  </div>
+</article>
+
+<!-- Search functionality -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('search-input');
+  const searchResults = document.getElementById('search-results');
+  
+  // Tool data for search
+  const tools = [
+    { name: 'get_environment_info', title: 'Get Environment Info', category: 'Environment & Setup', description: 'Retrieves information about the connected Dynatrace environment' },
+    { name: 'list_problems', title: 'List Problems', category: 'Problems & Incidents', description: 'List all operational problems in your environment' },
+    { name: 'get_problem_details', title: 'Get Problem Details', category: 'Problems & Incidents', description: 'Get detailed information about specific problems' },
+    { name: 'list_vulnerabilities', title: 'List Vulnerabilities', category: 'Security & Vulnerabilities', description: 'List all security vulnerabilities detected' },
+    { name: 'get_vulnerability_details', title: 'Get Vulnerability Details', category: 'Security & Vulnerabilities', description: 'Get detailed vulnerability information' },
+    { name: 'find_entity_by_name', title: 'Find Entity by Name', category: 'Entities & Infrastructure', description: 'Find entity IDs by searching with names' },
+    { name: 'get_entity_details', title: 'Get Entity Details', category: 'Entities & Infrastructure', description: 'Get comprehensive entity information' },
+    { name: 'get_ownership', title: 'Get Ownership', category: 'Entities & Infrastructure', description: 'Get ownership information for entities' },
+    { name: 'execute_dql', title: 'Execute DQL', category: 'Data Analysis', description: 'Execute DQL queries and get results' },
+    { name: 'verify_dql', title: 'Verify DQL', category: 'Data Analysis', description: 'Validate DQL query syntax' },
+    { name: 'generate_dql_from_natural_language', title: 'Generate DQL from Natural Language', category: 'Data Analysis', description: 'Convert natural language to DQL queries' },
+    { name: 'explain_dql_in_natural_language', title: 'Explain DQL in Natural Language', category: 'Data Analysis', description: 'Explain DQL queries in plain English' },
+    { name: 'get_logs_for_entity', title: 'Get Logs for Entity', category: 'Data Analysis', description: 'Retrieve logs for specific entities' },
+    { name: 'get_kubernetes_events', title: 'Get Kubernetes Events', category: 'Data Analysis', description: 'Get Kubernetes cluster events' },
+    { name: 'create_dashboard', title: 'Create Dashboard', category: 'Dashboards & Reporting', description: 'Create dashboards from JSON templates' },
+    { name: 'share_document_env', title: 'Share Document Environment', category: 'Dashboards & Reporting', description: 'Share documents across environments' },
+    { name: 'direct_share_document', title: 'Direct Share Document', category: 'Dashboards & Reporting', description: 'Share documents with specific users' },
+    { name: 'bulk_delete_dashboards', title: 'Bulk Delete Dashboards', category: 'Dashboards & Reporting', description: 'Delete multiple documents at once' },
+    { name: 'send_slack_message', title: 'Send Slack Message', category: 'Communication', description: 'Send messages to Slack channels' },
+    { name: 'create_workflow_for_notification', title: 'Create Workflow for Notification', category: 'Problems & Incidents', description: 'Create automated notification workflows' },
+    { name: 'make_workflow_public', title: 'Make Workflow Public', category: 'Problems & Incidents', description: 'Make private workflows accessible to teams' },
+    { name: 'execute_typescript', title: 'Execute TypeScript', category: 'Advanced Operations', description: 'Execute custom TypeScript code' },
+    { name: 'chat_with_davis_copilot', title: 'Chat with Davis CoPilot', category: 'Advanced Operations', description: 'Interactive AI assistant for Dynatrace' }
+  ];
+
+  searchInput.addEventListener('input', function() {
+    const query = this.value.toLowerCase().trim();
+    
+    if (query.length < 2) {
+      searchResults.innerHTML = '';
+      searchResults.style.display = 'none';
+      return;
+    }
+
+    const results = tools.filter(tool => 
+      tool.title.toLowerCase().includes(query) ||
+      tool.category.toLowerCase().includes(query) ||
+      tool.description.toLowerCase().includes(query) ||
+      tool.name.toLowerCase().includes(query)
+    );
+
+    if (results.length > 0) {
+      searchResults.innerHTML = results.map(tool => `
+        <div class="search-result">
+          <a href="${tool.name}.html">
+            <strong>${tool.title}</strong>
+            <span class="search-category">${tool.category}</span>
+            <p>${tool.description}</p>
+          </a>
+        </div>
+      `).join('');
+      searchResults.style.display = 'block';
+    } else {
+      searchResults.innerHTML = '<div class="search-no-results">No tools found matching your search.</div>';
+      searchResults.style.display = 'block';
+    }
+  });
+
+  // Hide search results when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+      searchResults.style.display = 'none';
+    }
+  });
+});
+
+// Back to top functionality
+window.onscroll = function() {
+  const backToTopButton = document.getElementById('back-to-top');
+  if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+    backToTopButton.style.display = 'block';
+  } else {
+    backToTopButton.style.display = 'none';
+  }
+};
+
+function scrollToTop() {
+  document.body.scrollTop = 0;
+  document.documentElement.scrollTop = 0;
+}
+</script>
