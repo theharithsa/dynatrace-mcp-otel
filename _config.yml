@@ -14,12 +14,6 @@ plugins:
   - jekyll-sitemap
   - jekyll-seo-tag
 
-# Collections
-collections:
-  tools:
-    output: true
-    permalink: /:collection/:name/
-
 # Navigation
 header_pages:
   - docs/index.md

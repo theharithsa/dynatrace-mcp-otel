@@ -1,17 +1,16 @@
 source "https://rubygems.org"
 
-gem "github-pages", group: :jekyll_plugins
-gem "jekyll", "~> 4.3.0"
+# GitHub Pages gem - this will pull in the correct Jekyll version
+gem "github-pages", "~> 231", group: :jekyll_plugins
 
-# Theme
+# Theme - using version compatible with GitHub Pages
 gem "minima", "~> 2.5"
 
-# Plugins
+# Additional plugins for GitHub Pages
 group :jekyll_plugins do
   gem "jekyll-feed", "~> 0.12"
   gem "jekyll-sitemap"
   gem "jekyll-seo-tag"
-  gem "jekyll-redirect-from"
 end
 
 # Windows and JRuby does not include zoneinfo files, so bundle the tzinfo-data gem
