@@ -11,47 +11,103 @@ layout: default
   </header>
 
   <div class="post-content">
+    <!-- Hero section -->
+    <div class="hero-section" style="text-align: center; padding: 3rem 2rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; margin-bottom: 3rem;">
+      <h2 style="font-size: 2.2rem; color: var(--dt-purple); margin-bottom: 1rem; font-weight: 700;">🚀 Dynatrace MCP Server Tools</h2>
+      <p style="font-size: 1.2rem; color: var(--dt-grey); max-width: 800px; margin: 0 auto 2rem;">
+        Powerful automation tools for Dynatrace monitoring, analytics, and operations. Get started with AI-assisted prompts and comprehensive documentation.
+      </p>
+      <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+        <a href="{{ '/docs/getting-started' | relative_url }}" style="background: var(--dt-blue); color: white; padding: 1rem 2rem; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; transition: var(--transition);" onmouseover="this.style.background='var(--dt-purple)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='var(--dt-blue)'; this.style.transform='translateY(0)'">
+          📚 Getting Started
+        </a>
+        <a href="{{ '/docs/about' | relative_url }}" style="background: white; color: var(--dt-blue); padding: 1rem 2rem; border: 2px solid var(--dt-blue); border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; transition: var(--transition);" onmouseover="this.style.background='var(--dt-blue)'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='var(--dt-blue)'">
+          ℹ️ About Project
+        </a>
+      </div>
+    </div>
+
     <!-- Search functionality -->
-    <div class="search-container">
-      <input type="text" id="search-input" placeholder="Search tools and documentation..." autocomplete="off">
-      <div id="search-results" class="search-results"></div>
+    <div class="search-container" style="max-width: 600px; margin: 2rem auto; position: relative;">
+      <input type="text" id="search-input" placeholder="🔍 Search tools and documentation..." autocomplete="off" style="width: 100%; padding: 1rem 1.5rem; font-size: 1.1rem; border: 2px solid #e9ecef; border-radius: 50px; background: white; box-shadow: var(--shadow-light); transition: var(--transition);">
+      <div id="search-results" class="search-results" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border-radius: var(--border-radius); box-shadow: var(--shadow-medium); max-height: 400px; overflow-y: auto; z-index: 1000; margin-top: 0.5rem; display: none;"></div>
+    </div>
+
+    <!-- Stats section -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin: 3rem 0;">
+      <div style="text-align: center; padding: 2rem; background: white; border-radius: 12px; box-shadow: var(--shadow-light); border-left: 4px solid var(--dt-blue);">
+        <div style="font-size: 2.5rem; font-weight: 700; color: var(--dt-blue); margin-bottom: 0.5rem;">23</div>
+        <div style="color: var(--dt-grey); font-weight: 600;">MCP Tools</div>
+      </div>
+      <div style="text-align: center; padding: 2rem; background: white; border-radius: 12px; box-shadow: var(--shadow-light); border-left: 4px solid var(--dt-purple);">
+        <div style="font-size: 2.5rem; font-weight: 700; color: var(--dt-purple); margin-bottom: 0.5rem;">8</div>
+        <div style="color: var(--dt-grey); font-weight: 600;">Categories</div>
+      </div>
+      <div style="text-align: center; padding: 2rem; background: white; border-radius: 12px; box-shadow: var(--shadow-light); border-left: 4px solid var(--dt-orange);">
+        <div style="font-size: 2.5rem; font-weight: 700; color: var(--dt-orange); margin-bottom: 0.5rem;">∞</div>
+        <div style="color: var(--dt-grey); font-weight: 600;">Possibilities</div>
+      </div>
     </div>
 
     <!-- Quick navigation -->
     <nav class="tool-categories">
-      <h2>Tool Categories</h2>
-      <div class="category-grid">
-        <a href="#environment-setup" class="category-card">
-          <span class="category-icon">🔧</span>
-          <span class="category-title">Environment & Setup</span>
+      <h2 style="text-align: center; font-size: 2rem; font-weight: 700; margin-bottom: 2rem; color: var(--dt-dark);">🗂️ Tool Categories</h2>
+      <div class="category-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin: 2rem 0;">
+        <a href="#environment-setup" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+          <span class="category-icon" style="font-size: 2.5rem;">🔧</span>
+          <div>
+            <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Environment & Setup</div>
+            <div style="font-size: 0.9rem; color: var(--dt-grey);">Configuration and environment tools</div>
+          </div>
         </a>
-        <a href="#problem-incident" class="category-card">
-          <span class="category-icon">🚨</span>
-          <span class="category-title">Problems & Incidents</span>
+        <a href="#problem-incident" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+          <span class="category-icon" style="font-size: 2.5rem;">🚨</span>
+          <div>
+            <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Problems & Incidents</div>
+            <div style="font-size: 0.9rem; color: var(--dt-grey);">Issue tracking and resolution</div>
+          </div>
         </a>
-        <a href="#security-vulnerability" class="category-card">
-          <span class="category-icon">🔒</span>
-          <span class="category-title">Security & Vulnerabilities</span>
+        <a href="#security-vulnerability" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+          <span class="category-icon" style="font-size: 2.5rem;">🔒</span>
+          <div>
+            <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Security & Vulnerabilities</div>
+            <div style="font-size: 0.9rem; color: var(--dt-grey);">Security analysis and monitoring</div>
+          </div>
         </a>
-        <a href="#entity-infrastructure" class="category-card">
-          <span class="category-icon">🏢</span>
-          <span class="category-title">Entities & Infrastructure</span>
+        <a href="#entity-infrastructure" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+          <span class="category-icon" style="font-size: 2.5rem;">🏢</span>
+          <div>
+            <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Entities & Infrastructure</div>
+            <div style="font-size: 0.9rem; color: var(--dt-grey);">Infrastructure discovery and details</div>
+          </div>
         </a>
-        <a href="#data-analysis" class="category-card">
-          <span class="category-icon">📊</span>
-          <span class="category-title">Data Analysis</span>
+        <a href="#data-analysis" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+          <span class="category-icon" style="font-size: 2.5rem;">📊</span>
+          <div>
+            <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Data Analysis</div>
+            <div style="font-size: 0.9rem; color: var(--dt-grey);">DQL queries and data exploration</div>
+          </div>
         </a>
-        <a href="#dashboards-reporting" class="category-card">
-          <span class="category-icon">📈</span>
-          <span class="category-title">Dashboards & Reporting</span>
+        <a href="#dashboards-reporting" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+          <span class="category-icon" style="font-size: 2.5rem;">📈</span>
+          <div>
+            <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Dashboards & Reporting</div>
+            <div style="font-size: 0.9rem; color: var(--dt-grey);">Visualization and document sharing</div>
+          </div>
         </a>
-        <a href="#communication" class="category-card">
-          <span class="category-icon">💬</span>
-          <span class="category-title">Communication</span>
+        <a href="#communication" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+          <span class="category-icon" style="font-size: 2.5rem;">💬</span>
+          <div>
+            <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Communication</div>
+            <div style="font-size: 0.9rem; color: var(--dt-grey);">Notifications and messaging</div>
+          </div>
         </a>
-        <a href="#advanced-operations" class="category-card">
-          <span class="category-icon">🔧</span>
-          <span class="category-title">Advanced Operations</span>
+        <a href="#advanced-operations" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+          <span class="category-icon" style="font-size: 2.5rem;">⚡</span>
+          <div>
+            <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Advanced Operations</div>
+            <div style="font-size: 0.9rem; color: var(--dt-grey);">Custom automation and AI assistance</div>
+          </div>
         </a>
       </div>
     </nav>
@@ -59,8 +115,8 @@ layout: default
     {{ content }}
 
     <!-- Back to top button -->
-    <button id="back-to-top" class="back-to-top" onclick="scrollToTop()">
-      ↑ Back to Top
+    <button id="back-to-top" class="back-to-top" onclick="scrollToTop()" style="position: fixed; bottom: 2rem; right: 2rem; background: var(--dt-blue); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 1.2rem; cursor: pointer; box-shadow: var(--shadow-medium); transition: var(--transition); z-index: 1000; display: none;">
+      ↑
     </button>
   </div>
 </article>

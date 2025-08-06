@@ -16,7 +16,6 @@ plugins:
 
 # Navigation
 header_pages:
-  - docs/index.md
   - docs/getting-started.md
   - docs/about.md
 

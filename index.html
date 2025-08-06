@@ -1,0 +1,13 @@
+---
+layout: default
+---
+
+<script>
+  // Redirect to docs/ on root access
+  window.location.href = "{{ '/docs/' | relative_url }}";
+</script>
+
+<div style="text-align: center; padding: 50px;">
+  <h2>Redirecting to Documentation...</h2>
+  <p>If you're not automatically redirected, <a href="{{ '/docs/' | relative_url }}">click here</a>.</p>
+</div>

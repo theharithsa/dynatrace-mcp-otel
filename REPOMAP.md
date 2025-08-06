@@ -86,7 +86,7 @@ src/
     ├── execute-dql.ts            # DQL query execution
     ├── get-problem-details.ts    # Problem analysis tools
     ├── send-slack-message.ts     # Communication integrations
-    └── [18 more tool files]      # Individual MCP tool implementations
+    └── [20 more tool files]      # Individual MCP tool implementations
 ```
 
 **Key Files**:
@@ -105,7 +105,7 @@ docs/
 ├── chat_with_davis_copilot.md    # AI assistant tool docs
 ├── execute_dql.md               # DQL execution tool docs
 ├── get_problem_details.md       # Problem analysis docs
-└── [19 more tool docs]          # Individual tool documentation
+└── [19 more tool docs]          # Individual tool documentation (23 tools total)
 ```
 
 **Content Structure**: Each tool documentation includes usage examples, parameters, and prompting best practices.
@@ -138,10 +138,14 @@ _sass/
 ```
 dashboards/
 ├── [CARBON] Breakdown per Namespace.json
+├── [CARBON] Data visualisations (1).json
 ├── Databases.json
 ├── DBOM.json
+├── Insightify - Value Realisation Dashboard.json
+├── Insightify_ Incident_MTTR_Snapshot1.json
+├── Insightify_Category_Incident and MTTR Breakdown Dashboard.json
 ├── Security findings.json
-└── [4 more dashboard files]     # Ready-to-import dashboard templates
+└── Technology Version & Vulnerability Tracker.json
 ```
 
 **Usage**: Import these JSON files directly into Dynatrace for instant monitoring dashboards.
@@ -228,11 +232,12 @@ dynatrace-agent-rules/
 
 | Directory | File Count | Purpose |
 |-----------|------------|---------|
-| `/src/` | 26 files | TypeScript source code |
-| `/docs/` | 25 files | Documentation content |
-| `/dashboards/` | 8 files | Dashboard templates |
-| Root config | 15+ files | Project configuration |
-| **Total** | **70+ files** | Complete MCP server solution |
+| `/src/` | 27 files | TypeScript source code |
+| `/docs/` | 26 files | Documentation content |
+| `/dashboards/` | 9 files | Dashboard templates |
+| Jekyll (`_layouts/`, `_includes/`, `_sass/`) | 5 files | Website infrastructure |
+| Root config | 24 files | Project configuration |
+| **Total** | **91 files** | Complete MCP server solution |
 
 ---
 

@@ -1,5 +1,0 @@
-# line length https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md#md013
-MD013: false
-
-# punctuation in headings
-MD026: false
