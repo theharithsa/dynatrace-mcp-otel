@@ -29,9 +29,43 @@ body {
   color: #e6edf3;
 }
 
-.header {
-  background: linear-gradient(135deg, var(--dt-purple) 0%, var(--dt-blue) 100%);
+/* Header styling to match Hacker theme structure */
+header {
+  background: linear-gradient(135deg, var(--dt-purple) 0%, var(--dt-blue) 100%) !important;
   box-shadow: 0 2px 10px rgba(111, 66, 193, 0.3);
+}
+
+header h1, header h2 {
+  color: white !important;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+header a {
+  color: white !important;
+}
+
+#main-content {
+  background: transparent;
+}
+
+/* Sidebar styling */
+#sidebar {
+  background: var(--hacker-grey);
+  border: 1px solid var(--hacker-green);
+  border-radius: 8px;
+}
+
+#sidebar .button {
+  background: linear-gradient(135deg, var(--hacker-green) 0%, #00cc33 100%) !important;
+  color: var(--hacker-dark) !important;
+  border: none !important;
+  font-family: 'Courier New', monospace !important;
+}
+
+#sidebar .button:hover {
+  background: linear-gradient(135deg, #00cc33 0%, var(--hacker-green) 100%) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
 }
 
 /* Navigation styling */

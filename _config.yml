@@ -3,6 +3,9 @@ description: Complete guide to using the Dynatrace Model Context Protocol Server
 baseurl: "/dynatrace-mcp-otel"
 url: "https://theharithsa.github.io"
 
+# Repository information (required for Hacker theme)
+repository: theharithsa/dynatrace-mcp-otel
+
 # Build settings
 markdown: kramdown
 highlighter: rouge
@@ -25,6 +28,17 @@ plugins:
 
 # Search
 search_enabled: true
+
+# GitHub configuration
+github:
+  repository_url: https://github.com/theharithsa/dynatrace-mcp-otel
+  zip_url: https://github.com/theharithsa/dynatrace-mcp-otel/archive/refs/heads/main.zip
+  tar_url: https://github.com/theharithsa/dynatrace-mcp-otel/archive/refs/heads/main.tar.gz
+  repository_name: dynatrace-mcp-otel
+  owner_name: theharithsa
+  owner_url: https://github.com/theharithsa
+  is_project_page: true
+  is_user_page: false
 
 # Analytics
 google_analytics: G-QS7DTXHWQT # Replace with your Google Analytics tracking ID
