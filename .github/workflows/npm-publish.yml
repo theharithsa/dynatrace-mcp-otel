@@ -2,9 +2,35 @@ name: Publish to NPM
 on:
   push:
     branches: [main, master, dev]
+    paths-ignore:
+      - '*.md'
+      - '_config.yml'
+      - '_layouts/**'
+      - '_includes/**'
+      - '_sass/**'
+      - 'assets/**'
+      - 'docs/**'
+      - 'dashboards/**'
+      - 'Gemfile*'
+      - '.github/workflows/jekyll.yml'
+      - 'start-jekyll.*'
+      - 'docker-compose.yml'
   pull_request:
     branches: [main, master, dev]
     types: [opened, synchronize, closed]
+    paths-ignore:
+      - '*.md'
+      - '_config.yml'
+      - '_layouts/**'
+      - '_includes/**'
+      - '_sass/**'
+      - 'assets/**'
+      - 'docs/**'
+      - 'dashboards/**'
+      - 'Gemfile*'
+      - '.github/workflows/jekyll.yml'
+      - 'start-jekyll.*'
+      - 'docker-compose.yml'
   workflow_dispatch:
     inputs:
       force_publish:
