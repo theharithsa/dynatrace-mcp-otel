@@ -1,4 +1,5 @@
-name: Deploy Jekyll Documentation to GitHub Pages
+name: Deploy Jekyll site to GitHub Pages
+
 on:
   push:
     branches: [main]

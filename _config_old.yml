@@ -1,0 +1,86 @@
+title: Dynatrace MCP Server Documentation
+description: Complete guide to using the Dynatrace Model Context Protocol Server tools for monitoring automation and analytics
+baseurl: "/dynatrace-mcp-otel"
+url: "https://theharithsa.github.io"
+
+# Repository information (required for Hacker theme)
+repository: theharithsa/dynatrace-mcp-otel
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+remote_theme: pages-themes/hacker@v0.2.0
+
+# Hacker theme configuration
+show_downloads: true
+
+# Navigation pages for hacker theme
+nav_pages:
+  - docs/getting-started.md
+  - docs/about.md
+
+# Plugins
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
+  - jekyll-remote-theme
+
+# Search
+search_enabled: true
+
+# GitHub configuration
+github:
+  repository_url: https://github.com/theharithsa/dynatrace-mcp-otel
+  zip_url: https://github.com/theharithsa/dynatrace-mcp-otel/archive/refs/heads/main.zip
+  tar_url: https://github.com/theharithsa/dynatrace-mcp-otel/archive/refs/heads/main.tar.gz
+  repository_name: dynatrace-mcp-otel
+  owner_name: theharithsa
+  owner_url: https://github.com/theharithsa
+  is_project_page: true
+  is_user_page: false
+
+# Analytics
+google_analytics: G-QS7DTXHWQT # Replace with your Google Analytics tracking ID
+
+# Social
+github_username: theharithsa
+twitter_username: theharithsa
+linkedin_username: theharithsa
+
+# SEO
+author:
+  name: Vishruth Harithsa
+  email: vishruth.harithsa@dynatrace.com
+
+# Exclude from processing
+exclude:
+  - .gitignore
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+
+# Custom variables
+brand_color: "#1496ff"
+secondary_color: "#6f42c1"
+accent_color: "#fd7e14"
+
+# Footer
+footer_content: >
+  This documentation is maintained by the Dynatrace community. 
+  <a href="https://github.com/theharithsa/dynatrace-mcp-otel">View on GitHub</a>
+
+# Compression
+sass:
+  style: compressed
+
+# Kramdown options
+kramdown:
+  input: GFM
+  hard_wrap: false
+  syntax_highlighter: rouge
