@@ -150,11 +150,11 @@ const searchResults = document.getElementById('search-results');
 
 // Tool data for search
 const tools = [
-  { name: 'Get Environment Info', category: 'Environment & Setup', description: 'Retrieve Dynatrace environment information', url: '/docs/get_environment_info/' },
-  { name: 'List Problems', category: 'Problems & Incidents', description: 'List all operational problems', url: '/docs/list_problems/' },
-  { name: 'Execute DQL', category: 'Data Analysis', description: 'Execute Dynatrace Query Language statements', url: '/docs/execute_dql/' },
-  { name: 'Send Slack Message', category: 'Communication', description: 'Send notifications to Slack channels', url: '/docs/send_slack_message/' },
-  { name: 'Chat with Davis CoPilot', category: 'Advanced Operations', description: 'AI-powered Dynatrace assistance', url: '/docs/chat_with_davis_copilot/' },
+  { name: 'Get Environment Info', category: 'Environment & Setup', description: 'Retrieve Dynatrace environment information', url: '{{ "/docs/get_environment_info/" | relative_url }}' },
+  { name: 'List Problems', category: 'Problems & Incidents', description: 'List all operational problems', url: '{{ "/docs/list_problems/" | relative_url }}' },
+  { name: 'Execute DQL', category: 'Data Analysis', description: 'Execute Dynatrace Query Language statements', url: '{{ "/docs/execute_dql/" | relative_url }}' },
+  { name: 'Send Slack Message', category: 'Communication', description: 'Send notifications to Slack channels', url: '{{ "/docs/send_slack_message/" | relative_url }}' },
+  { name: 'Chat with Davis CoPilot', category: 'Advanced Operations', description: 'AI-powered Dynatrace assistance', url: '{{ "/docs/chat_with_davis_copilot/" | relative_url }}' },
 ];
 
 searchInput.addEventListener('input', function() {
@@ -174,7 +174,7 @@ searchInput.addEventListener('input', function() {
   if (filteredTools.length > 0) {
     searchResults.innerHTML = filteredTools.map(tool => `
       <div class="search-result">
-        <a href="{{ '${tool.url}' | relative_url }}">
+        <a href="${tool.url}">
           <strong>${tool.name}</strong>
           <span class="search-category">${tool.category}</span>
           <p>${tool.description}</p>
