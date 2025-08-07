@@ -1,9 +1,6 @@
 ---
 ---
 
-@import "minima/skins/dark";
-@import "minima/initialize";
-
 // Dynatrace brand colors
 :root {
   --dt-purple: #6f2da8;
@@ -135,7 +132,7 @@
   }
 }
 
-// Table styling
+// Table styling with theme support
 table {
   width: 100%;
   margin: 1rem 0;
@@ -157,18 +154,30 @@ table {
   }
 }
 
-// Dark theme adjustments
-.minima.dark-theme {
-  table th {
-    background-color: var(--dt-dark-gray);
+// Dark theme support for tables
+@media (prefers-color-scheme: dark) {
+  table {
+    th, td {
+      border-bottom: 1px solid #30363d;
+    }
+    
+    th {
+      background-color: var(--dt-dark-gray);
+      color: #fff;
+    }
+    
+    tr:hover {
+      background-color: rgba(111, 45, 168, 0.1);
+    }
   }
 
   .category-card {
     border-color: #30363d;
+    background-color: #0d1117;
     
     &:hover {
       border-color: var(--dt-purple);
-      box-shadow: 0 4px 8px rgba(111, 45, 168, 0.2);
+      box-shadow: 0 4px 8px rgba(111, 45, 168, 0.3);
     }
   }
 }
