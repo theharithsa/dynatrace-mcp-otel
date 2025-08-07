@@ -21,7 +21,7 @@ layout: default
         <a href="{{ '/docs/getting-started' | relative_url }}" style="background: var(--dt-blue); color: white; padding: 1rem 2rem; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; transition: var(--transition);" onmouseover="this.style.background='var(--dt-purple)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='var(--dt-blue)'; this.style.transform='translateY(0)'">
           📚 Getting Started
         </a>
-        <a href="{{ '/docs/about' | relative_url }}" style="background: white; color: var(--dt-blue); padding: 1rem 2rem; border: 2px solid var(--dt-blue); border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; transition: var(--transition);" onmouseover="this.style.background='var(--dt-blue)'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='var(--dt-blue)'">
+        <a href="{{ '/about/' | relative_url }}" style="background: white; color: var(--dt-blue); padding: 1rem 2rem; border: 2px solid var(--dt-blue); border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; transition: var(--transition);" onmouseover="this.style.background='var(--dt-blue)'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='var(--dt-blue)'">>
           ℹ️ About Project
         </a>
       </div>
@@ -53,56 +53,57 @@ layout: default
     <nav class="tool-categories">
       <h2 style="text-align: center; font-size: 2rem; font-weight: 700; margin-bottom: 2rem; color: var(--dt-dark);">🗂️ Tool Categories</h2>
       <div class="category-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin: 2rem 0;">
-        <a href="#environment-setup" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+        <a href="{{ '/docs/mcp-tools#environment-setup' | relative_url }}" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
           <span class="category-icon" style="font-size: 2.5rem;">🔧</span>
           <div>
             <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Environment & Setup</div>
             <div style="font-size: 0.9rem; color: var(--dt-grey);">Configuration and environment tools</div>
           </div>
         </a>
-        <a href="#problem-incident" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+        <a href="{{ '/docs/mcp-tools#problem-incident' | relative_url }}" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
           <span class="category-icon" style="font-size: 2.5rem;">🚨</span>
           <div>
             <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Problems & Incidents</div>
             <div style="font-size: 0.9rem; color: var(--dt-grey);">Issue tracking and resolution</div>
           </div>
         </a>
-        <a href="#security-vulnerability" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+        <a href="{{ '/docs/mcp-tools#security-vulnerability' | relative_url }}" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
           <span class="category-icon" style="font-size: 2.5rem;">🔒</span>
           <div>
             <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Security & Vulnerabilities</div>
             <div style="font-size: 0.9rem; color: var(--dt-grey);">Security analysis and monitoring</div>
           </div>
         </a>
-        <a href="#entity-infrastructure" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+        <a href="{{ '/docs/mcp-tools#entity-infrastructure' | relative_url }}" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
           <span class="category-icon" style="font-size: 2.5rem;">🏢</span>
           <div>
             <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Entities & Infrastructure</div>
             <div style="font-size: 0.9rem; color: var(--dt-grey);">Infrastructure discovery and details</div>
           </div>
         </a>
-        <a href="#data-analysis" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+        <a href="{{ '/docs/mcp-tools#data-analysis' | relative_url }}" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
           <span class="category-icon" style="font-size: 2.5rem;">📊</span>
           <div>
             <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Data Analysis</div>
             <div style="font-size: 0.9rem; color: var(--dt-grey);">DQL queries and data exploration</div>
           </div>
         </a>
-        <a href="#dashboards-reporting" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+        <a href="{{ '/docs/mcp-tools#dashboards-reporting' | relative_url }}" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
           <span class="category-icon" style="font-size: 2.5rem;">📈</span>
           <div>
             <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Dashboards & Reporting</div>
             <div style="font-size: 0.9rem; color: var(--dt-grey);">Visualization and document sharing</div>
           </div>
         </a>
-        <a href="#communication" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+        <a href="{{ '/docs/mcp-tools#communication' | relative_url }}" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
           <span class="category-icon" style="font-size: 2.5rem;">💬</span>
+          <div>
           <div>
             <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Communication</div>
             <div style="font-size: 0.9rem; color: var(--dt-grey);">Notifications and messaging</div>
           </div>
         </a>
-        <a href="#advanced-operations" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
+        <a href="{{ '/docs/mcp-tools#advanced-operations' | relative_url }}" class="category-card" style="background: white; border: 2px solid #e9ecef; border-radius: var(--border-radius); padding: 1.5rem; text-decoration: none; transition: var(--transition); display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-light);">
           <span class="category-icon" style="font-size: 2.5rem;">⚡</span>
           <div>
             <div class="category-title" style="font-size: 1.2rem; font-weight: 600; color: var(--dt-dark); margin-bottom: 0.25rem;">Advanced Operations</div>
@@ -173,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (results.length > 0) {
       searchResults.innerHTML = results.map(tool => `
         <div class="search-result">
-          <a href="${tool.name}.html">
+          <a href="{{ '/docs/' | relative_url }}${tool.name}.html">
             <strong>${tool.title}</strong>
             <span class="search-category">${tool.category}</span>
             <p>${tool.description}</p>

@@ -17,7 +17,17 @@ layout: default
 
   <!-- Tool navigation -->
   <nav class="tool-nav">
-    <a href="{{ '/docs/' | relative_url }}" class="nav-link">← Back to All Tools</a>
+    <div class="breadcrumb">
+      <a href="{{ '/' | relative_url }}" class="breadcrumb-link">Home</a>
+      <span class="breadcrumb-separator">›</span>
+      <a href="{{ '/docs/' | relative_url }}" class="breadcrumb-link">Documentation</a>
+      <span class="breadcrumb-separator">›</span>
+      <a href="{{ '/docs/mcp-tools/' | relative_url }}" class="breadcrumb-link">All Tools</a>
+      {%- if page.tool_category -%}
+        <span class="breadcrumb-separator">›</span>
+        <span class="breadcrumb-current">{{ page.tool_category }}</span>
+      {%- endif -%}
+    </div>
     <div class="tool-actions">
       <button class="copy-link" onclick="copyPageLink()">📋 Copy Link</button>
       <button class="print-page" onclick="window.print()">🖨️ Print</button>
