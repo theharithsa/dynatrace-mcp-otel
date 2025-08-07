@@ -17,7 +17,7 @@ title: Home
 <div class="category-cards">
   <a href="{{ '/tools#environment-setup' | relative_url }}" class="category-card">
     <div class="category-icon">🔧</div>
-    <div>
+    <div class="category-content">
       <div class="category-title">Environment & Setup</div>
       <div class="category-description">Configure and initialize your Dynatrace environment connection</div>
     </div>
@@ -25,7 +25,7 @@ title: Home
 
   <a href="{{ '/tools#problems-incidents' | relative_url }}" class="category-card">
     <div class="category-icon">🚨</div>
-    <div>
+    <div class="category-content">
       <div class="category-title">Problems & Incidents</div>
       <div class="category-description">Manage operational problems and incident response workflows</div>
     </div>
@@ -33,7 +33,7 @@ title: Home
 
   <a href="{{ '/tools#security-vulnerabilities' | relative_url }}" class="category-card">
     <div class="category-icon">🔒</div>
-    <div>
+    <div class="category-content">
       <div class="category-title">Security & Vulnerabilities</div>
       <div class="category-description">Monitor and address security threats and vulnerabilities</div>
     </div>
@@ -41,7 +41,7 @@ title: Home
 
   <a href="{{ '/tools#data-analysis' | relative_url }}" class="category-card">
     <div class="category-icon">📊</div>
-    <div>
+    <div class="category-content">
       <div class="category-title">Data Analysis</div>
       <div class="category-description">Execute DQL queries and analyze monitoring data</div>
     </div>
@@ -49,7 +49,7 @@ title: Home
 
   <a href="{{ '/tools#automation' | relative_url }}" class="category-card">
     <div class="category-icon">⚡</div>
-    <div>
+    <div class="category-content">
       <div class="category-title">Automation & Workflows</div>
       <div class="category-description">Create and manage automated workflows and notifications</div>
     </div>
@@ -57,7 +57,7 @@ title: Home
 
   <a href="{{ '/tools#reporting' | relative_url }}" class="category-card">
     <div class="category-icon">📋</div>
-    <div>
+    <div class="category-content">
       <div class="category-title">Reporting & Dashboards</div>
       <div class="category-description">Generate reports and create monitoring dashboards</div>
     </div>
