@@ -2,9 +2,390 @@
 # Only the main Sass file needs front matter (the dashes are enough)
 ---
 
-@import
-  "minima/skins/{{ site.minima.skin | default: 'classic' }}",
-  "minima/initialize";
+// Import Minima theme (2.5.1 compatible)
+@import "minima";
 
-// Import our custom overrides
-@import "custom";
+// Dynatrace Brand Colors
+$dt-blue: #1496ff;
+$dt-purple: #6f42c1;
+$dt-orange: #fd7e14;
+$dt-dark: #1a1a1a;
+$dt-light: #f8f9fa;
+$dt-grey: #6c757d;
+
+// Enhanced header styling with Dynatrace branding
+.site-header {
+  background: linear-gradient(135deg, $dt-purple 0%, $dt-blue 100%) !important;
+  border-top: none;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  
+  .site-title {
+    color: white !important;
+    font-weight: 600;
+    font-size: 1.5rem;
+    
+    &:hover {
+      color: rgba(255,255,255,0.9) !important;
+      text-decoration: none;
+    }
+    
+    &:before {
+      content: "🚀 ";
+      font-size: 0.9em;
+    }
+  }
+  
+  .site-nav .page-link {
+    color: rgba(255,255,255,0.9) !important;
+    font-weight: 500;
+    
+    &:hover {
+      color: white !important;
+      text-decoration: none;
+      background: rgba(255,255,255,0.1);
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin: -8px -12px;
+    }
+  }
+}
+
+// Enhanced content styling
+.page-content {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  margin: 2rem auto;
+  overflow: hidden;
+}
+
+// Post styling
+.post {
+  .post-header {
+    text-align: center;
+    padding: 2rem 0;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 2rem;
+    
+    .post-title {
+      background: linear-gradient(135deg, $dt-purple, $dt-blue);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+    
+    .post-meta {
+      font-size: 1.1rem;
+      color: $dt-grey;
+    }
+  }
+}
+
+// Search functionality
+.search-container {
+  max-width: 600px;
+  margin: 2rem auto;
+  position: relative;
+  
+  #search-input {
+    width: 100%;
+    padding: 1rem 1.5rem;
+    font-size: 1.1rem;
+    border: 2px solid #e9ecef;
+    border-radius: 50px;
+    background: white;
+    transition: all 0.3s ease;
+    
+    &:focus {
+      outline: none;
+      border-color: $dt-blue;
+      box-shadow: 0 0 0 3px rgba(20, 150, 255, 0.1);
+      transform: translateY(-2px);
+    }
+  }
+  
+  .search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 1000;
+    margin-top: 0.5rem;
+    display: none;
+    
+    .search-result {
+      padding: 1rem;
+      border-bottom: 1px solid #f8f9fa;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        background: #f8f9fa;
+        padding-left: 1.5rem;
+      }
+      
+      .result-title {
+        font-weight: 600;
+        color: $dt-purple;
+        margin-bottom: 0.25rem;
+      }
+      
+      .result-description {
+        color: $dt-grey;
+        font-size: 0.9rem;
+      }
+    }
+  }
+}
+
+// Hero section
+.hero-section {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  margin-bottom: 3rem;
+  
+  h2 {
+    font-size: 2.2rem;
+    color: $dt-purple;
+    margin-bottom: 1rem;
+    font-weight: 700;
+  }
+  
+  p {
+    font-size: 1.2rem;
+    color: $dt-grey;
+    max-width: 800px;
+    margin: 0 auto 2rem;
+  }
+  
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    margin: 0 0.5rem;
+    
+    &.btn-primary {
+      background: $dt-blue;
+      color: white;
+      
+      &:hover {
+        background: $dt-purple;
+        transform: translateY(-2px);
+        text-decoration: none;
+        color: white;
+      }
+    }
+    
+    &.btn-outline {
+      background: white;
+      color: $dt-blue;
+      border: 2px solid $dt-blue;
+      
+      &:hover {
+        background: $dt-blue;
+        color: white;
+        text-decoration: none;
+      }
+    }
+  }
+}
+
+// Category cards
+.category-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.category-card {
+  background: white;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  
+  &:hover {
+    border-color: $dt-blue;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(20, 150, 255, 0.1);
+    text-decoration: none;
+    
+    .category-icon {
+      transform: scale(1.1);
+    }
+  }
+  
+  .category-icon {
+    font-size: 2.5rem;
+    transition: transform 0.3s ease;
+  }
+  
+  .category-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 0.25rem;
+  }
+  
+  .category-description {
+    font-size: 0.9rem;
+    color: $dt-grey;
+  }
+}
+
+// Tool grid
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.tool-card {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+  }
+  
+  .tool-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+  
+  .tool-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: $dt-blue;
+    margin: 0;
+    flex: 1;
+  }
+  
+  .tool-category {
+    background: linear-gradient(135deg, $dt-purple, $dt-orange);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-left: 1rem;
+  }
+  
+  .tool-description {
+    color: $dt-grey;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+  }
+}
+
+// Statistics cards
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin: 3rem 0;
+  
+  .stat-card {
+    text-align: center;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    
+    &.stat-blue { border-left: 4px solid $dt-blue; }
+    &.stat-purple { border-left: 4px solid $dt-purple; }
+    &.stat-orange { border-left: 4px solid $dt-orange; }
+    
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      
+      &.text-blue { color: $dt-blue; }
+      &.text-purple { color: $dt-purple; }
+      &.text-orange { color: $dt-orange; }
+    }
+    
+    .stat-label {
+      color: $dt-grey;
+      font-weight: 600;
+    }
+  }
+}
+
+// Footer styling
+.site-footer {
+  background: #1a1a1a;
+  color: white;
+  
+  a {
+    color: $dt-blue;
+    
+    &:hover {
+      color: $dt-orange;
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .category-cards,
+  .tool-grid,
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .hero-section {
+    padding: 2rem 1rem;
+    
+    h2 {
+      font-size: 1.8rem;
+    }
+    
+    .btn {
+      display: block;
+      margin: 0.5rem auto;
+      max-width: 200px;
+    }
+  }
+  
+  .search-container {
+    margin: 1rem;
+  }
+  
+  .category-card {
+    flex-direction: column;
+    text-align: center;
+  }
+}

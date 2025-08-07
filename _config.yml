@@ -10,7 +10,6 @@ theme: minima
 
 # Minima theme configuration
 minima:
-  skin: classic
   nav_pages:
     - docs/getting-started.md
     - docs/about.md

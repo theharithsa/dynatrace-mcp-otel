@@ -1,0 +1,59 @@
+---
+# Test file for CSS compilation
+---
+
+// Import only the base Minima theme
+@import "minima";
+
+// Basic Dynatrace branding
+.site-header {
+  background: linear-gradient(135deg, #6f42c1 0%, #1496ff 100%) !important;
+  border-top: none;
+  
+  .site-title {
+    color: white !important;
+    font-weight: 600;
+    
+    &:hover {
+      color: rgba(255,255,255,0.9) !important;
+      text-decoration: none;
+    }
+  }
+  
+  .site-nav .page-link {
+    color: rgba(255,255,255,0.9) !important;
+    
+    &:hover {
+      color: white !important;
+    }
+  }
+}
+
+// Basic styling for the home page
+.hero-section {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  margin-bottom: 3rem;
+}
+
+.category-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.category-card {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(20, 150, 255, 0.1);
+  }
+}
