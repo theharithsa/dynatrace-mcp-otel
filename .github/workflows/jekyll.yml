@@ -3,7 +3,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'docs/**'
+      - '*.md'
+      - 'assets/**'
       - '_config.yml'
       - '_layouts/**'
       - '_includes/**'
@@ -13,7 +14,8 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'docs/**'
+      - '*.md'
+      - 'assets/**'
       - '_config.yml'
       - '_layouts/**'
       - '_includes/**'
