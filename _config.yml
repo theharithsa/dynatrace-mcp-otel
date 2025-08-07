@@ -8,16 +8,24 @@ markdown: kramdown
 highlighter: rouge
 theme: minima
 
+# Minima theme configuration
+minima:
+  skin: classic
+  nav_pages:
+    - docs/getting-started.md
+    - docs/about.md
+  show_excerpts: true
+  date_format: "%b %-d, %Y"
+  social_links:
+    - title: GitHub Repository
+      icon: github
+      url: "https://github.com/theharithsa/dynatrace-mcp-otel"
+
 # Plugins
 plugins:
   - jekyll-feed
   - jekyll-sitemap
   - jekyll-seo-tag
-
-# Navigation
-header_pages:
-  - docs/getting-started.md
-  - docs/about.md
 
 # Search
 search_enabled: true
