@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dynatrace MCP Server - Hacker Theme Preview</title>
+    <style>
+        /* Hacker Theme Preview CSS */
+        :root {
+            --dt-purple: #6f42c1;
+            --dt-blue: #1496ff;
+            --dt-orange: #ff6d02;
+            --dt-green: #4caf50;
+            --dt-red: #f44336;
+            --dt-grey: #6c757d;
+            --dt-dark: #212529;
+            --dt-light: #f8f9fa;
+            --transition: all 0.3s ease;
+            
+            --hacker-green: #00ff41;
+            --hacker-dark: #0d1117;
+            --hacker-grey: #1c2128;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--hacker-dark) 0%, #1a1f2e 100%);
+            color: #e6edf3;
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        
+        .container-lg {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--dt-purple) 0%, var(--dt-blue) 100%);
+            box-shadow: 0 2px 10px rgba(111, 66, 193, 0.3);
+            padding: 2rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: white;
+            margin: 0;
+            font-size: 2.5rem;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+        
+        .header p {
+            color: rgba(255, 255, 255, 0.9);
+            margin: 1rem 0 0 0;
+            font-size: 1.2rem;
+        }
+        
+        .site-nav {
+            background: rgba(13, 17, 23, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid var(--dt-purple);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: center;
+        }
+        
+        .site-nav a {
+            color: #e6edf3;
+            text-decoration: none;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            transition: var(--transition);
+            border: 1px solid transparent;
+        }
+        
+        .site-nav a:hover {
+            background: var(--dt-purple);
+            color: white;
+            border-color: var(--hacker-green);
+            text-decoration: none;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--hacker-green);
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 5px rgba(0, 255, 65, 0.3);
+        }
+        
+        .hero-section {
+            background: linear-gradient(135deg, var(--hacker-dark) 0%, #1a1f2e 50%, var(--dt-purple) 100%);
+            padding: 4rem 2rem;
+            text-align: center;
+            border-radius: 12px;
+            margin: 2rem 0;
+            border: 1px solid var(--hacker-green);
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.1);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, var(--hacker-green) 0%, #00cc33 100%);
+            color: var(--hacker-dark);
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            transition: var(--transition);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
+            margin: 0.25rem;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            background: linear-gradient(135deg, #00cc33 0%, var(--hacker-green) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+            text-decoration: none;
+            color: var(--hacker-dark);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: var(--hacker-green);
+            border: 2px solid var(--hacker-green);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--hacker-green);
+            color: var(--hacker-dark);
+        }
+        
+        .category-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        
+        .category-card {
+            background: linear-gradient(135deg, var(--hacker-grey) 0%, #21262d 100%);
+            border: 1px solid var(--hacker-green);
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-decoration: none;
+            color: #e6edf3;
+            transition: var(--transition);
+            box-shadow: 0 2px 10px rgba(0, 255, 65, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .category-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--hacker-green), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .category-card:hover::before {
+            left: 100%;
+        }
+        
+        .category-card:hover {
+            border-color: var(--hacker-green);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0, 255, 65, 0.2);
+            text-decoration: none;
+            color: #e6edf3;
+        }
+        
+        .category-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: block;
+            text-align: center;
+        }
+        
+        .category-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--hacker-green);
+            margin-bottom: 0.5rem;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .category-description {
+            color: #8b949e;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        code {
+            background: var(--hacker-dark);
+            color: var(--hacker-green);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        pre {
+            background: var(--hacker-dark);
+            color: var(--hacker-green);
+            border: 1px solid #30363d;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.1);
+        }
+        
+        @keyframes matrix {
+            0% { transform: translateY(-100%); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(100vh); opacity: 0; }
+        }
+        
+        .matrix-rain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            overflow: hidden;
+        }
+        
+        .matrix-rain::before {
+            content: '01010101010101010101010101010101010101010101';
+            position: absolute;
+            top: -100%;
+            left: 0;
+            width: 100%;
+            height: 200%;
+            color: rgba(0, 255, 65, 0.03);
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            line-height: 1.2;
+            animation: matrix 20s linear infinite;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        
+        @media (max-width: 768px) {
+            .site-nav {
+                flex-direction: column;
+            }
+            
+            .category-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="matrix-rain"></div>
+    <div class="container-lg">
+        <div class="header">
+            <h1>🔐 Dynatrace MCP Server</h1>
+            <p>Bridge the gap between human language and Dynatrace monitoring capabilities</p>
+        </div>
+        
+        <nav class="site-nav">
+            <a href="#home">🏠 Home</a>
+            <a href="#docs">📚 Documentation</a>
+            <a href="#tools">🛠️ Tools</a>
+            <a href="#start">🚀 Getting Started</a>
+            <a href="#about">ℹ️ About</a>
+            <a href="#github">🔗 GitHub</a>
+        </nav>
+        
+        <main>
+            <div class="hero-section">
+                <h2>🚀 INITIALIZING MCP SERVER...</h2>
+                <p>Transform your Dynatrace monitoring experience with natural language AI interactions</p>
+                
+                <div style="margin-top: 2rem;">
+                    <a href="#" class="btn">📚 Initialize Session</a>
+                    <a href="#" class="btn btn-secondary">ℹ️ System Info</a>
+                </div>
+            </div>
+            
+            <h2>🛠️ Available Modules</h2>
+            
+            <div class="category-cards">
+                <a href="#" class="category-card">
+                    <div class="category-icon">🔧</div>
+                    <div>
+                        <div class="category-title">Environment & Setup</div>
+                        <div class="category-description">Initialize and configure your Dynatrace connection</div>
+                    </div>
+                </a>
+                
+                <a href="#" class="category-card">
+                    <div class="category-icon">🚨</div>
+                    <div>
+                        <div class="category-title">Problems & Incidents</div>
+                        <div class="category-description">Detect, analyze, and resolve operational issues</div>
+                    </div>
+                </a>
+                
+                <a href="#" class="category-card">
+                    <div class="category-icon">🔒</div>
+                    <div>
+                        <div class="category-title">Security & Vulnerabilities</div>
+                        <div class="category-description">Secure your infrastructure against threats</div>
+                    </div>
+                </a>
+                
+                <a href="#" class="category-card">
+                    <div class="category-icon">🏢</div>
+                    <div>
+                        <div class="category-title">Entities & Infrastructure</div>
+                        <div class="category-description">Map and monitor your digital ecosystem</div>
+                    </div>
+                </a>
+                
+                <a href="#" class="category-card">
+                    <div class="category-icon">📊</div>
+                    <div>
+                        <div class="category-title">Data Analysis</div>
+                        <div class="category-description">Query and analyze with DQL intelligence</div>
+                    </div>
+                </a>
+                
+                <a href="#" class="category-card">
+                    <div class="category-icon">📈</div>
+                    <div>
+                        <div class="category-title">Dashboards & Reporting</div>
+                        <div class="category-description">Visualize data with dynamic dashboards</div>
+                    </div>
+                </a>
+            </div>
+            
+            <h2>🎮 Quick Start Sequence</h2>
+            <pre><code># 1. Clone the repository
+git clone https://github.com/theharithsa/dynatrace-mcp-otel.git
+
+# 2. Navigate to directory  
+cd dynatrace-mcp-otel
+
+# 3. Install dependencies
+npm install
+
+# 4. Configure environment
+cp .env.template .env
+# Edit .env with your Dynatrace credentials
+
+# 5. Build and start
+npm run build
+npm start</code></pre>
+            
+            <div style="text-align: center; margin: 3rem 0; padding: 2rem; background: linear-gradient(135deg, var(--hacker-grey), #21262d); border: 1px solid var(--hacker-green); border-radius: 8px;">
+                <h3 style="color: var(--hacker-green); margin-bottom: 1rem;">🚀 Ready to hack the matrix?</h3>
+                <p style="color: #8b949e; margin-bottom: 1.5rem;">Join the community of developers using AI-powered observability</p>
+                <a href="#" class="btn">Access Granted →</a>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

@@ -6,25 +6,22 @@ url: "https://theharithsa.github.io"
 # Build settings
 markdown: kramdown
 highlighter: rouge
-theme: minima
+remote_theme: pages-themes/hacker@v0.2.0
 
-# Minima theme configuration
-minima:
-  nav_pages:
-    - docs/getting-started.md
-    - docs/about.md
-  show_excerpts: true
-  date_format: "%b %-d, %Y"
-  social_links:
-    - title: GitHub Repository
-      icon: github
-      url: "https://github.com/theharithsa/dynatrace-mcp-otel"
+# Hacker theme configuration
+show_downloads: true
+
+# Navigation pages for hacker theme
+nav_pages:
+  - docs/getting-started.md
+  - docs/about.md
 
 # Plugins
 plugins:
   - jekyll-feed
   - jekyll-sitemap
   - jekyll-seo-tag
+  - jekyll-remote-theme
 
 # Search
 search_enabled: true

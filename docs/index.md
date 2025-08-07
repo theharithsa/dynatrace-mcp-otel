@@ -1,10 +1,12 @@
 ---
-layout: home
-title: Dynatrace MCP Server - Tool Documentation
-description: Complete guide to using the Dynatrace Model Context Protocol Server tools
+layout: default
+title: Documentation
+description: Complete documentation for the Dynatrace MCP Server
 ---
 
-Welcome to the comprehensive documentation for the Dynatrace Model Context Protocol (MCP) Server. This server provides a powerful set of tools to interact with your Dynatrace environment through natural language prompts.
+## 📚 Documentation Hub
+
+Welcome to the comprehensive documentation for the Dynatrace MCP Server. This documentation will help you get started, understand the available tools, and integrate the server into your workflow.
 
 ## Overview
 
