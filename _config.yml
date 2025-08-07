@@ -22,19 +22,9 @@ theme: minima
 # Minima theme configuration
 minima:
   skin: dark  # Use dark theme variant
-  nav_pages:
-    - getting-started.md
-    - tools.md
-    - about.md
-  show_excerpts: true
-  date_format: "%b %-d, %Y"
   social_links:
-    - title: GitHub Repository
-      icon: github
-      url: "https://github.com/theharithsa/dynatrace-mcp-otel"
-    - title: Issues
-      icon: bug
-      url: "https://github.com/theharithsa/dynatrace-mcp-otel/issues"
+    - platform: github
+      user_url: "https://github.com/theharithsa/dynatrace-mcp-otel"
 
 # Build settings
 markdown: kramdown
@@ -44,27 +34,53 @@ plugins:
   - jekyll-sitemap
   - jekyll-seo-tag
 
+# Navigation pages (this controls the header navigation)
+header_pages:
+  - getting-started.md
+  - tools.md
+  - about.md
+
 # Google Analytics
 google_analytics: G-QS7DTXHWQT
 
 # Exclude from processing
 exclude:
-  - .github/
+  - .sass-cache/
+  - .jekyll-cache/
+  - gemfiles/
+  - Gemfile
+  - Gemfile.lock
   - node_modules/
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+  - package.json
+  - package-lock.json
   - src/
   - dist/
-  - package*.json
   - tsconfig.json
   - jest.config.js
+  - .nvmrc
+  - .prettierrc
+  - docker-compose.yml
   - Dockerfile
-  - makefile
+  - start-jekyll.*
+  - README.md
+  - LICENSE
+  - CHANGELOG.md
   - CONTRIBUTING.md
   - CODE_OF_CONDUCT.md
   - SECURITY.md
   - workflows/
   - dynatrace-agent-rules/
-  - start-jekyll.*
-  - docker-compose.yml
-  - Gemfile
-  - Gemfile.lock
-  - vendor/
+  - dashboards/
+  - .vscode/
+  - .github/
+  - SkillManifest.md
+  - skillManifest.yaml
+  - DEVELOPMENT.md
+  - JEKYLL-SETUP.md
+  - THEME.md
+  - REPOMAP.md
+  - prompt.md
