@@ -8,6 +8,8 @@ description: Bridge the gap between human language and Dynatrace monitoring capa
 
 <div class="matrix-rain"></div>
 
+<div class="content-container">
+
 ## 🎯 Mission: Decode Your Infrastructure
 
 Welcome to the **Dynatrace Model Context Protocol Server** - where observability meets artificial intelligence in perfect harmony. Built on the cutting-edge MCP standard, this server transforms complex monitoring data into natural language interactions.
@@ -195,3 +197,5 @@ document.addEventListener('click', function(e) {
   }
 });
 </script>
+
+</div> <!-- Close content-container -->

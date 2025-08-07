@@ -27,12 +27,25 @@
 body {
   background: linear-gradient(135deg, var(--hacker-dark) 0%, #1a1f2e 100%);
   color: #e6edf3;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+/* Wrapper for the entire page content */
+.wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 /* Header styling to match Hacker theme structure */
 header {
   background: linear-gradient(135deg, var(--dt-purple) 0%, var(--dt-blue) 100%) !important;
   box-shadow: 0 2px 10px rgba(111, 66, 193, 0.3);
+}
+
+header .inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
 }
 
 header h1, header h2 {
@@ -46,6 +59,16 @@ header a {
 
 #main-content {
   background: transparent;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* Container for better content width control */
+.content-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 1rem;
 }
 
 /* Sidebar styling */
@@ -95,7 +118,8 @@ header a {
   padding: 4rem 2rem;
   text-align: center;
   border-radius: 12px;
-  margin: 2rem 0;
+  margin: 2rem auto;
+  max-width: 1000px;
   border: 1px solid var(--hacker-green);
   box-shadow: 0 0 30px rgba(0, 255, 65, 0.1);
 }
@@ -151,9 +175,11 @@ header a {
 /* Category cards */
 .category-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1.5rem;
-  margin: 2rem 0;
+  margin: 2rem auto;
+  max-width: 1000px;
+  padding: 0 1rem;
 }
 
 .category-card {
@@ -439,7 +465,29 @@ td, th {
 }
 
 /* Responsive design */
+@media (max-width: 1240px) {
+  #main-content {
+    max-width: 95%;
+    padding: 0 1rem;
+  }
+  
+  .hero-section {
+    max-width: 95%;
+    margin: 2rem auto;
+    padding: 3rem 1.5rem;
+  }
+  
+  .category-cards {
+    max-width: 95%;
+    padding: 0 0.5rem;
+  }
+}
+
 @media (max-width: 768px) {
+  #main-content {
+    padding: 0 0.5rem;
+  }
+  
   .hero-section {
     padding: 2rem 1rem;
   }
