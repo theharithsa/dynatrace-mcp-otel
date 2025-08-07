@@ -3,7 +3,7 @@ name: OpenTelemetry
 on:
   workflow_run:
     workflows:
-      - Deploy Jekyll Documentation to GitHub Pages
+      - Deploy Jekyll site to GitHub Pages
       - Publish to NPM
       - Version Validation
     types:
