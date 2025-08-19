@@ -11,7 +11,7 @@
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-green?logo=anthropic&logoColor=white)](https://modelcontextprotocol.io/)
 [![Dynatrace Platform](https://img.shields.io/badge/Dynatrace-Platform%20Ready-blue?logo=dynatrace&logoColor=white)](https://docs.dynatrace.com/)
 
-A Model Context Protocol (MCP) server that provides AI assistants with comprehensive access to Dynatrace observability data, automation capabilities, and operational insights. Enhanced with Davis CoPilot AI for intelligent query generation and natural language explanations.
+A Model Context Protocol (MCP) server that provides AI assistants with comprehensive access to Dynatrace observability data, automation capabilities, and operational insights. Enhanced with Davis CoPilot AI for intelligent query generation, natural language explanations, and professional email communication.
 
 ## Table of Contents
 
@@ -61,7 +61,7 @@ Your AI assistant can now:
 - Execute DQL (Dynatrace Query Language) queries
 - Get entity details and ownership information
 - Create dashboards and workflows
-- Send Slack notifications
+- Send Slack notifications and professional emails
 - Execute custom TypeScript code
 
 ## Configuration
@@ -150,6 +150,7 @@ npm install -g @theharithsa/dynatrace-mcp-server
 ### 💬 Communication
 
 - **`send_slack_message`** - Send messages via Slack integration
+- **`send_email`** - Send emails via Dynatrace Email API
 
 ## Davis CoPilot AI Integration
 
@@ -258,7 +259,7 @@ davis-copilot:conversations:execute
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP endpoint for traces | `https://abc12345.live.dynatrace.com/api/v2/otlp/v1/traces` |
 | `DYNATRACE_API_TOKEN` | API token for trace/log export | `dt0c01.ABC123...` |
 | `DYNATRACE_LOG_INGEST_URL` | Log ingest endpoint | `https://abc12345.live.dynatrace.com/api/v2/logs/ingest` |
-| `OTEL_RESOURCE_ATTRIBUTES` | OpenTelemetry resource attributes | `service.name=dynatrace-mcp-server,service.version=2.0.0` |
+| `OTEL_RESOURCE_ATTRIBUTES` | OpenTelemetry resource attributes | `service.name=dynatrace-mcp-server,service.version=2.2.0` |
 
 ### Slack Integration (Optional)
 
@@ -329,6 +330,7 @@ Your OAuth client needs these scopes:
 - `document:direct-shares:write` - For direct document sharing
 - `app-settings:objects:read` - For Slack integration
 - `settings:objects:read` - For ownership information
+- `email:emails:send` - For sending emails via Dynatrace Email API
 
 ### Setting Up OAuth Client
 
@@ -359,6 +361,28 @@ export default async function({ entityId }) {
 ### Slack Integration
 
 Configure Slack notifications by setting up a Slack connection in Dynatrace and providing the `SLACK_CONNECTION_ID`.
+
+### Email Integration
+
+Send professional emails with rich formatting using the `send_email` tool:
+
+```typescript
+// Example: Send alert notification
+{
+  "toRecipients": ["oncall@company.com"],
+  "ccRecipients": ["team-lead@company.com"],
+  "subject": "🚨 Critical Alert: High CPU Usage",
+  "body": "**Alert Details:**\n- Server: web-prod-01\n- CPU Usage: 95%\n- Duration: 15 minutes\n\n**Action Required**: Immediate investigation needed.",
+  "contentType": "text/plain"
+}
+```
+
+**Key Features:**
+- Support for To, CC, and BCC recipients (up to 100 total)
+- HTML and plain text content types
+- Professional formatting with markdown support
+- Comprehensive error handling and delivery tracking
+- Integration with Dynatrace tenant domain validation
 
 ## Development
 
@@ -448,6 +472,7 @@ Our GitHub Actions workflows are instrumented with OpenTelemetry using [inceptio
 
 ## Version History
 
+- 2.2.0: Added comprehensive email integration with `send_email` tool supporting HTML/plain text, multiple recipients, and professional formatting
 - 2.1.0: Added Davis CoPilot AI integration with natural language processing capabilities
 - 2.0.0: Updated package structure and naming; enhanced configuration options
 - 1.0.8: Switched to standard OpenTelemetry GitHub Action; enhanced logging with security context

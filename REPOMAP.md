@@ -86,6 +86,7 @@ src/
     ├── execute-dql.ts            # DQL query execution
     ├── get-problem-details.ts    # Problem analysis tools
     ├── send-slack-message.ts     # Communication integrations
+    ├── send-email.ts            # Email functionality via Dynatrace Email API
     └── [20 more tool files]      # Individual MCP tool implementations
 ```
 
@@ -105,7 +106,7 @@ docs/
 ├── chat_with_davis_copilot.md    # AI assistant tool docs
 ├── execute_dql.md               # DQL execution tool docs
 ├── get_problem_details.md       # Problem analysis docs
-└── [19 more tool docs]          # Individual tool documentation (23 tools total)
+└── [19 more tool docs]          # Individual tool documentation (24 tools total)
 ```
 
 **Content Structure**: Each tool documentation includes usage examples, parameters, and prompting best practices.
@@ -167,7 +168,9 @@ dynatrace-agent-rules/
     ├── DynatraceMcpIntegration.md
     ├── DynatraceQueryLanguage.md
     ├── DynatraceSecurityCompliance.md
-    └── [4 more rule files]      # Agent configuration guidelines
+    ├── DynatraceEmailFormatting.md  # Email formatting and API guide
+    ├── slackMessages.md            # Slack integration guidelines
+    └── [3 more rule files]         # Additional agent configuration
 ```
 
 ### 🚀 `/.github/workflows/` - CI/CD Automation
@@ -214,7 +217,7 @@ dynatrace-agent-rules/
 ### MCP Server ↔ Dynatrace
 - **Authentication**: OAuth 2.0 via `/src/authentication/`
 - **API Calls**: Dynatrace SDK clients in each capability
-- **Tools**: 23 specialized MCP tools in `/src/capabilities/`
+- **Tools**: 24 specialized MCP tools in `/src/capabilities/`
 
 ### Documentation ↔ Jekyll
 - **Content**: Markdown files in `/docs/`

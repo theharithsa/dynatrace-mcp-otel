@@ -2,6 +2,27 @@
 
 All notable changes to the Dynatrace MCP Server project will be documented in this file.
 
+## 2.2.0 - 2025-01-31
+
+### Added
+
+- **Email Integration** - New tool for sending emails via Dynatrace Email API
+- `send_email` - Send emails with support for To, CC, BCC recipients, HTML/plain text content, and notification settings
+- Complete email API error handling with detailed status messages for bounces, complaints, and invalid destinations
+- Support for tenant domain validation and proper OAuth authentication for email services
+
+### Enhanced
+
+- Added `email:emails:send` scope to required OAuth scopes for email functionality
+- Comprehensive error reporting for email delivery failures with retry information
+- Enhanced documentation with email tool usage and configuration
+
+### Technical
+
+- Implemented TypeScript interfaces for Dynatrace Email API request/response structures
+- Added proper HTTP status validation (202 Accepted) for email requests
+- Enhanced base scopes to include email functionality by default
+
 ## 2.1.0 - 2025-01-31
 
 ### Added

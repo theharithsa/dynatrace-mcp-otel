@@ -28,6 +28,7 @@ import { updateWorkflow } from './capabilities/update-workflow';
 import { getVulnerabilityDetails } from './capabilities/get-vulnerability-details';
 import { executeDql, verifyDqlStatement } from './capabilities/execute-dql';
 import { sendSlackMessage } from './capabilities/send-slack-message';
+import { sendEmail } from './capabilities/send-email';
 import { findMonitoredEntityByName } from './capabilities/find-monitored-entity-by-name';
 import {
   chatWithDavisCopilot,
@@ -46,7 +47,7 @@ import { executeTypescript } from './capabilities/execute-typescript';
 import fs from 'fs/promises';
 import path from 'path';
 
-let scopesBase = ['app-engine:apps:run', 'app-engine:functions:run'];
+let scopesBase = ['app-engine:apps:run', 'app-engine:functions:run', 'email:emails:send'];
 
 const tracer = trace.getTracer('dynatrace-mcp-server', VERSION);
 
@@ -404,6 +405,44 @@ const main = async () => {
       if (isClientRequestError(err)) {
         const e = err as ClientRequestError;
         const more = e.response.status === 403 ? 'Missing permission' : '';
+        return `Client Request Error: ${e.message} (${e.response.status}) ${more}`;
+      }
+      return `Error: ${err.message}`;
+    }
+  });
+
+  tool('send_email', 'Send an email via Dynatrace Email API', {
+    toRecipients: z.array(z.string()).describe('Array of email addresses for To recipients'),
+    ccRecipients: z.array(z.string()).optional().describe('Array of email addresses for CC recipients'),
+    bccRecipients: z.array(z.string()).optional().describe('Array of email addresses for BCC recipients'),
+    subject: z.string().describe('Email subject line'),
+    body: z.string().describe('Email body content'),
+    contentType: z.enum(['text/plain', 'text/html']).optional().default('text/plain').describe('Email body content type'),
+    notificationSettingsUrl: z.string().optional().describe('Optional notification settings URL'),
+  }, async ({ toRecipients, ccRecipients, bccRecipients, subject, body, contentType = 'text/plain', notificationSettingsUrl }) => {
+    try {
+      const dtClient = await createOAuthClient(
+        oauthClient,
+        oauthClientSecret,
+        dtEnvironment,
+        scopesBase, // email:emails:send scope is already included in scopesBase
+      );
+      
+      const emailRequest = {
+        toRecipients: { emailAddresses: toRecipients },
+        subject,
+        body: { contentType, body },
+        ...(ccRecipients && { ccRecipients: { emailAddresses: ccRecipients } }),
+        ...(bccRecipients && { bccRecipients: { emailAddresses: bccRecipients } }),
+        ...(notificationSettingsUrl && { notificationSettingsUrl }),
+      };
+      
+      const response = await sendEmail(dtClient, emailRequest);
+      return response;
+    } catch (err: any) {
+      if (isClientRequestError(err)) {
+        const e = err as ClientRequestError;
+        const more = e.response.status === 403 ? 'Missing permission (email:emails:send scope required)' : '';
         return `Client Request Error: ${e.message} (${e.response.status}) ${more}`;
       }
       return `Error: ${err.message}`;

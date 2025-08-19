@@ -1,6 +1,6 @@
 # 🛠️ Skills Manifest: Dynatrace MCP Server
 
-Version: 2.1.0
+Version: 2.2.0
 
 This server exposes the following skills ("tools" or "capabilities") for seamless observability, dashboard management, automation, and AI-powered assistance in your Dynatrace environment.
 
@@ -31,11 +31,12 @@ This server exposes the following skills ("tools" or "capabilities") for seamles
 
 ---
 
-## Automation & Notification
+## Automation & Communication
 
 | Skill Name                     | Description                                          |
 | ------------------------------ | ---------------------------------------------------- |
 | `send_slack_message`           | Send a Slack message via Dynatrace Slack Connector.  |
+| `send_email`                   | **Send emails via Dynatrace Email API** with support for To/CC/BCC recipients, HTML/plain text content, and comprehensive error handling. |
 | `create_notification_workflow` | Set up a notification workflow via AutomationEngine. |
 | `execute_typescript`           | **Execute custom TypeScript code** via Dynatrace Function Executor for advanced automation. |
 
@@ -74,6 +75,17 @@ Use `chat_with_davis_copilot` for:
 - Best practice recommendations
 - When no specific tool covers your need
 
+### 📧 Email Communication Workflow
+
+For automated notifications and reports:
+
+1. **🔍 Analyze**: Use monitoring and query tools to gather data
+2. **📝 Format**: Structure content using markdown or HTML formatting
+3. **📧 Send**: Use `send_email` with appropriate recipients and content type
+4. **🔔 Integrate**: Combine with Slack notifications for comprehensive alerting
+
+Example: Alert workflow: `get_problem_details` → `send_email` (to oncall) + `send_slack_message` (to team)
+
 ---
 
 ## OpenTelemetry Integration
@@ -88,7 +100,17 @@ The Dynatrace MCP Server includes advanced OpenTelemetry integration features:
 - GitHub Actions integration for CI/CD observability
 - **NEW**: Davis CoPilot interactions are fully traced and logged
 
-### Latest Updates (v2.1.0)
+### Latest Updates (v2.2.0)
+
+- **Added**: Email integration with `send_email` tool for comprehensive communication
+- **Added**: Support for HTML and plain text email content
+- **Added**: Multiple recipient support (To, CC, BCC) with up to 100 total recipients
+- **Added**: Comprehensive email error handling and delivery tracking
+- **Added**: Email formatting guide with best practices and examples
+- **Enhanced**: Communication capabilities with professional email templates
+- **Enhanced**: OAuth scope management for email functionality
+
+### Previous Updates (v2.1.0)
 
 - **Added**: Davis CoPilot AI integration with three new powerful tools
 - **Added**: Natural language to DQL conversion capabilities
@@ -197,10 +219,11 @@ All skills are:
 - `storage:*:read` — For DQL queries
 - `automation:workflows:*` — For workflow management
 - `document:*:*` — For dashboard management
+- `email:emails:send` — For email functionality via Dynatrace Email API
 
 ---
 
 > **Note:**
 > All skills are ready to use via your IDE, agent, or automation pipeline.
-> Version 2.1.0 introduces powerful AI capabilities with Davis CoPilot integration!
-> For optimal experience, follow the recommended AI-powered workflows above.
+> Version 2.2.0 introduces powerful email communication capabilities alongside existing AI features!
+> For optimal experience, follow the recommended AI-powered and communication workflows above.

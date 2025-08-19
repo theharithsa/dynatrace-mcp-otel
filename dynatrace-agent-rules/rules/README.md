@@ -27,6 +27,8 @@ Place all 5 integration rule files in your IDE's AI plugin rules folder:
 - `DynatraceSecurityCompliance.md`
 - `DynatraceSecurityEvents.md`
 - `DynatraceSecurityEventsDiagram.md`
+- `DynatraceEmailFormatting.md`
+- `slackMessages.md`
 
 ### 3. Activate the Agent
 
@@ -46,16 +48,22 @@ graph TD
     A --> C[DynatraceSecurityCompliance.md]
     A --> D[DynatraceSecurityEvents.md]
     A --> E[DynatraceSecurityEventsDiagram.md]
+    A --> F[DynatraceEmailFormatting.md]
+    A --> G[slackMessages.md]
 
     C --> B
     C --> D
     D --> E
+    F --> A
+    G --> A
 
     style A fill:#e1f5fe
     style B fill:#f3e5f5
     style C fill:#e8f5e8
     style D fill:#fff3e0
     style E fill:#fce4ec
+    style F fill:#e8f5e8
+    style G fill:#e1f5fe
 ```
 
 ## Core Files
@@ -114,6 +122,29 @@ graph TD
   - Relationship mapping
 - **Complements**: DynatraceSecurityEvents.md with visual context
 
+## Communication Files
+
+### 📧 **DynatraceEmailFormatting.md** (Email Formatting Guide)
+
+- **Purpose**: Comprehensive email formatting and content guidelines
+- **Key Features**:
+  - Markdown formatting syntax for email content
+  - Email API integration patterns
+  - Content type specifications (text/plain, text/html)
+  - Recipient management and limitations
+  - Error handling and best practices
+  - Advanced examples for alerts and reports
+- **Used By**: Email notification workflows and alert systems
+
+### 💬 **slackMessages.md** (Slack Integration Guide)
+
+- **Purpose**: Slack message formatting and integration patterns
+- **Key Features**:
+  - Slack-specific formatting guidelines
+  - Channel management
+  - Integration workflows
+- **Used By**: Slack notification systems and team communications
+
 ## Usage Flow
 
 1. **Start**: User requests analysis → **DynatraceMcpIntegration.md** selects appropriate mode
@@ -121,6 +152,9 @@ graph TD
 3. **Security Analysis**: Compliance/vulnerability modes reference **DynatraceSecurityCompliance.md**
 4. **Data Understanding**: All modes can reference **DynatraceSecurityEvents.md** for event structure
 5. **Visualization**: Complex relationships explained via **DynatraceSecurityEventsDiagram.md**
+6. **Communication**: 
+   - Email notifications use **DynatraceEmailFormatting.md** for content formatting
+   - Slack integration follows **slackMessages.md** guidelines
 
 ## Key Principles
 
@@ -137,3 +171,5 @@ graph TD
 | Compliance          | DynatraceSecurityCompliance.md | DynatraceQueryLanguage.md, DynatraceSecurityEvents.md |
 | Custom DQL          | DynatraceQueryLanguage.md      | DynatraceSecurityEvents.md                            |
 | Event Understanding | DynatraceSecurityEvents.md     | DynatraceSecurityEventsDiagram.md                     |
+| Email Notifications | DynatraceEmailFormatting.md    | DynatraceMcpIntegration.md                            |
+| Slack Integration   | slackMessages.md               | DynatraceMcpIntegration.md                            |

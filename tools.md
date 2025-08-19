@@ -600,6 +600,28 @@ The Dynatrace MCP Server provides a comprehensive set of tools organized by func
 </div>
 
 <div class="tool-item">
+<div class="tool-name"><code>send_email</code></div>
+<div class="tool-details">
+  <div class="tool-row">
+    <span class="tool-label">Purpose:</span>
+    <span class="tool-value">Send emails via Dynatrace Email API with support for To, CC, BCC recipients</span>
+  </div>
+  <div class="tool-row">
+    <span class="tool-label">Usage:</span>
+    <span class="tool-value">"Send email to team@company.com with subject 'Alert Summary' and HTML body"</span>
+  </div>
+  <div class="tool-row">
+    <span class="tool-label">Parameters:</span>
+    <span class="tool-value">Recipients (to/cc/bcc), subject, body content, content type (text/html)</span>
+  </div>
+  <div class="tool-row">
+    <span class="tool-label">Returns:</span>
+    <span class="tool-value">Email delivery status with request ID and any rejected destinations</span>
+  </div>
+</div>
+</div>
+
+<div class="tool-item">
 <div class="tool-name"><code>chat_with_davis_copilot</code></div>
 <div class="tool-details">
   <div class="tool-row">
