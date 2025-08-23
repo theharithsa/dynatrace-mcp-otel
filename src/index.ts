@@ -525,7 +525,7 @@ const main = async () => {
           'storage:security.events:read'
         ),
       );
-      const response = await executeDql(dtClient, dqlStatement);
+      const response = await executeDql(dtClient, { query: dqlStatement });
 
       if (!response || response.length === 0) {
         return 'No results found for the provided DQL statement.';

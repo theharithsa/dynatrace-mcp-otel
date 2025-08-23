@@ -9,5 +9,5 @@ export const getEventsForCluster = async (dtClient: _OAuthHttpClient, clusterId:
     dql = `fetch events | filter isNotNull(k8s.cluster.uid)`;
   }
 
-  return executeDql(dtClient, dql);
+  return executeDql(dtClient, { query: dql });
 };

@@ -1,7 +1,8 @@
-import { _OAuthHttpClient } from '@dynatrace-sdk/http-client';
-import { QueryExecutionClient, QueryAssistanceClient, QueryResult } from '@dynatrace-sdk/client-query';
+import { HttpClient } from '@dynatrace-sdk/http-client';
+import { QueryExecutionClient, QueryAssistanceClient, QueryResult, ExecuteRequest } from '@dynatrace-sdk/client-query';
+import { getUserAgent } from '../utils/user-agent';
 
-export const verifyDqlStatement = async (dtClient: _OAuthHttpClient, dqlStatement: string) => {
+export const verifyDqlStatement = async (dtClient: HttpClient, dqlStatement: string) => {
   const queryAssistanceClient = new QueryAssistanceClient(dtClient);
 
   const response = await queryAssistanceClient.queryVerify({
@@ -14,15 +15,14 @@ export const verifyDqlStatement = async (dtClient: _OAuthHttpClient, dqlStatemen
 };
 
 export const executeDql = async (
-  dtClient: _OAuthHttpClient,
-  dqlStatement: string,
+  dtClient: HttpClient,
+  body: ExecuteRequest,
 ): Promise<QueryResult['records'] | undefined> => {
   const queryExecutionClient = new QueryExecutionClient(dtClient);
 
   const response = await queryExecutionClient.queryExecute({
-    body: {
-      query: dqlStatement,
-    },
+    body,
+    dtClientContext: getUserAgent(),
   });
 
   if (response.result) {
@@ -38,6 +38,7 @@ export const executeDql = async (
       await new Promise((resolve) => setTimeout(resolve, 2000));
       pollResponse = await queryExecutionClient.queryPoll({
         requestToken: response.requestToken,
+        dtClientContext: getUserAgent(),
       });
       // done - let's return it
       if (pollResponse.result) {

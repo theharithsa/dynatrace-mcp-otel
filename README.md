@@ -13,6 +13,18 @@
 
 A Model Context Protocol (MCP) server that provides AI assistants with comprehensive access to Dynatrace observability data, automation capabilities, and operational insights. Enhanced with Davis CoPilot AI for intelligent query generation, natural language explanations, and professional email communication.
 
+## Costs
+
+**Important:** While this local MCP server is provided for free, using it to access data in Dynatrace Grail may incur additional costs based on your Dynatrace consumption model. This affects `execute_dql` tool and other capabilities that **query** Dynatrace Grail storage, and costs depend on the volume (GB scanned/billed).
+
+**Before using this MCP server extensively, please:**
+
+1. Review your current Dynatrace consumption model and pricing
+2. Understand the cost implications of the specific data you plan to query (logs, events, metrics) - see [Dynatrace Pricing and Rate Card](https://www.dynatrace.com/pricing/)
+3. Start with smaller timeframes (e.g., 12h-24h) and make use of [buckets](https://docs.dynatrace.com/docs/discover-dynatrace/platform/grail/data-model#built-in-grail-buckets) to reduce the cost impact
+
+**Note**: We will be providing a way to monitor Query Usage of the dynatrace-mcp-server in the future.
+
 ## Table of Contents
 
 - [Quick Start](#quick-start)
