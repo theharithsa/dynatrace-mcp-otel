@@ -90,7 +90,7 @@
     "@opentelemetry/resources": "^1.30.1",
     "@opentelemetry/sdk-node": "^0.203.0",
     "@theharithsa/opentelemetry-instrumentation-mcp": "^1.0.0",
-    "axios": "^1.11.0",
+    "axios": "^1.12.0",
     "commander": "^14.0.0",
     "dotenv": "^17.2.1",
     "dt-app": "^0.148.1",
