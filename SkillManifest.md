@@ -8,37 +8,37 @@ This server exposes the following skills ("tools" or "capabilities") for seamles
 
 ## 🤖 Davis CoPilot AI Integration (NEW!)
 
-| Skill Name                          | Description                                                        |
-| ----------------------------------- | ------------------------------------------------------------------ |
+| Skill Name                           | Description                                                                                                                                     |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `generate_dql_from_natural_language` | **Convert natural language to DQL** using Davis CoPilot AI. Transform plain English requests into powerful Dynatrace Query Language statements. |
-| `explain_dql_in_natural_language`    | **Explain DQL in plain English** using Davis CoPilot AI. Get clear, human-readable explanations of complex DQL queries. |
-| `chat_with_davis_copilot`            | **AI-powered Dynatrace assistant** for questions, troubleshooting, and guidance. Use when no specific tool covers your need. |
+| `explain_dql_in_natural_language`    | **Explain DQL in plain English** using Davis CoPilot AI. Get clear, human-readable explanations of complex DQL queries.                         |
+| `chat_with_davis_copilot`            | **AI-powered Dynatrace assistant** for questions, troubleshooting, and guidance. Use when no specific tool covers your need.                    |
 
 ---
 
 ## Core Observability & Query
 
-| Skill Name                     | Description                                                        |
-| ------------------------------ | ------------------------------------------------------------------ |
-| `list_problems`                | List all Dynatrace problems for a given entity/service/host.       |
-| `get_problem_details`          | Fetch detailed info for a specific Dynatrace problem.              |
-| `list_security_problems`       | List open vulnerabilities or security issues.                      |
-| `get_security_problem_details` | Get details for a specific vulnerability or exposure.              |
-| `run_dql_query`                | Run Dynatrace Query Language (DQL) for logs, metrics, traces, etc. |
+| Skill Name                     | Description                                                           |
+| ------------------------------ | --------------------------------------------------------------------- |
+| `list_problems`                | List all Dynatrace problems for a given entity/service/host.          |
+| `get_problem_details`          | Fetch detailed info for a specific Dynatrace problem.                 |
+| `list_security_problems`       | List open vulnerabilities or security issues.                         |
+| `get_security_problem_details` | Get details for a specific vulnerability or exposure.                 |
+| `run_dql_query`                | Run Dynatrace Query Language (DQL) for logs, metrics, traces, etc.    |
 | `verify_dql`                   | **Validate DQL syntax** before execution to ensure query correctness. |
-| `get_entity_info`              | Fetch info on any monitored entity (host, service, etc).           |
-| `set_entity_ownership`         | Set or update entity ownership.                                    |
+| `get_entity_info`              | Fetch info on any monitored entity (host, service, etc).              |
+| `set_entity_ownership`         | Set or update entity ownership.                                       |
 
 ---
 
 ## Automation & Communication
 
-| Skill Name                     | Description                                          |
-| ------------------------------ | ---------------------------------------------------- |
-| `send_slack_message`           | Send a Slack message via Dynatrace Slack Connector.  |
+| Skill Name                     | Description                                                                                                                               |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `send_slack_message`           | Send a Slack message via Dynatrace Slack Connector.                                                                                       |
 | `send_email`                   | **Send emails via Dynatrace Email API** with support for To/CC/BCC recipients, HTML/plain text content, and comprehensive error handling. |
-| `create_notification_workflow` | Set up a notification workflow via AutomationEngine. |
-| `execute_typescript`           | **Execute custom TypeScript code** via Dynatrace Function Executor for advanced automation. |
+| `create_notification_workflow` | Set up a notification workflow via AutomationEngine.                                                                                      |
+| `execute_typescript`           | **Execute custom TypeScript code** via Dynatrace Function Executor for advanced automation.                                               |
 
 ---
 
@@ -61,7 +61,7 @@ This server exposes the following skills ("tools" or "capabilities") for seamles
 For the best experience with data querying, follow this AI-powered workflow:
 
 1. **🤖 Generate**: Use `generate_dql_from_natural_language` to convert your question into DQL
-2. **✅ Verify**: Use `verify_dql` to validate the generated query syntax  
+2. **✅ Verify**: Use `verify_dql` to validate the generated query syntax
 3. **🚀 Execute**: Use `run_dql_query` to run the validated DQL statement
 4. **📝 Understand**: Use `explain_dql_in_natural_language` to understand complex results
 5. **🔄 Iterate**: Refine your natural language request and repeat as needed
@@ -71,7 +71,7 @@ For the best experience with data querying, follow this AI-powered workflow:
 Use `chat_with_davis_copilot` for:
 
 - General Dynatrace questions
-- Troubleshooting guidance  
+- Troubleshooting guidance
 - Best practice recommendations
 - When no specific tool covers your need
 
@@ -134,12 +134,12 @@ OpenTelemetry integration requires these environment variables:
 
 All skills are:
 
-* Fully instrumented with **OpenTelemetry** tracing.
-* Log every action, result, and error for maximum observability.
-* Designed for composability—skills are atomic, can be chained in your agent, and return clear results.
-* Enhanced with security context tagging for proper isolation
-* Protected by least privilege token permissions
-* **NEW**: AI interactions include comprehensive metadata and error context
+- Fully instrumented with **OpenTelemetry** tracing.
+- Log every action, result, and error for maximum observability.
+- Designed for composability—skills are atomic, can be chained in your agent, and return clear results.
+- Enhanced with security context tagging for proper isolation
+- Protected by least privilege token permissions
+- **NEW**: AI interactions include comprehensive metadata and error context
 
 ---
 
@@ -155,20 +155,20 @@ All skills are:
 
 ### 📊 Dashboard Management
 
-* **Create All Dashboards:**
+- **Create All Dashboards:**
   Use `create_dashboard` to deploy every dashboard JSON in `/dashboards`.
 
-* **Delete Multiple Dashboards:**
+- **Delete Multiple Dashboards:**
   Use `bulk_delete_dashboards` with an array of document IDs.
 
-* **Share a Dashboard:**
+- **Share a Dashboard:**
   Use `share_document_env` (environment) or `direct_share_document` (specific recipients) after creation.
 
 ### 🤖 AI Troubleshooting
 
-* **Get Help:** Use `chat_with_davis_copilot` for any Dynatrace-related question
-* **Understand Queries:** Use `explain_dql_in_natural_language` for complex DQL statements
-* **Generate Queries:** Use `generate_dql_from_natural_language` for data exploration
+- **Get Help:** Use `chat_with_davis_copilot` for any Dynatrace-related question
+- **Understand Queries:** Use `explain_dql_in_natural_language` for complex DQL statements
+- **Generate Queries:** Use `generate_dql_from_natural_language` for data exploration
 
 ---
 
@@ -210,7 +210,7 @@ All skills are:
 ### Davis CoPilot Scopes (NEW!)
 
 - `davis-copilot:nl2dql:execute`
-- `davis-copilot:dql2nl:execute` 
+- `davis-copilot:dql2nl:execute`
 - `davis-copilot:conversations:execute`
 
 ### Additional Feature Scopes

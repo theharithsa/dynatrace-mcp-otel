@@ -1,0 +1,231 @@
+import { addEntityTags } from './add-entity-tags';
+import { _OAuthHttpClient } from '@dynatrace-sdk/http-client';
+
+// Mock the MonitoredEntitiesClient
+jest.mock('@dynatrace-sdk/client-classic-environment-v2', () => ({
+  MonitoredEntitiesClient: jest.fn().mockImplementation(() => ({
+    getEntities: jest.fn()
+  }))
+}));
+
+// Mock the logging module
+jest.mock('../logging', () => ({
+  sendToDynatraceLog: jest.fn()
+}));
+
+import { MonitoredEntitiesClient } from '@dynatrace-sdk/client-classic-environment-v2';
+import { sendToDynatraceLog } from '../logging';
+const mockSendToDynatraceLog = sendToDynatraceLog as jest.MockedFunction<typeof sendToDynatraceLog>;
+
+describe('addEntityTags', () => {
+  let mockDtClient: jest.Mocked<_OAuthHttpClient>;
+  let mockEntitiesClient: jest.Mocked<MonitoredEntitiesClient>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    
+    // Create mock OAuth client
+    mockDtClient = {
+      send: jest.fn()
+    } as any;
+    
+    // Create mock entities client
+    mockEntitiesClient = {
+      getEntities: jest.fn()
+    } as any;
+    
+    // Mock the constructor to return our mock
+    (MonitoredEntitiesClient as jest.Mock).mockReturnValue(mockEntitiesClient);
+  });
+
+  it('should successfully add tags to an entity', async () => {
+    // Mock entity search response
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          entities: [{
+            entityId: 'SERVICE-123',
+            displayName: 'Test Service',
+            type: 'SERVICE'
+          }]
+        })
+      } as Response)
+      // Mock tags API response
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          appliedTags: [
+            { stringRepresentation: 'environment:production' },
+            { stringRepresentation: 'team:platform' }
+          ],
+          matchedEntitiesCount: 1
+        })
+      } as Response);
+
+    const result = await addEntityTags('Test Service', [
+      { key: 'environment', value: 'production' },
+      { key: 'team', value: 'platform' }
+    ]);
+
+    // Verify entity search call
+    expect(mockFetch).toHaveBeenNthCalledWith(1,
+      'https://test.apps.dynatrace.com/api/v2/entities?entitySelector=entityName.equals(%22Test%20Service%22)&fields=displayName,entityId,type',
+      {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json; charset=utf-8',
+          'Authorization': 'Api-Token dt0c01.test-token'
+        }
+      }
+    );
+
+    // Verify tags API call
+    expect(mockFetch).toHaveBeenNthCalledWith(2,
+      'https://test.apps.dynatrace.com/api/v2/tags?entitySelector=entityId(%22SERVICE-123%22)',
+      {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json; charset=utf-8',
+          'Authorization': 'Api-Token dt0c01.test-token',
+          'Content-Type': 'application/json; charset=utf-8'
+        },
+        body: JSON.stringify({
+          tags: [
+            { key: 'environment', value: 'production' },
+            { key: 'team', value: 'platform' }
+          ]
+        })
+      }
+    );
+
+    // Verify success response
+    expect(result).toContain('Successfully added 2 tags to entity "Test Service" (SERVICE-123)');
+    expect(result).toContain('environment:production');
+    expect(result).toContain('team:platform');
+    expect(result).toContain('Matched entities: 1');
+
+    // Verify logging was called
+    expect(mockSendToDynatraceLog).toHaveBeenCalledWith({
+      tool: 'add_entity_tags',
+      traceId: expect.any(String),
+      spanId: '',
+      parentSpanId: '',
+      args: { 
+        entityName: 'Test Service',
+        tags: [
+          { key: 'environment', value: 'production' },
+          { key: 'team', value: 'platform' }
+        ]
+      },
+      result: expect.stringContaining('Successfully added 2 tags'),
+      isError: false
+    });
+  });
+
+  it('should handle entity not found', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ entities: [] })
+    } as Response);
+
+    const result = await addEntityTags('Nonexistent Service', [
+      { key: 'test', value: 'value' }
+    ]);
+
+    expect(result).toBe('No entity found with name: Nonexistent Service');
+    
+    // Verify error logging
+    expect(mockSendToDynatraceLog).toHaveBeenCalledWith({
+      tool: 'add_entity_tags',
+      traceId: expect.any(String),
+      spanId: '',
+      parentSpanId: '',
+      args: { 
+        entityName: 'Nonexistent Service',
+        tags: [{ key: 'test', value: 'value' }]
+      },
+      result: 'No entity found with name: Nonexistent Service',
+      isError: true
+    });
+  });
+
+  it('should handle multiple entities found', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        entities: [
+          { entityId: 'SERVICE-123', displayName: 'Service A', type: 'SERVICE' },
+          { entityId: 'SERVICE-456', displayName: 'Service B', type: 'SERVICE' }
+        ]
+      })
+    } as Response);
+
+    const result = await addEntityTags('Common Name', [
+      { key: 'test', value: 'value' }
+    ]);
+
+    expect(result).toContain('Multiple entities found with name "Common Name"');
+    expect(result).toContain('Service A (SERVICE-123)');
+    expect(result).toContain('Service B (SERVICE-456)');
+  });
+
+  it('should handle API errors', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      text: () => Promise.resolve('Forbidden')
+    } as Response);
+
+    await expect(addEntityTags('Test Service', [{ key: 'test' }]))
+      .rejects
+      .toThrow('Failed to fetch entities: 403 - Forbidden');
+
+    // Verify error logging
+    expect(mockSendToDynatraceLog).toHaveBeenCalledWith({
+      tool: 'add_entity_tags',
+      traceId: expect.any(String),
+      spanId: '',
+      parentSpanId: '',
+      args: { 
+        entityName: 'Test Service',
+        tags: [{ key: 'test' }]
+      },
+      result: 'Failed to fetch entities: 403 - Forbidden',
+      isError: true
+    });
+  });
+
+  it('should handle missing environment variables', async () => {
+    delete process.env.DT_ENVIRONMENT;
+
+    await expect(addEntityTags('Test Service', [{ key: 'test' }]))
+      .rejects
+      .toThrow('Missing DT_ENVIRONMENT or authentication token');
+  });
+
+  it('should handle tags API failure', async () => {
+    // Mock successful entity search
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          entities: [{
+            entityId: 'SERVICE-123',
+            displayName: 'Test Service',
+            type: 'SERVICE'
+          }]
+        })
+      } as Response)
+      // Mock failed tags API
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        text: () => Promise.resolve('Bad Request - Invalid tag format')
+      } as Response);
+
+    await expect(addEntityTags('Test Service', [{ key: 'invalid tag key!' }]))
+      .rejects
+      .toThrow('Failed to add tags: 400 - Bad Request - Invalid tag format');
+  });
+});

@@ -69,6 +69,7 @@ dynatrace-mcp-otel/
 ## 📂 Detailed Directory Explanations
 
 ### 🔧 `/src/` - Source Code
+
 **Purpose**: Contains all TypeScript source code for the MCP server
 
 ```
@@ -91,10 +92,12 @@ src/
 ```
 
 **Key Files**:
+
 - `index.ts`: Registers all MCP tools and handles server initialization
 - `capabilities/*.ts`: Each file implements a specific MCP tool with its schema and handler
 
 ### 📚 `/docs/` - Documentation Content
+
 **Purpose**: Jekyll-powered documentation website content
 
 ```
@@ -114,13 +117,15 @@ docs/
 ### 🎨 Jekyll Website Infrastructure
 
 #### `/_layouts/` - Page Templates
+
 ```
 _layouts/
 ├── home.html                     # Homepage template with search & categories
 └── tool.html                    # Individual tool documentation template
 ```
 
-#### `/_includes/` - Reusable Components  
+#### `/_includes/` - Reusable Components
+
 ```
 _includes/
 ├── header.html                   # Navigation with global search
@@ -128,12 +133,14 @@ _includes/
 ```
 
 #### `/_sass/` - Custom Styling
+
 ```
 _sass/
 └── custom.scss                  # Dynatrace-branded responsive design
 ```
 
 ### 🗃️ `/dashboards/` - Dashboard Templates
+
 **Purpose**: Pre-built Dynatrace dashboard configurations
 
 ```
@@ -152,6 +159,7 @@ dashboards/
 **Usage**: Import these JSON files directly into Dynatrace for instant monitoring dashboards.
 
 ### ⚡ `/workflows/` - Automation Templates
+
 **Purpose**: Workflow automation configurations
 
 ```
@@ -160,6 +168,7 @@ workflows/
 ```
 
 ### 🤖 `/dynatrace-agent-rules/` - Agent Configuration
+
 **Purpose**: Dynatrace agent rules and integration guidelines
 
 ```
@@ -174,6 +183,7 @@ dynatrace-agent-rules/
 ```
 
 ### 🚀 `/.github/workflows/` - CI/CD Automation
+
 **Purpose**: GitHub Actions for automated deployment and testing
 
 ```
@@ -186,7 +196,7 @@ dynatrace-agent-rules/
 ### 🐳 Container & Deployment Files
 
 - **`Dockerfile`**: Multi-stage container build with Node.js runtime
-- **`.dockerignore`**: Excludes development files from container builds  
+- **`.dockerignore`**: Excludes development files from container builds
 - **`makefile`**: Build automation commands (`make build`, `make test`, `make deploy`)
 
 ### 🔐 Configuration Files
@@ -208,24 +218,27 @@ dynatrace-agent-rules/
 
 1. **Development**: Code in `/src/` using TypeScript
 2. **Compilation**: `npm run build` compiles to `/dist/`
-3. **Testing**: `npm test` runs Jest test suites  
+3. **Testing**: `npm test` runs Jest test suites
 4. **Documentation**: Jekyll builds from `/docs/` to website
 5. **Deployment**: GitHub Actions deploys both server and docs
 
 ## 🎯 Key Integration Points
 
 ### MCP Server ↔ Dynatrace
+
 - **Authentication**: OAuth 2.0 via `/src/authentication/`
 - **API Calls**: Dynatrace SDK clients in each capability
 - **Tools**: 24 specialized MCP tools in `/src/capabilities/`
 
 ### Documentation ↔ Jekyll
+
 - **Content**: Markdown files in `/docs/`
 - **Styling**: Custom SCSS with Dynatrace branding
 - **Search**: Client-side JavaScript for real-time search
 - **Analytics**: Multi-platform tracking integration
 
 ### CI/CD ↔ GitHub Actions
+
 - **Triggers**: Push to main branch
 - **Build**: Both TypeScript compilation and Jekyll site
 - **Deploy**: Automated GitHub Pages deployment
@@ -233,20 +246,21 @@ dynatrace-agent-rules/
 
 ## 📊 File Count Summary
 
-| Directory | File Count | Purpose |
-|-----------|------------|---------|
-| `/src/` | 27 files | TypeScript source code |
-| `/docs/` | 26 files | Documentation content |
-| `/dashboards/` | 9 files | Dashboard templates |
-| Jekyll (`_layouts/`, `_includes/`, `_sass/`) | 5 files | Website infrastructure |
-| Root config | 24 files | Project configuration |
-| **Total** | **91 files** | Complete MCP server solution |
+| Directory                                    | File Count   | Purpose                      |
+| -------------------------------------------- | ------------ | ---------------------------- |
+| `/src/`                                      | 27 files     | TypeScript source code       |
+| `/docs/`                                     | 26 files     | Documentation content        |
+| `/dashboards/`                               | 9 files      | Dashboard templates          |
+| Jekyll (`_layouts/`, `_includes/`, `_sass/`) | 5 files      | Website infrastructure       |
+| Root config                                  | 24 files     | Project configuration        |
+| **Total**                                    | **91 files** | Complete MCP server solution |
 
 ---
 
 **💡 Quick Navigation Tips**:
+
 - **New to the project?** Start with `README.md` and `docs/getting-started.md`
-- **Adding a tool?** Create files in `/src/capabilities/` and `/docs/`  
+- **Adding a tool?** Create files in `/src/capabilities/` and `/docs/`
 - **Updating docs?** Edit files in `/docs/` - Jekyll auto-builds
 - **Need dashboards?** Import JSON files from `/dashboards/`
 - **Deployment issues?** Check `.github/workflows/jekyll.yml`

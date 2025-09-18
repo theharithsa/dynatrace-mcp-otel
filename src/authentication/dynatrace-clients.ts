@@ -3,8 +3,8 @@ import {
   HttpClientRequestOptions,
   HttpClientResponse,
   RequestBodyTypes,
-  HttpClient, 
-  PlatformHttpClient
+  HttpClient,
+  PlatformHttpClient,
 } from '@dynatrace-sdk/http-client';
 import { getSSOUrl } from 'dt-app';
 import { getUserAgent } from '../utils/user-agent';
@@ -80,16 +80,17 @@ export const createDtHttpClient = async (
   clientSecret?: string,
   dtPlatformToken?: string,
 ): Promise<HttpClient> => {
-  if (clientId && clientSecret) {
-    // create an OAuth client if clientId and clientSecret are provided
-    return createOAuthClient(clientId, clientSecret, environmentUrl, scopes);
-  }
+  // Prefer Platform Token over OAuth
   if (dtPlatformToken) {
-    // create a simple HTTP client if only the platform token is provided
+    // create a simple HTTP client if platform token is provided (primary method)
     return createBearerTokenHttpClient(environmentUrl, dtPlatformToken);
   }
+  if (clientId && clientSecret) {
+    // create an OAuth client if clientId and clientSecret are provided (fallback method)
+    return createOAuthClient(clientId, clientSecret, environmentUrl, scopes);
+  }
   throw new Error(
-    'Failed to create Dynatrace HTTP Client: Please provide either clientId and clientSecret or dtPlatformToken',
+    'Failed to create Dynatrace HTTP Client: Please provide either dtPlatformToken (recommended) or both clientId and clientSecret',
   );
 };
 
@@ -154,7 +155,4 @@ export const createOAuthClient = async (
     },
     userAgent,
   );
-
-
-  
 };

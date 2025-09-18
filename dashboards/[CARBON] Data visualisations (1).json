@@ -243,18 +243,9 @@
           },
           "categoryOverrides": {},
           "categoricalBarChartSettings": {
-            "categoryAxis": [
-              "dt.entity.host",
-              "lookup.owner",
-              "history.dt.entity.host",
-              "percentCheck"
-            ],
+            "categoryAxis": ["dt.entity.host", "lookup.owner", "history.dt.entity.host", "percentCheck"],
             "categoryAxisLabel": "dt.entity.host,lookup.owner,history.dt.entity.host,percentCheck",
-            "valueAxis": [
-              "totalCarbon",
-              "history.totalCarbon",
-              "percentChange"
-            ],
+            "valueAxis": ["totalCarbon", "history.totalCarbon", "percentChange"],
             "valueAxisLabel": "totalCarbon,history.totalCarbon,percentChange",
             "tooltipVariant": "single"
           },
@@ -292,12 +283,7 @@
           "dataMappings": {
             "value": "percentCheck"
           },
-          "displayedFields": [
-            "dt.entity.host",
-            "lookup.owner",
-            "history.dt.entity.host",
-            "percentCheck"
-          ],
+          "displayedFields": ["dt.entity.host", "lookup.owner", "history.dt.entity.host", "percentCheck"],
           "customColors": [
             {
               "id": 0,
@@ -335,12 +321,7 @@
             }
           ],
           "variant": "single",
-          "displayedFields": [
-            "dt.entity.host",
-            "lookup.owner",
-            "history.dt.entity.host",
-            "percentCheck"
-          ]
+          "displayedFields": ["dt.entity.host", "lookup.owner", "history.dt.entity.host", "percentCheck"]
         },
         "autoSelectVisualization": false
       },
@@ -704,12 +685,7 @@
           "categoryOverrides": {},
           "categoricalBarChartSettings": {
             "categoryAxis": ["dt.entity.host", "Host name", "Owner"],
-            "valueAxis": [
-              "Total carbon (kg)",
-              "CPU average",
-              "Memory average",
-              "cpu.interval"
-            ],
+            "valueAxis": ["Total carbon (kg)", "CPU average", "Memory average", "cpu.interval"],
             "categoryAxisLabel": "dt.entity.host,Host name,Owner",
             "valueAxisLabel": "Total carbon (kg),CPU average,Memory average,cpu.interval",
             "tooltipVariant": "single"
@@ -754,11 +730,7 @@
         "table": {
           "rowDensity": "comfortable",
           "enableSparklines": true,
-          "hiddenColumns": [
-            ["dt.entity.host"],
-            ["cpu.timeframe"],
-            ["cpu.interval"]
-          ],
+          "hiddenColumns": [["dt.entity.host"], ["cpu.timeframe"], ["cpu.interval"]],
           "lineWrapIds": [],
           "columnWidths": {
             "[\"CPU over time\"]": 367.25,

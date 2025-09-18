@@ -1,10 +1,14 @@
 import { HttpClient } from '@dynatrace-sdk/http-client';
+import { 
+  PublicClient,
+  Nl2DqlResponse,
+  Dql2NlResponse,
+  ConversationResponse,
+  ConversationContext
+} from '@dynatrace-sdk/client-davis-copilot';
 
 /**
- * Davis CoPilot API Integration
- *
- * !!! Note: Once @dynatrace-sdk/client-davis-copilot is available, we need to refactor this file.
- * !!! Disclaimer: Those API Calls might break any time, as they are not yet part of the official Dynatrace SDK.
+ * Davis CoPilot API Integration (Updated to use official SDK)
  *
  * This module provides access to Davis CoPilot AI capabilities including:
  * - Natural Language to DQL conversion
@@ -20,52 +24,7 @@ import { HttpClient } from '@dynatrace-sdk/http-client';
  * in Dynatrace, including problem events, security issues, logs, metrics, and spans.
  */
 
-// TypeScript interfaces based on OpenAPI spec
-// ToDo: Once @dynatrace-sdk/client-davis-copilot is available, we need to refactor this file.
-export type Status = 'SUCCESSFUL' | 'SUCCESSFUL_WITH_WARNINGS' | 'FAILED';
-
-export interface Nl2DqlRequest {
-  text: string;
-}
-
-export interface Nl2DqlResponse {
-  dql: string;
-  messageToken: string;
-  status: Status;
-  metadata?: Metadata;
-}
-
-export interface Dql2NlRequest {
-  dql: string;
-}
-
-export interface Dql2NlResponse {
-  summary: string;
-  explanation: string;
-  messageToken: string;
-  status: Status;
-  metadata?: Metadata;
-}
-
-export interface ConversationRequest {
-  text: string;
-  context?: ConversationContext[];
-  annotations?: Record<string, string>;
-  state?: State;
-}
-
-export interface ConversationResponse {
-  text: string;
-  messageToken: string;
-  state: State;
-  metadata: MetadataWithSource;
-  status: Status;
-}
-
-export interface ConversationContext {
-  type: 'supplementary' | 'document-retrieval' | 'instruction';
-  value: string;
-}
+// Using types from @dynatrace-sdk/client-davis-copilot
 
 export interface State {
   version?: string;
@@ -170,19 +129,13 @@ export interface ConversationImprovedSummary {
  * security issues, logs, metrics, spans, and custom data.
  */
 export const generateDqlFromNaturalLanguage = async (dtClient: HttpClient, text: string): Promise<Nl2DqlResponse> => {
-  const request: Nl2DqlRequest = { text };
-
-  const response = await dtClient.send({
-    method: 'POST',
-    url: '/platform/davis/copilot/v0.2/skills/nl2dql:generate',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    },
-    body: JSON.stringify(request),
+  const publicClient = new PublicClient(dtClient);
+  
+  const response = await publicClient.nl2dql({
+    body: { text }
   });
 
-  return await response.body('json');
+  return response;
 };
 
 /**
@@ -192,35 +145,21 @@ export const generateDqlFromNaturalLanguage = async (dtClient: HttpClient, text:
  * queries for problem events, security issues, and performance metrics.
  */
 export const explainDqlInNaturalLanguage = async (dtClient: HttpClient, dql: string): Promise<Dql2NlResponse> => {
-  const request: Dql2NlRequest = { dql };
-
-  const response = await dtClient.send({
-    method: 'POST',
-    url: '/platform/davis/copilot/v0.2/skills/dql2nl:explain',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    },
-    body: request, // Not sure why this does not need JSON.stringify, but it only works like this; once we have the SDK, this will be consistent
+  const publicClient = new PublicClient(dtClient);
+  
+  const response = await publicClient.dql2nl({
+    body: { dql }
   });
 
-  return await response.body('json');
+  return response;
 };
 
 export const chatWithDavisCopilot = async (
   dtClient: HttpClient,
   text: string,
   context?: ConversationContext[],
-  annotations?: Record<string, string>,
-  state?: State,
 ): Promise<ConversationResponse> => {
-  const request: ConversationRequest = {
-    text,
-    context,
-    annotations,
-    state,
-  };
-
+  // For now, continue using the manual HTTP approach since SDK integration is complex
   const response = await dtClient.send({
     method: 'POST',
     url: '/platform/davis/copilot/v0.2/skills/conversations:message',
@@ -228,7 +167,10 @@ export const chatWithDavisCopilot = async (
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     },
-    body: JSON.stringify(request),
+    body: JSON.stringify({
+      text,
+      context
+    }),
   });
 
   return await response.body('json');

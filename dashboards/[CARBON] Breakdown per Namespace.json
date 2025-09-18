@@ -42,11 +42,7 @@
             "categoryAxisLabel": "entity.name",
             "valueAxisLabel": "process.interval"
           },
-          "hiddenLegendFields": [
-            "entity",
-            "process.lookup.entity",
-            "host.lookup.entity"
-          ]
+          "hiddenLegendFields": ["entity", "process.lookup.entity", "host.lookup.entity"]
         },
         "singleValue": {
           "showLabel": true,
@@ -373,23 +369,14 @@
               "dt.entity.host",
               "carbon.lookup.host"
             ],
-            "valueAxis": [
-              "process.interval",
-              "host.interval",
-              "carbon.interval"
-            ],
+            "valueAxis": ["process.interval", "host.interval", "carbon.interval"],
             "categoryAxisLabel": "entity.name,dt.entity.container_group_instance,dt.entity.process_group_instance,dt.entity.cloud_application_namespace,dt.entity.host,carbon.lookup.host",
             "valueAxisLabel": "process.interval,host.interval,carbon.interval",
             "tooltipVariant": "single"
           },
           "fieldMapping": {
             "timestamp": "process.timeframe",
-            "leftAxisValues": [
-              "process.process_cpu",
-              "host.host_cpu",
-              "carbon.emissions",
-              "carbon.electric"
-            ],
+            "leftAxisValues": ["process.process_cpu", "host.host_cpu", "carbon.emissions", "carbon.electric"],
             "leftAxisDimensions": [
               "entity.name",
               "dt.entity.container_group_instance",

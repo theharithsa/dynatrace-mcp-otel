@@ -1,1 +1,555 @@
-{"version":15,"variables":[{"key":"PIT_Selector","type":"csv","visible":true,"input":"0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60","multiple":false},{"key":"MgmtZone","type":"code","visible":false,"input":"import { settingsObjectsClient } from '@dynatrace-sdk/client-classic-environment-v2';\n\nexport default async function() {\n  const config = { schemaIds: 'builtin:management-zones'};\n  const objects = await settingsObjectsClient.getSettingsObjects(config);\n  let managementZones = objects.items.map(el => el.value.name);\n  managementZones = [\"Tenant-wide\",...managementZones]\n  return managementZones;\n}","multiple":false},{"key":"entity_tags","type":"query","visible":true,"input":"fetch dt.davis.problems\n| expand entity_tags\n| fields entity_tags\n| dedup entity_tags\n| append [data record(entity_tags=\"NONE\")]\n| limit 10000","multiple":true,"defaultValue":["NONE"]},{"key":"alerting_profile","type":"query","visible":true,"input":"fetch dt.davis.problems\n| expand labels.alerting_profile\n| fields labels.alerting_profile\n| append [data record(labels.alerting_profile=\"NONE\")]\n| dedup labels.alerting_profile\n| limit 100000","multiple":false,"defaultValue":"NONE"}],"tiles":{"0":{"type":"code","title":"Incidents count : MTTR with and without RCA ","input":"import { queryExecutionClient } from '@dynatrace-sdk/client-query';\n      \nexport default async function () {\n  const timeout = 60;\n\n  // Converting the MgmtZone from Array to json String\n  let entityString = [];\n  let entityArr = $entity_tags;\n        \n  for (let i = 0; i < entityArr.length; i++) {\n    entityString.push(JSON.stringify(entityArr[i]));\n  }\n  let alerting_profile_str=$alerting_profile;\n  \n  const query = `fetch dt.davis.problems, from:\\\"` + $dt_timeframe_from + `\\\",to:\\\"` + $dt_timeframe_to + `\\\"\n  | filter event.status == \\\"CLOSED\\\"\n  | filterOut dt.davis.is_duplicate == \"true\"\n  | filter not(dt.davis.is_duplicate)\n  | fieldsAdd entity_tags = if(isNull(entity_tags), \\\"NA\\\", else:entity_tags)\n  | expand entityId = affected_entity_ids\n  | expand tags=entity_tags\n  | filter in(` + entityString + `,\"NONE\") OR in(tags,` + entityString + `)\n  | expand alerting_profile=labels.alerting_profile\n  | filter in(\"` + alerting_profile_str + `\",\"NONE\") OR in(alerting_profile,` + alerting_profile_str + `) \n  | filter toLong(resolved_problem_duration) >= (toLong(` + $PIT_Selector + `)*60000000000)\n  | dedup display_id\n  | fieldsKeep resolved_problem_duration, root_cause_entity_id, event.category, display_id\n  | fieldsRename event.category, alias: Severity\n  | fieldsAdd RCA=if((isNotNull(root_cause_entity_id)),TRUE,else:FALSE )\n  | summarize Incidents = collectDistinct(display_id), resolved_problem_duration=max(toDouble(resolved_problem_duration)),\n                          by:{display_id, RCA, Severity}\n  | summarize MTTR_with_RCA=(if(takeAny(RCA), median(toDuration(resolved_problem_duration)),else:-1)),\n                             MTTR_Wo_RCA=(if(takeAny(RCA == false), median(toDuration(resolved_problem_duration)),else:-1)),\n                             incident_rca=countIf(RCA),\n                             incident_wo_rca=countIf(RCA == FALSE),\n                             total_incident=count(),\n                             by:{RCA, Severity}`;\n  console.log(query);\n  const response = await queryExecutionClient.queryExecute({ body: { query, requestTimeoutMilliseconds: timeout * 1000, fetchTimeoutSeconds: timeout  } });\n  const recordSet = response.result.records;\n\n  console.log(recordSet);\n  const mergedObjects: { [key: string]: { Severity: string, IncidentsWithRCA: number, IncidentsWoRCA: number, Total_incidents: number, MTTR_with_RCA: number|null, MTTR_Wo_RCA: number | null } } = {};\n  for (const record of recordSet) {\n    let severity_type = record[\"Severity\"];\n  \n    if(!(severity_type in mergedObjects)) {\n      //Check if the object for that management_zone is already initialized. If not, add it to the list.\n      mergedObjects[severity_type] = { Severity: severity_type, MTTR_RCA: -1, MTTR_WO_RCA: -1, Total_incidents: 0, IncidentsWithRCA: 0, IncidentsWoRCA:0};\n\n      //Now, copy the other information for that management zone like MTTR_RCA and MTTR_Wo_RCA.\n      let mttr_rca = record[\"MTTR_with_RCA\"];\n      let mttr_norca = record[\"MTTR_Wo_RCA\"];\n      let incident_rca = record[\"incident_rca\"];\n      let incident_wo_rca = record[\"incident_wo_rca\"];\n      let total_incident = record[\"total_incident\"];\n\n      if (mttr_rca != \"-1\") {\n        const mttrnorca = mergedObjects[severity_type].MTTR_WO_RCA;\n        mergedObjects[severity_type]={Severity: severity_type, Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca, MTTR_RCA: mttr_rca, MTTR_WO_RCA:mttrnorca};\n      }   \n      if (mttr_norca != \"-1\") {\n        const mttrrca = mergedObjects[severity_type].MTTR_RCA;\n        mergedObjects[severity_type]={Severity: severity_type,Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca, MTTR_RCA: mttrrca, MTTR_WO_RCA: mttr_norca};\n      }   \n    }   \n    else {\n      //In the above code, it will copy either MTTR_RCA or MTTR_WO_RCA depending on the first entry of the JSON object.\n      // Here, we repeat the same as above and copy the remaining dataset.\n      let mttr_rca = record[\"MTTR_with_RCA\"];\n      let mttr_norca = record[\"MTTR_Wo_RCA\"];\n      let incident_rca = record[\"incident_rca\"];\n      let incident_wo_rca = record[\"incident_wo_rca\"];\n\n      if (mttr_rca != \"-1\") {\n        const mttrnorca = mergedObjects[severity_type].MTTR_WO_RCA;\n        let total_incident=parseInt(mergedObjects[severity_type][\"Total_incidents\"]) + parseInt(incident_rca);\n        let incident_wo_rca = mergedObjects[severity_type][\"IncidentsWoRCA\"];\n        mergedObjects[severity_type]={Severity: severity_type, Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca, MTTR_RCA: mttr_rca, MTTR_WO_RCA:mttrnorca,};\n      }   \n      if (mttr_norca != \"-1\") {\n        const mttrrca = mergedObjects[severity_type].MTTR_RCA;\n        let incident_rca = mergedObjects[severity_type][\"Incident_rca\"]\n        let total_incident=parseInt(mergedObjects[severity_type][\"Total_incidents\"]) + parseInt(incident_wo_rca);  \n        mergedObjects[severity_type]={Severity: severity_type,Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca,MTTR_RCA: mttrrca, MTTR_WO_RCA: mttr_norca};\n      }   \n    }   \n  }\n  // Convert the object to only values before returning the value.\n  // Convert the object to only values before returning the value.\n  const keys=Object.keys(mergedObjects);\n  let tmpList=[];\n  console.log(keys);\n\n  for (const key of keys) {\n    console.log(key);\n      let mergedObjectsValues:{ Severity: string, IncidentsWithRCA: number, IncidentsWoRCA: number, Total_incidents: number, MTTR_with_RCA: number|null, MTTR_Wo_RCA: number | null } = {};\n\n    mergedObjectsValues[\"Severity\"] = mergedObjects[key].Severity;\n    mergedObjectsValues[\"TotalIncidents\"]=mergedObjects[key].Total_incidents;\n    mergedObjectsValues[\"IncidentsWithRCA\"] = mergedObjects[key].IncidentsWithRCA;\n    //mergedObjectsValues[\"MTTR_with_RCA\"] = mergedObjects[key].MTTR_RCA;\n    mergedObjectsValues[\"IncidentsWoRCA\"] = mergedObjects[key].IncidentsWoRCA;\n    //mergedObjectsValues[\"MTTR_wo_RCA\"] = mergedObjects[key].MTTR_WO_RCA;\n    tmpList.push(mergedObjectsValues);\n  }\n  return tmpList;\n}\n","visualization":"table","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{"categoryAxis":"Severity","categoryAxisLabel":"Severity","valueAxis":"TotalIncidents","valueAxisLabel":"TotalIncidents"}},"singleValue":{"showLabel":true,"label":"","autoscale":true,"recordField":"Severity"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[],"columnWidths":{"[\"Severity\"]":304.1171875,"[\"TotalIncidents\"]":333.7734375,"[\"IncidentsWithRCA\"]":315.8359375}},"honeycomb":{"shape":"square","dataMappings":{"category":"Severity","value":"TotalIncidents"},"legend":"auto"},"histogram":{"dataMappings":[{"valueAxis":"TotalIncidents","rangeAxis":""}]},"unitsOverrides":[{"identifier":"TotalIncidents","unitCategory":"unspecified","baseUnit":"count","displayUnit":null,"decimals":0,"suffix":"","delimiter":false,"added":1720790235817}]},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":1,"defaultSamplingRatio":10,"enableSampling":false}},"1":{"type":"markdown","title":"","content":"------\n# Incidents Details across selected \"Tags\" and \"Alerting profile\""},"3":{"type":"data","title":"Incidents trend bucketized per day over the last week","query":"fetch dt.davis.problems\n| filter event.kind == \"DAVIS_PROBLEM\" and event.status == \"CLOSED\" and toLong(resolved_problem_duration) >= (toLong($PIT_Selector)*60000000000)\n| filter dt.davis.is_duplicate == false\n| fieldsAdd closed=if(event.status==\"CLOSED\", timestamp)\n| filter isNotNull(closed)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| expand alerting_profile=labels.alerting_profile\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\n| dedup display_id\n| summarize no_of_incidents = countDistinct(display_id), by:{bin(timestamp, 1d), alias:timestamp}\n| fields timeframe = timeframe(from:timestamp-1d, to:timestamp), no_of_incidents = no_of_incidents","visualization":"lineChart","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","colorPalette":"fireplace","seriesOverrides":[{"seriesId":"no_of_incidents","override":{"color":{"Default":"var(--dt-colors-charts-categorical-color-12-default, #d50b34)","Hover":"var(--dt-colors-charts-categorical-color-12-hover, #b30024)","Active":"var(--dt-colors-charts-categorical-color-12-active, #7e071d)","DefaultTransparent":"var(--dt-colors-charts-categorical-color-12-default-transparent, #c5000ccc)","HoverTransparent":"var(--dt-colors-charts-categorical-color-12-hover-transparent, #83000fcc)","ActiveTransparent":"var(--dt-colors-charts-categorical-color-12-active-transparent, #140000cc)"}}}],"hiddenLegendFields":[],"fieldMapping":{"timestamp":"timeframe","leftAxisValues":["no_of_incidents"],"leftAxisDimensions":[]},"categoricalBarChartSettings":{},"leftYAxisSettings":{"label":"Incident count"},"legend":{"hidden":true}},"singleValue":{"showLabel":true,"label":"","autoscale":true,"recordField":"no_of_incidents"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"square","dataMappings":{}},"histogram":{"dataMappings":[{"valueAxis":"no_of_incidents","rangeAxis":""}]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{},"timeframe":{"tileTimeframeEnabled":true,"tileTimeframe":{"from":"now()-7d","to":"now()"}}},"4":{"type":"data","title":"Top 10 incidents across the tenant","query":"fetch dt.davis.problems\n| filter event.kind == \"DAVIS_PROBLEM\" and toLong(resolved_problem_duration)>=(toLong($PIT_Selector)*60000000000)\n| filter dt.davis.is_duplicate == false\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\t| dedup display_id\n| summarize Incidents = countDistinct(display_id) ,by:{event.name}\n| sort Incidents, direction:\"descending\"\n| fieldsRename event.name, ProblemTitle","visualization":"categoricalBarChart","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{"categoryAxis":"ProblemTitle","categoryAxisLabel":"ProblemTitle","valueAxis":"Incidents","valueAxisLabel":"Incidents"}},"singleValue":{"showLabel":true,"label":"","autoscale":true,"recordField":"ProblemTitle"},"table":{"rowDensity":"condensed","enableLineWrap":false,"enableSparklines":false,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"square","dataMappings":{"category":"ProblemTitle","value":"Incidents"},"legend":"auto"},"histogram":{"dataMappings":[{"valueAxis":"Incidents","rangeAxis":""}]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"5":{"type":"data","title":"Incidents split by category","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status == \"CLOSED\" and toLong(resolved_problem_duration)>=(toLong($PIT_Selector)*60000000000)\n| dedup display_id\n| filter not(dt.davis.is_duplicate)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\t\n| dedup display_id\n| summarize incident=countDistinct(display_id),by:{event.category}\n","visualization":"donutChart","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{"categoryAxis":"event.category","categoryAxisLabel":"event.category","valueAxis":"incident","valueAxisLabel":"incident"},"circleChartSettings":{"showTotalValue":true},"hiddenLegendFields":[]},"singleValue":{"showLabel":true,"label":"","autoscale":true,"recordField":"count()"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[["incident"]]},"honeycomb":{"shape":"square","dataMappings":{"category":"event.category","value":"incident"},"legend":"auto"},"histogram":{"dataMappings":[{"valueAxis":"incident","rangeAxis":""}]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"6":{"type":"data","title":"Incidents trend categorized with and without RCA (Root Cause Analysis)","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\t\n| fieldsAdd containRCA=if((isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id)),\"With RCA\", else:\"No RCA\")\n| summarize Problems=count(),\n          by:{bin(timestamp, 12h), containRCA}","visualization":"lineChart","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","seriesOverrides":[{"seriesId":["With RCA","Problems"],"override":{"color":{"Default":"var(--dt-colors-charts-categorical-color-09-default, #0d9c29)","Hover":"var(--dt-colors-charts-categorical-color-09-hover, #0a7b20)","Active":"var(--dt-colors-charts-categorical-color-09-active, #075f19)","DefaultTransparent":"var(--dt-colors-charts-categorical-color-09-default-transparent, #008500cc)","HoverTransparent":"var(--dt-colors-charts-categorical-color-09-hover-transparent, #005905cc)","ActiveTransparent":"var(--dt-colors-charts-categorical-color-09-active-transparent, #003112cc)"}}},{"seriesId":["No RCA","Problems"],"override":{"color":{"Default":"var(--dt-colors-charts-categorical-color-12-default, #d50b34)","Hover":"var(--dt-colors-charts-categorical-color-12-hover, #b30024)","Active":"var(--dt-colors-charts-categorical-color-12-active, #7e071d)","DefaultTransparent":"var(--dt-colors-charts-categorical-color-12-default-transparent, #c5000ccc)","HoverTransparent":"var(--dt-colors-charts-categorical-color-12-hover-transparent, #83000fcc)","ActiveTransparent":"var(--dt-colors-charts-categorical-color-12-active-transparent, #140000cc)"}}},{"seriesId":["No RCA","Problems"],"override":{"color":"#b3007d"}}],"categoricalBarChartSettings":{"categoryAxis":"containRCA","categoryAxisLabel":"containRCA","valueAxis":"Problems","valueAxisLabel":"Problems"},"fieldMapping":{"timestamp":"bin(timestamp, 12h)","leftAxisValues":["Problems"],"leftAxisDimensions":["containRCA"]},"hiddenLegendFields":[]},"singleValue":{"showLabel":true,"label":"","autoscale":true,"recordField":"bin(timestamp, 12h)"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"square","dataMappings":{"category":"containRCA","value":"bin(timestamp, 12h)"},"legend":"auto"},"histogram":{"dataMappings":[{"valueAxis":"Problems","rangeAxis":""}]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"7":{"type":"markdown","title":"","content":"------\n# MTTR Details across selected \"Tags\" and \"Alerting Profile\""},"9":{"type":"code","title":"Incidents MTTR with and without RCA (in mins)","input":"import { queryExecutionClient } from '@dynatrace-sdk/client-query';\n      \nexport default async function () {\n  const timeout = 60;\n\n  // Converting the MgmtZone from Array to json String\n  let entityString = [];\n  let entityArr = $entity_tags;\n        \n  for (let i = 0; i < entityArr.length; i++) {\n    entityString.push(JSON.stringify(entityArr[i]));\n  }\n  let alerting_profile_str=$alerting_profile;\n  \n  const query = `fetch dt.davis.problems, from:\\\"` + $dt_timeframe_from + `\\\",to:\\\"` + $dt_timeframe_to + `\\\"\n  | filter event.status == \\\"ACTIVE\\\" or event.status == \\\"CLOSED\\\"\n  | fieldsAdd entity_tags = if(isNull(entity_tags), \\\"NA\\\", else:entity_tags)\n  | filter not(dt.davis.is_duplicate)\n  | expand entityId = affected_entity_ids\n  | expand tags=entity_tags\n  | filter if (` + entityString + `!=\"NONE\", in(tags,` + $entity_tags + `), else:display_id!=\"\")| expand alerting_profile=labels.alerting_profile\n  | filter if (` + alerting_profile_str + `!=\"NONE\", in(alerting_profile,` + $alerting_profile + `), else:display_id!=\"\") and toLong(resolved_problem_duration) >= (toLong(` + $PIT_Selector + `)*60000000000)\n  | dedup display_id\n  | fieldsKeep resolved_problem_duration, root_cause_entity_id, event.category, display_id\n| fieldsRename event.category, alias: Severity\n| fieldsAdd RCA=if((isNotNull(root_cause_entity_id)),TRUE,else:FALSE )\n| summarize Incidents = collectDistinct(display_id),\n            resolved_problem_duration=max(toDouble(resolved_problem_duration)),\n                by:{display_id, RCA, Severity}\n| summarize MTTR_with_RCA=(if(takeAny(RCA), median(toLong(resolved_problem_duration)/60000000000),else:-1)),\n            MTTR_Wo_RCA=(if(takeAny(RCA == false), median(toLong(resolved_problem_duration)/60000000000),else:-1)),\n            incident_rca=countIf(RCA),\n            incident_wo_rca=countIf(RCA == FALSE),\n            total_incident=count(),\n            by:{RCA, Severity}`;\n  const response = await queryExecutionClient.queryExecute({ body: { query, requestTimeoutMilliseconds: timeout * 1000, fetchTimeoutSeconds: timeout  } });\n  const recordSet = response.result.records;\n\n  console.log(recordSet);\n  const mergedObjects: { [key: string]: { Severity: string, IncidentsWithRCA: number, IncidentsWoRCA: number, Total_incidents: number, MTTR_with_RCA: number|null, MTTR_Wo_RCA:  number | null } } = {};\n  for (const record of recordSet) {\n    let severity_type = record[\"Severity\"];\n  \n    if(!(severity_type in mergedObjects)) {\n      //Check if the object for that management_zone is already initialized. If not, add it to the list.\n      mergedObjects[severity_type] = { Severity: severity_type, MTTR_RCA: -1, MTTR_WO_RCA: -1, Total_incidents: 0, IncidentsWithRCA: 0, IncidentsWoRCA:0};\n\n      //Now, copy the other information for that management zone like MTTR_RCA and MTTR_Wo_RCA.\n      let mttr_rca = record[\"MTTR_with_RCA\"];\n      let mttr_norca = record[\"MTTR_Wo_RCA\"];\n      let incident_rca = record[\"incident_rca\"];\n      let incident_wo_rca = record[\"incident_wo_rca\"];\n      let total_incident = record[\"total_incident\"];\n\n      if (mttr_rca != \"-1\") {\n        const mttrnorca = mergedObjects[severity_type].MTTR_WO_RCA;\n        mergedObjects[severity_type]={Severity: severity_type, Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca, MTTR_RCA: mttr_rca, MTTR_WO_RCA:mttrnorca};\n      }   \n      if (mttr_norca != \"-1\") {\n        const mttrrca = mergedObjects[severity_type].MTTR_RCA;\n        mergedObjects[severity_type]={Severity: severity_type,Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca, MTTR_RCA: mttrrca, MTTR_WO_RCA: mttr_norca};\n      }   \n    }   \n    else {\n      //In the above code, it will copy either MTTR_RCA or MTTR_WO_RCA depending on the first entry of the JSON object.\n      // Here, we repeat the same as above and copy the remaining dataset.\n      let mttr_rca = record[\"MTTR_with_RCA\"];\n      let mttr_norca = record[\"MTTR_Wo_RCA\"];\n      let incident_rca = record[\"incident_rca\"];\n      let incident_wo_rca = record[\"incident_wo_rca\"];\n\n      if (mttr_rca != \"-1\") {\n        const mttrnorca = mergedObjects[severity_type].MTTR_WO_RCA;\n        let total_incident=parseInt(mergedObjects[severity_type][\"Total_incidents\"]) + parseInt(incident_rca);\n        let incident_wo_rca = mergedObjects[severity_type][\"IncidentsWoRCA\"];\n        mergedObjects[severity_type]={Severity: severity_type, Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca, MTTR_RCA: mttr_rca, MTTR_WO_RCA:mttrnorca,};\n      }   \n      if (mttr_norca != \"-1\") {\n        const mttrrca = mergedObjects[severity_type].MTTR_RCA;\n        let incident_rca = mergedObjects[severity_type][\"Incident_rca\"]\n        let total_incident=parseInt(mergedObjects[severity_type][\"Total_incidents\"]) + parseInt(incident_wo_rca);  \n        mergedObjects[severity_type]={Severity: severity_type,Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca,MTTR_RCA: mttrrca, MTTR_WO_RCA: mttr_norca};\n      }   \n    }   \n  }\n  // Convert the object to only values before returning the value.\n  // Convert the object to only values before returning the value.\n  const keys=Object.keys(mergedObjects);\n  let tmpList=[];\n  console.log(keys);\n\n  for (const key of keys) {\n    console.log(key);\n      let mergedObjectsValues:{ Severity: string, IncidentsWithRCA: number, IncidentsWoRCA: number, Total_incidents: number, MTTR_with_RCA: Number|null, MTTR_Wo_RCA: Number | null } = {};\n\n    mergedObjectsValues[\"Severity\"] = mergedObjects[key].Severity;\n    mergedObjectsValues[\"TotalIncidents\"]=mergedObjects[key].Total_incidents;\n    //mergedObjectsValues[\"IncidentsWithRCA\"] = mergedObjects[key].IncidentsWithRCA;\n    mergedObjectsValues[\"MTTR_with_RCA\"] = mergedObjects[key].MTTR_RCA;\n    //mergedObjectsValues[\"IncidentsWoRCA\"] = mergedObjects[key].IncidentsWoRCA;\n    mergedObjectsValues[\"MTTR_wo_RCA\"] = mergedObjects[key].MTTR_WO_RCA;\n    tmpList.push(mergedObjectsValues);\n  }\n  return tmpList;\n}\n","visualization":"table","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{"categoryAxis":"Severity","categoryAxisLabel":"Severity","valueAxis":"TotalIncidents","valueAxisLabel":"TotalIncidents"}},"singleValue":{"showLabel":true,"label":"","autoscale":true,"recordField":"Severity"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[],"columnWidths":{"[\"MTTR_with_RCA\"]":503.4140625,"[\"Severity\"]":295.1171875}},"honeycomb":{"shape":"square","dataMappings":{"category":"Severity","value":"TotalIncidents"},"legend":"auto"},"histogram":{"dataMappings":[{"valueAxis":"TotalIncidents","rangeAxis":""},{"valueAxis":"MTTR_with_RCA","rangeAxis":""},{"valueAxis":"MTTR_wo_RCA","rangeAxis":""}]},"unitsOverrides":[{"identifier":"TotalIncidents","unitCategory":"unspecified","baseUnit":"none","displayUnit":null,"decimals":0,"suffix":"","delimiter":false,"added":1720795316617},{"identifier":"MTTR_with_RCA","unitCategory":"unspecified","baseUnit":"none","displayUnit":null,"decimals":2,"suffix":"","delimiter":false,"added":1720795325688}]},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":1,"defaultSamplingRatio":10,"enableSampling":false}},"10":{"type":"markdown","title":"","content":"------\n# Incidents and MTTR snapshot"},"11":{"type":"data","title":"MTTR trend bucketized per day for the selected timeframe","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selector)*60000000000)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| filter not(dt.davis.is_duplicate)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\t| dedup display_id\n| summarize MTTR=avg(toDuration(resolved_problem_duration)),\n          by:{bin(timestamp,24h)}","visualization":"lineChart","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","seriesOverrides":[{"seriesId":"MTTR","override":{"color":{"Default":"var(--dt-colors-charts-categorical-color-09-default, #0d9c29)","Hover":"var(--dt-colors-charts-categorical-color-09-hover, #0a7b20)","Active":"var(--dt-colors-charts-categorical-color-09-active, #075f19)","DefaultTransparent":"var(--dt-colors-charts-categorical-color-09-default-transparent, #008500cc)","HoverTransparent":"var(--dt-colors-charts-categorical-color-09-hover-transparent, #005905cc)","ActiveTransparent":"var(--dt-colors-charts-categorical-color-09-active-transparent, #003112cc)"}}}],"fieldMapping":{"timestamp":"bin(timestamp, 24h)","leftAxisValues":["MTTR"],"leftAxisDimensions":[]},"categoricalBarChartSettings":{},"hiddenLegendFields":[]},"singleValue":{"showLabel":true,"label":"","autoscale":true,"recordField":"bin(timestamp, 24h)"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"square","dataMappings":{}},"histogram":{"dataMappings":[{"valueAxis":"MTTR","rangeAxis":""}]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"12":{"type":"data","title":"Slowest 10 MTTRs across the tenant","query":"fetch dt.davis.problems\n| filter event.kind == \"DAVIS_PROBLEM\" and event.status == \"CLOSED\" and toLong(resolved_problem_duration) >= (toLong($PIT_Selector)*60000000000)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| filter not(dt.davis.is_duplicate)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\t| dedup display_id\n| summarize  MTTR = median(toDuration(resolved_problem_duration)), by:{event.name}\n| sort MTTR, direction:\"descending\"\n| fields MTTR, event.name\n| limit 10","visualization":"categoricalBarChart","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{"categoryAxis":"event.name","categoryAxisLabel":"event.name","valueAxis":"MTTR","valueAxisLabel":"MTTR"}},"singleValue":{"showLabel":true,"label":"","autoscale":true,"recordField":"MTTR"},"table":{"enableLineWrap":false,"lineWrapIds":[]},"honeycomb":{"shape":"square","dataMappings":{"category":"event.name","value":"event.name"},"legend":"auto"},"histogram":{"dataMappings":[{"valueAxis":"MTTR","rangeAxis":""}]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"13":{"type":"data","title":"MTTR (Mean Time to Resolution) with and without RCA (bucketized in 12h window)","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selector)*60000000000)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| filter not(dt.davis.is_duplicate)\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\t| dedup display_id| fieldsAdd containRCA=if((isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id)),\"With RCA\", else:\"No RCA\")\n| summarize MTTR=avg(toDuration(resolved_problem_duration)),\n          by:{bin(timestamp,12h), containRCA}","visualization":"lineChart","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","seriesOverrides":[{"seriesId":["With RCA","MTTR"],"override":{"color":{"Default":"var(--dt-colors-charts-categorical-color-09-default, #0d9c29)","Hover":"var(--dt-colors-charts-categorical-color-09-hover, #0a7b20)","Active":"var(--dt-colors-charts-categorical-color-09-active, #075f19)","DefaultTransparent":"var(--dt-colors-charts-categorical-color-09-default-transparent, #008500cc)","HoverTransparent":"var(--dt-colors-charts-categorical-color-09-hover-transparent, #005905cc)","ActiveTransparent":"var(--dt-colors-charts-categorical-color-09-active-transparent, #003112cc)"}}},{"seriesId":["No RCA","MTTR"],"override":{"color":{"Default":"var(--dt-colors-charts-categorical-color-12-default, #d50b34)","Hover":"var(--dt-colors-charts-categorical-color-12-hover, #b30024)","Active":"var(--dt-colors-charts-categorical-color-12-active, #7e071d)","DefaultTransparent":"var(--dt-colors-charts-categorical-color-12-default-transparent, #c5000ccc)","HoverTransparent":"var(--dt-colors-charts-categorical-color-12-hover-transparent, #83000fcc)","ActiveTransparent":"var(--dt-colors-charts-categorical-color-12-active-transparent, #140000cc)"}}},{"seriesId":["No RCA","MTTR"],"override":{"color":"#b3007d"}}],"categoricalBarChartSettings":{"categoryAxis":"containRCA","categoryAxisLabel":"containRCA","valueAxis":"MTTR","valueAxisLabel":"MTTR"},"fieldMapping":{"timestamp":"bin(timestamp, 12h)","leftAxisValues":["MTTR"],"leftAxisDimensions":["containRCA"]},"hiddenLegendFields":[]},"singleValue":{"showLabel":true,"label":"","autoscale":true,"recordField":"bin(timestamp, 12h)"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"square","dataMappings":{"category":"containRCA","value":"bin(timestamp, 12h)"},"legend":"auto"},"histogram":{"dataMappings":[{"valueAxis":"MTTR","rangeAxis":""}]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"14":{"type":"data","title":"MTTR categorization","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| filter not(dt.davis.is_duplicate)\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\t| expand alerting_profile=labels.alerting_profile\n| dedup display_id| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selector)*60000000000)\n| summarize resolved_problem_duration=median(toLong(resolved_problem_duration)),\n            by:{event.category}\n| summarize total=(median(toDuration(resolved_problem_duration))),by:{event.category}\n","visualization":"donutChart","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{"categoryAxis":"event.category","categoryAxisLabel":"event.category","valueAxis":"total","valueAxisLabel":"total"},"circleChartSettings":{"showTotalValue":false}},"singleValue":{"showLabel":true,"label":"","autoscale":true,"recordField":"event.category"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"square","dataMappings":{"category":"event.category","value":"event.category"},"legend":"auto"},"histogram":{"dataMappings":[{"valueAxis":"total","rangeAxis":""}]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}}},"layouts":{"0":{"x":0,"y":16,"w":24,"h":6},"1":{"x":0,"y":2,"w":24,"h":2},"3":{"x":0,"y":4,"w":11,"h":6},"4":{"x":11,"y":4,"w":13,"h":6},"5":{"x":11,"y":10,"w":13,"h":6},"6":{"x":0,"y":10,"w":11,"h":6},"7":{"x":0,"y":22,"w":24,"h":2},"9":{"x":0,"y":24,"w":24,"h":7},"10":{"x":0,"y":0,"w":24,"h":2},"11":{"x":0,"y":31,"w":11,"h":6},"12":{"x":11,"y":31,"w":11,"h":6},"13":{"x":0,"y":37,"w":11,"h":6},"14":{"x":11,"y":37,"w":11,"h":6}},"importedWithCode":false}
+{
+  "version": 15,
+  "variables": [
+    {
+      "key": "PIT_Selector",
+      "type": "csv",
+      "visible": true,
+      "input": "0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60",
+      "multiple": false
+    },
+    {
+      "key": "MgmtZone",
+      "type": "code",
+      "visible": false,
+      "input": "import { settingsObjectsClient } from '@dynatrace-sdk/client-classic-environment-v2';\n\nexport default async function() {\n  const config = { schemaIds: 'builtin:management-zones'};\n  const objects = await settingsObjectsClient.getSettingsObjects(config);\n  let managementZones = objects.items.map(el => el.value.name);\n  managementZones = [\"Tenant-wide\",...managementZones]\n  return managementZones;\n}",
+      "multiple": false
+    },
+    {
+      "key": "entity_tags",
+      "type": "query",
+      "visible": true,
+      "input": "fetch dt.davis.problems\n| expand entity_tags\n| fields entity_tags\n| dedup entity_tags\n| append [data record(entity_tags=\"NONE\")]\n| limit 10000",
+      "multiple": true,
+      "defaultValue": ["NONE"]
+    },
+    {
+      "key": "alerting_profile",
+      "type": "query",
+      "visible": true,
+      "input": "fetch dt.davis.problems\n| expand labels.alerting_profile\n| fields labels.alerting_profile\n| append [data record(labels.alerting_profile=\"NONE\")]\n| dedup labels.alerting_profile\n| limit 100000",
+      "multiple": false,
+      "defaultValue": "NONE"
+    }
+  ],
+  "tiles": {
+    "0": {
+      "type": "code",
+      "title": "Incidents count : MTTR with and without RCA ",
+      "input": "import { queryExecutionClient } from '@dynatrace-sdk/client-query';\n      \nexport default async function () {\n  const timeout = 60;\n\n  // Converting the MgmtZone from Array to json String\n  let entityString = [];\n  let entityArr = $entity_tags;\n        \n  for (let i = 0; i < entityArr.length; i++) {\n    entityString.push(JSON.stringify(entityArr[i]));\n  }\n  let alerting_profile_str=$alerting_profile;\n  \n  const query = `fetch dt.davis.problems, from:\\\"` + $dt_timeframe_from + `\\\",to:\\\"` + $dt_timeframe_to + `\\\"\n  | filter event.status == \\\"CLOSED\\\"\n  | filterOut dt.davis.is_duplicate == \"true\"\n  | filter not(dt.davis.is_duplicate)\n  | fieldsAdd entity_tags = if(isNull(entity_tags), \\\"NA\\\", else:entity_tags)\n  | expand entityId = affected_entity_ids\n  | expand tags=entity_tags\n  | filter in(` + entityString + `,\"NONE\") OR in(tags,` + entityString + `)\n  | expand alerting_profile=labels.alerting_profile\n  | filter in(\"` + alerting_profile_str + `\",\"NONE\") OR in(alerting_profile,` + alerting_profile_str + `) \n  | filter toLong(resolved_problem_duration) >= (toLong(` + $PIT_Selector + `)*60000000000)\n  | dedup display_id\n  | fieldsKeep resolved_problem_duration, root_cause_entity_id, event.category, display_id\n  | fieldsRename event.category, alias: Severity\n  | fieldsAdd RCA=if((isNotNull(root_cause_entity_id)),TRUE,else:FALSE )\n  | summarize Incidents = collectDistinct(display_id), resolved_problem_duration=max(toDouble(resolved_problem_duration)),\n                          by:{display_id, RCA, Severity}\n  | summarize MTTR_with_RCA=(if(takeAny(RCA), median(toDuration(resolved_problem_duration)),else:-1)),\n                             MTTR_Wo_RCA=(if(takeAny(RCA == false), median(toDuration(resolved_problem_duration)),else:-1)),\n                             incident_rca=countIf(RCA),\n                             incident_wo_rca=countIf(RCA == FALSE),\n                             total_incident=count(),\n                             by:{RCA, Severity}`;\n  console.log(query);\n  const response = await queryExecutionClient.queryExecute({ body: { query, requestTimeoutMilliseconds: timeout * 1000, fetchTimeoutSeconds: timeout  } });\n  const recordSet = response.result.records;\n\n  console.log(recordSet);\n  const mergedObjects: { [key: string]: { Severity: string, IncidentsWithRCA: number, IncidentsWoRCA: number, Total_incidents: number, MTTR_with_RCA: number|null, MTTR_Wo_RCA: number | null } } = {};\n  for (const record of recordSet) {\n    let severity_type = record[\"Severity\"];\n  \n    if(!(severity_type in mergedObjects)) {\n      //Check if the object for that management_zone is already initialized. If not, add it to the list.\n      mergedObjects[severity_type] = { Severity: severity_type, MTTR_RCA: -1, MTTR_WO_RCA: -1, Total_incidents: 0, IncidentsWithRCA: 0, IncidentsWoRCA:0};\n\n      //Now, copy the other information for that management zone like MTTR_RCA and MTTR_Wo_RCA.\n      let mttr_rca = record[\"MTTR_with_RCA\"];\n      let mttr_norca = record[\"MTTR_Wo_RCA\"];\n      let incident_rca = record[\"incident_rca\"];\n      let incident_wo_rca = record[\"incident_wo_rca\"];\n      let total_incident = record[\"total_incident\"];\n\n      if (mttr_rca != \"-1\") {\n        const mttrnorca = mergedObjects[severity_type].MTTR_WO_RCA;\n        mergedObjects[severity_type]={Severity: severity_type, Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca, MTTR_RCA: mttr_rca, MTTR_WO_RCA:mttrnorca};\n      }   \n      if (mttr_norca != \"-1\") {\n        const mttrrca = mergedObjects[severity_type].MTTR_RCA;\n        mergedObjects[severity_type]={Severity: severity_type,Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca, MTTR_RCA: mttrrca, MTTR_WO_RCA: mttr_norca};\n      }   \n    }   \n    else {\n      //In the above code, it will copy either MTTR_RCA or MTTR_WO_RCA depending on the first entry of the JSON object.\n      // Here, we repeat the same as above and copy the remaining dataset.\n      let mttr_rca = record[\"MTTR_with_RCA\"];\n      let mttr_norca = record[\"MTTR_Wo_RCA\"];\n      let incident_rca = record[\"incident_rca\"];\n      let incident_wo_rca = record[\"incident_wo_rca\"];\n\n      if (mttr_rca != \"-1\") {\n        const mttrnorca = mergedObjects[severity_type].MTTR_WO_RCA;\n        let total_incident=parseInt(mergedObjects[severity_type][\"Total_incidents\"]) + parseInt(incident_rca);\n        let incident_wo_rca = mergedObjects[severity_type][\"IncidentsWoRCA\"];\n        mergedObjects[severity_type]={Severity: severity_type, Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca, MTTR_RCA: mttr_rca, MTTR_WO_RCA:mttrnorca,};\n      }   \n      if (mttr_norca != \"-1\") {\n        const mttrrca = mergedObjects[severity_type].MTTR_RCA;\n        let incident_rca = mergedObjects[severity_type][\"Incident_rca\"]\n        let total_incident=parseInt(mergedObjects[severity_type][\"Total_incidents\"]) + parseInt(incident_wo_rca);  \n        mergedObjects[severity_type]={Severity: severity_type,Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca,MTTR_RCA: mttrrca, MTTR_WO_RCA: mttr_norca};\n      }   \n    }   \n  }\n  // Convert the object to only values before returning the value.\n  // Convert the object to only values before returning the value.\n  const keys=Object.keys(mergedObjects);\n  let tmpList=[];\n  console.log(keys);\n\n  for (const key of keys) {\n    console.log(key);\n      let mergedObjectsValues:{ Severity: string, IncidentsWithRCA: number, IncidentsWoRCA: number, Total_incidents: number, MTTR_with_RCA: number|null, MTTR_Wo_RCA: number | null } = {};\n\n    mergedObjectsValues[\"Severity\"] = mergedObjects[key].Severity;\n    mergedObjectsValues[\"TotalIncidents\"]=mergedObjects[key].Total_incidents;\n    mergedObjectsValues[\"IncidentsWithRCA\"] = mergedObjects[key].IncidentsWithRCA;\n    //mergedObjectsValues[\"MTTR_with_RCA\"] = mergedObjects[key].MTTR_RCA;\n    mergedObjectsValues[\"IncidentsWoRCA\"] = mergedObjects[key].IncidentsWoRCA;\n    //mergedObjectsValues[\"MTTR_wo_RCA\"] = mergedObjects[key].MTTR_WO_RCA;\n    tmpList.push(mergedObjectsValues);\n  }\n  return tmpList;\n}\n",
+      "visualization": "table",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "categoricalBarChartSettings": {
+            "categoryAxis": "Severity",
+            "categoryAxisLabel": "Severity",
+            "valueAxis": "TotalIncidents",
+            "valueAxisLabel": "TotalIncidents"
+          }
+        },
+        "singleValue": { "showLabel": true, "label": "", "autoscale": true, "recordField": "Severity" },
+        "table": {
+          "enableLineWrap": true,
+          "hiddenColumns": [],
+          "lineWrapIds": [],
+          "columnWidths": {
+            "[\"Severity\"]": 304.1171875,
+            "[\"TotalIncidents\"]": 333.7734375,
+            "[\"IncidentsWithRCA\"]": 315.8359375
+          }
+        },
+        "honeycomb": {
+          "shape": "square",
+          "dataMappings": { "category": "Severity", "value": "TotalIncidents" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [{ "valueAxis": "TotalIncidents", "rangeAxis": "" }] },
+        "unitsOverrides": [
+          {
+            "identifier": "TotalIncidents",
+            "unitCategory": "unspecified",
+            "baseUnit": "count",
+            "displayUnit": null,
+            "decimals": 0,
+            "suffix": "",
+            "delimiter": false,
+            "added": 1720790235817
+          }
+        ]
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 1,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "1": {
+      "type": "markdown",
+      "title": "",
+      "content": "------\n# Incidents Details across selected \"Tags\" and \"Alerting profile\""
+    },
+    "3": {
+      "type": "data",
+      "title": "Incidents trend bucketized per day over the last week",
+      "query": "fetch dt.davis.problems\n| filter event.kind == \"DAVIS_PROBLEM\" and event.status == \"CLOSED\" and toLong(resolved_problem_duration) >= (toLong($PIT_Selector)*60000000000)\n| filter dt.davis.is_duplicate == false\n| fieldsAdd closed=if(event.status==\"CLOSED\", timestamp)\n| filter isNotNull(closed)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| expand alerting_profile=labels.alerting_profile\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\n| dedup display_id\n| summarize no_of_incidents = countDistinct(display_id), by:{bin(timestamp, 1d), alias:timestamp}\n| fields timeframe = timeframe(from:timestamp-1d, to:timestamp), no_of_incidents = no_of_incidents",
+      "visualization": "lineChart",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "colorPalette": "fireplace",
+          "seriesOverrides": [
+            {
+              "seriesId": "no_of_incidents",
+              "override": {
+                "color": {
+                  "Default": "var(--dt-colors-charts-categorical-color-12-default, #d50b34)",
+                  "Hover": "var(--dt-colors-charts-categorical-color-12-hover, #b30024)",
+                  "Active": "var(--dt-colors-charts-categorical-color-12-active, #7e071d)",
+                  "DefaultTransparent": "var(--dt-colors-charts-categorical-color-12-default-transparent, #c5000ccc)",
+                  "HoverTransparent": "var(--dt-colors-charts-categorical-color-12-hover-transparent, #83000fcc)",
+                  "ActiveTransparent": "var(--dt-colors-charts-categorical-color-12-active-transparent, #140000cc)"
+                }
+              }
+            }
+          ],
+          "hiddenLegendFields": [],
+          "fieldMapping": { "timestamp": "timeframe", "leftAxisValues": ["no_of_incidents"], "leftAxisDimensions": [] },
+          "categoricalBarChartSettings": {},
+          "leftYAxisSettings": { "label": "Incident count" },
+          "legend": { "hidden": true }
+        },
+        "singleValue": { "showLabel": true, "label": "", "autoscale": true, "recordField": "no_of_incidents" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": { "shape": "square", "dataMappings": {} },
+        "histogram": { "dataMappings": [{ "valueAxis": "no_of_incidents", "rangeAxis": "" }] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {},
+      "timeframe": { "tileTimeframeEnabled": true, "tileTimeframe": { "from": "now()-7d", "to": "now()" } }
+    },
+    "4": {
+      "type": "data",
+      "title": "Top 10 incidents across the tenant",
+      "query": "fetch dt.davis.problems\n| filter event.kind == \"DAVIS_PROBLEM\" and toLong(resolved_problem_duration)>=(toLong($PIT_Selector)*60000000000)\n| filter dt.davis.is_duplicate == false\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\t| dedup display_id\n| summarize Incidents = countDistinct(display_id) ,by:{event.name}\n| sort Incidents, direction:\"descending\"\n| fieldsRename event.name, ProblemTitle",
+      "visualization": "categoricalBarChart",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "categoricalBarChartSettings": {
+            "categoryAxis": "ProblemTitle",
+            "categoryAxisLabel": "ProblemTitle",
+            "valueAxis": "Incidents",
+            "valueAxisLabel": "Incidents"
+          }
+        },
+        "singleValue": { "showLabel": true, "label": "", "autoscale": true, "recordField": "ProblemTitle" },
+        "table": {
+          "rowDensity": "condensed",
+          "enableLineWrap": false,
+          "enableSparklines": false,
+          "hiddenColumns": [],
+          "lineWrapIds": []
+        },
+        "honeycomb": {
+          "shape": "square",
+          "dataMappings": { "category": "ProblemTitle", "value": "Incidents" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [{ "valueAxis": "Incidents", "rangeAxis": "" }] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "5": {
+      "type": "data",
+      "title": "Incidents split by category",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status == \"CLOSED\" and toLong(resolved_problem_duration)>=(toLong($PIT_Selector)*60000000000)\n| dedup display_id\n| filter not(dt.davis.is_duplicate)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\t\n| dedup display_id\n| summarize incident=countDistinct(display_id),by:{event.category}\n",
+      "visualization": "donutChart",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "categoricalBarChartSettings": {
+            "categoryAxis": "event.category",
+            "categoryAxisLabel": "event.category",
+            "valueAxis": "incident",
+            "valueAxisLabel": "incident"
+          },
+          "circleChartSettings": { "showTotalValue": true },
+          "hiddenLegendFields": []
+        },
+        "singleValue": { "showLabel": true, "label": "", "autoscale": true, "recordField": "count()" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [["incident"]] },
+        "honeycomb": {
+          "shape": "square",
+          "dataMappings": { "category": "event.category", "value": "incident" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [{ "valueAxis": "incident", "rangeAxis": "" }] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "6": {
+      "type": "data",
+      "title": "Incidents trend categorized with and without RCA (Root Cause Analysis)",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\t\n| fieldsAdd containRCA=if((isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id)),\"With RCA\", else:\"No RCA\")\n| summarize Problems=count(),\n          by:{bin(timestamp, 12h), containRCA}",
+      "visualization": "lineChart",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "seriesOverrides": [
+            {
+              "seriesId": ["With RCA", "Problems"],
+              "override": {
+                "color": {
+                  "Default": "var(--dt-colors-charts-categorical-color-09-default, #0d9c29)",
+                  "Hover": "var(--dt-colors-charts-categorical-color-09-hover, #0a7b20)",
+                  "Active": "var(--dt-colors-charts-categorical-color-09-active, #075f19)",
+                  "DefaultTransparent": "var(--dt-colors-charts-categorical-color-09-default-transparent, #008500cc)",
+                  "HoverTransparent": "var(--dt-colors-charts-categorical-color-09-hover-transparent, #005905cc)",
+                  "ActiveTransparent": "var(--dt-colors-charts-categorical-color-09-active-transparent, #003112cc)"
+                }
+              }
+            },
+            {
+              "seriesId": ["No RCA", "Problems"],
+              "override": {
+                "color": {
+                  "Default": "var(--dt-colors-charts-categorical-color-12-default, #d50b34)",
+                  "Hover": "var(--dt-colors-charts-categorical-color-12-hover, #b30024)",
+                  "Active": "var(--dt-colors-charts-categorical-color-12-active, #7e071d)",
+                  "DefaultTransparent": "var(--dt-colors-charts-categorical-color-12-default-transparent, #c5000ccc)",
+                  "HoverTransparent": "var(--dt-colors-charts-categorical-color-12-hover-transparent, #83000fcc)",
+                  "ActiveTransparent": "var(--dt-colors-charts-categorical-color-12-active-transparent, #140000cc)"
+                }
+              }
+            },
+            { "seriesId": ["No RCA", "Problems"], "override": { "color": "#b3007d" } }
+          ],
+          "categoricalBarChartSettings": {
+            "categoryAxis": "containRCA",
+            "categoryAxisLabel": "containRCA",
+            "valueAxis": "Problems",
+            "valueAxisLabel": "Problems"
+          },
+          "fieldMapping": {
+            "timestamp": "bin(timestamp, 12h)",
+            "leftAxisValues": ["Problems"],
+            "leftAxisDimensions": ["containRCA"]
+          },
+          "hiddenLegendFields": []
+        },
+        "singleValue": { "showLabel": true, "label": "", "autoscale": true, "recordField": "bin(timestamp, 12h)" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": {
+          "shape": "square",
+          "dataMappings": { "category": "containRCA", "value": "bin(timestamp, 12h)" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [{ "valueAxis": "Problems", "rangeAxis": "" }] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "7": {
+      "type": "markdown",
+      "title": "",
+      "content": "------\n# MTTR Details across selected \"Tags\" and \"Alerting Profile\""
+    },
+    "9": {
+      "type": "code",
+      "title": "Incidents MTTR with and without RCA (in mins)",
+      "input": "import { queryExecutionClient } from '@dynatrace-sdk/client-query';\n      \nexport default async function () {\n  const timeout = 60;\n\n  // Converting the MgmtZone from Array to json String\n  let entityString = [];\n  let entityArr = $entity_tags;\n        \n  for (let i = 0; i < entityArr.length; i++) {\n    entityString.push(JSON.stringify(entityArr[i]));\n  }\n  let alerting_profile_str=$alerting_profile;\n  \n  const query = `fetch dt.davis.problems, from:\\\"` + $dt_timeframe_from + `\\\",to:\\\"` + $dt_timeframe_to + `\\\"\n  | filter event.status == \\\"ACTIVE\\\" or event.status == \\\"CLOSED\\\"\n  | fieldsAdd entity_tags = if(isNull(entity_tags), \\\"NA\\\", else:entity_tags)\n  | filter not(dt.davis.is_duplicate)\n  | expand entityId = affected_entity_ids\n  | expand tags=entity_tags\n  | filter if (` + entityString + `!=\"NONE\", in(tags,` + $entity_tags + `), else:display_id!=\"\")| expand alerting_profile=labels.alerting_profile\n  | filter if (` + alerting_profile_str + `!=\"NONE\", in(alerting_profile,` + $alerting_profile + `), else:display_id!=\"\") and toLong(resolved_problem_duration) >= (toLong(` + $PIT_Selector + `)*60000000000)\n  | dedup display_id\n  | fieldsKeep resolved_problem_duration, root_cause_entity_id, event.category, display_id\n| fieldsRename event.category, alias: Severity\n| fieldsAdd RCA=if((isNotNull(root_cause_entity_id)),TRUE,else:FALSE )\n| summarize Incidents = collectDistinct(display_id),\n            resolved_problem_duration=max(toDouble(resolved_problem_duration)),\n                by:{display_id, RCA, Severity}\n| summarize MTTR_with_RCA=(if(takeAny(RCA), median(toLong(resolved_problem_duration)/60000000000),else:-1)),\n            MTTR_Wo_RCA=(if(takeAny(RCA == false), median(toLong(resolved_problem_duration)/60000000000),else:-1)),\n            incident_rca=countIf(RCA),\n            incident_wo_rca=countIf(RCA == FALSE),\n            total_incident=count(),\n            by:{RCA, Severity}`;\n  const response = await queryExecutionClient.queryExecute({ body: { query, requestTimeoutMilliseconds: timeout * 1000, fetchTimeoutSeconds: timeout  } });\n  const recordSet = response.result.records;\n\n  console.log(recordSet);\n  const mergedObjects: { [key: string]: { Severity: string, IncidentsWithRCA: number, IncidentsWoRCA: number, Total_incidents: number, MTTR_with_RCA: number|null, MTTR_Wo_RCA:  number | null } } = {};\n  for (const record of recordSet) {\n    let severity_type = record[\"Severity\"];\n  \n    if(!(severity_type in mergedObjects)) {\n      //Check if the object for that management_zone is already initialized. If not, add it to the list.\n      mergedObjects[severity_type] = { Severity: severity_type, MTTR_RCA: -1, MTTR_WO_RCA: -1, Total_incidents: 0, IncidentsWithRCA: 0, IncidentsWoRCA:0};\n\n      //Now, copy the other information for that management zone like MTTR_RCA and MTTR_Wo_RCA.\n      let mttr_rca = record[\"MTTR_with_RCA\"];\n      let mttr_norca = record[\"MTTR_Wo_RCA\"];\n      let incident_rca = record[\"incident_rca\"];\n      let incident_wo_rca = record[\"incident_wo_rca\"];\n      let total_incident = record[\"total_incident\"];\n\n      if (mttr_rca != \"-1\") {\n        const mttrnorca = mergedObjects[severity_type].MTTR_WO_RCA;\n        mergedObjects[severity_type]={Severity: severity_type, Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca, MTTR_RCA: mttr_rca, MTTR_WO_RCA:mttrnorca};\n      }   \n      if (mttr_norca != \"-1\") {\n        const mttrrca = mergedObjects[severity_type].MTTR_RCA;\n        mergedObjects[severity_type]={Severity: severity_type,Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca, MTTR_RCA: mttrrca, MTTR_WO_RCA: mttr_norca};\n      }   \n    }   \n    else {\n      //In the above code, it will copy either MTTR_RCA or MTTR_WO_RCA depending on the first entry of the JSON object.\n      // Here, we repeat the same as above and copy the remaining dataset.\n      let mttr_rca = record[\"MTTR_with_RCA\"];\n      let mttr_norca = record[\"MTTR_Wo_RCA\"];\n      let incident_rca = record[\"incident_rca\"];\n      let incident_wo_rca = record[\"incident_wo_rca\"];\n\n      if (mttr_rca != \"-1\") {\n        const mttrnorca = mergedObjects[severity_type].MTTR_WO_RCA;\n        let total_incident=parseInt(mergedObjects[severity_type][\"Total_incidents\"]) + parseInt(incident_rca);\n        let incident_wo_rca = mergedObjects[severity_type][\"IncidentsWoRCA\"];\n        mergedObjects[severity_type]={Severity: severity_type, Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca, MTTR_RCA: mttr_rca, MTTR_WO_RCA:mttrnorca,};\n      }   \n      if (mttr_norca != \"-1\") {\n        const mttrrca = mergedObjects[severity_type].MTTR_RCA;\n        let incident_rca = mergedObjects[severity_type][\"Incident_rca\"]\n        let total_incident=parseInt(mergedObjects[severity_type][\"Total_incidents\"]) + parseInt(incident_wo_rca);  \n        mergedObjects[severity_type]={Severity: severity_type,Total_incidents: total_incident, IncidentsWithRCA:incident_rca,IncidentsWoRCA:incident_wo_rca,MTTR_RCA: mttrrca, MTTR_WO_RCA: mttr_norca};\n      }   \n    }   \n  }\n  // Convert the object to only values before returning the value.\n  // Convert the object to only values before returning the value.\n  const keys=Object.keys(mergedObjects);\n  let tmpList=[];\n  console.log(keys);\n\n  for (const key of keys) {\n    console.log(key);\n      let mergedObjectsValues:{ Severity: string, IncidentsWithRCA: number, IncidentsWoRCA: number, Total_incidents: number, MTTR_with_RCA: Number|null, MTTR_Wo_RCA: Number | null } = {};\n\n    mergedObjectsValues[\"Severity\"] = mergedObjects[key].Severity;\n    mergedObjectsValues[\"TotalIncidents\"]=mergedObjects[key].Total_incidents;\n    //mergedObjectsValues[\"IncidentsWithRCA\"] = mergedObjects[key].IncidentsWithRCA;\n    mergedObjectsValues[\"MTTR_with_RCA\"] = mergedObjects[key].MTTR_RCA;\n    //mergedObjectsValues[\"IncidentsWoRCA\"] = mergedObjects[key].IncidentsWoRCA;\n    mergedObjectsValues[\"MTTR_wo_RCA\"] = mergedObjects[key].MTTR_WO_RCA;\n    tmpList.push(mergedObjectsValues);\n  }\n  return tmpList;\n}\n",
+      "visualization": "table",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "categoricalBarChartSettings": {
+            "categoryAxis": "Severity",
+            "categoryAxisLabel": "Severity",
+            "valueAxis": "TotalIncidents",
+            "valueAxisLabel": "TotalIncidents"
+          }
+        },
+        "singleValue": { "showLabel": true, "label": "", "autoscale": true, "recordField": "Severity" },
+        "table": {
+          "enableLineWrap": true,
+          "hiddenColumns": [],
+          "lineWrapIds": [],
+          "columnWidths": { "[\"MTTR_with_RCA\"]": 503.4140625, "[\"Severity\"]": 295.1171875 }
+        },
+        "honeycomb": {
+          "shape": "square",
+          "dataMappings": { "category": "Severity", "value": "TotalIncidents" },
+          "legend": "auto"
+        },
+        "histogram": {
+          "dataMappings": [
+            { "valueAxis": "TotalIncidents", "rangeAxis": "" },
+            { "valueAxis": "MTTR_with_RCA", "rangeAxis": "" },
+            { "valueAxis": "MTTR_wo_RCA", "rangeAxis": "" }
+          ]
+        },
+        "unitsOverrides": [
+          {
+            "identifier": "TotalIncidents",
+            "unitCategory": "unspecified",
+            "baseUnit": "none",
+            "displayUnit": null,
+            "decimals": 0,
+            "suffix": "",
+            "delimiter": false,
+            "added": 1720795316617
+          },
+          {
+            "identifier": "MTTR_with_RCA",
+            "unitCategory": "unspecified",
+            "baseUnit": "none",
+            "displayUnit": null,
+            "decimals": 2,
+            "suffix": "",
+            "delimiter": false,
+            "added": 1720795325688
+          }
+        ]
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 1,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "10": { "type": "markdown", "title": "", "content": "------\n# Incidents and MTTR snapshot" },
+    "11": {
+      "type": "data",
+      "title": "MTTR trend bucketized per day for the selected timeframe",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selector)*60000000000)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| filter not(dt.davis.is_duplicate)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\t| dedup display_id\n| summarize MTTR=avg(toDuration(resolved_problem_duration)),\n          by:{bin(timestamp,24h)}",
+      "visualization": "lineChart",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "seriesOverrides": [
+            {
+              "seriesId": "MTTR",
+              "override": {
+                "color": {
+                  "Default": "var(--dt-colors-charts-categorical-color-09-default, #0d9c29)",
+                  "Hover": "var(--dt-colors-charts-categorical-color-09-hover, #0a7b20)",
+                  "Active": "var(--dt-colors-charts-categorical-color-09-active, #075f19)",
+                  "DefaultTransparent": "var(--dt-colors-charts-categorical-color-09-default-transparent, #008500cc)",
+                  "HoverTransparent": "var(--dt-colors-charts-categorical-color-09-hover-transparent, #005905cc)",
+                  "ActiveTransparent": "var(--dt-colors-charts-categorical-color-09-active-transparent, #003112cc)"
+                }
+              }
+            }
+          ],
+          "fieldMapping": { "timestamp": "bin(timestamp, 24h)", "leftAxisValues": ["MTTR"], "leftAxisDimensions": [] },
+          "categoricalBarChartSettings": {},
+          "hiddenLegendFields": []
+        },
+        "singleValue": { "showLabel": true, "label": "", "autoscale": true, "recordField": "bin(timestamp, 24h)" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": { "shape": "square", "dataMappings": {} },
+        "histogram": { "dataMappings": [{ "valueAxis": "MTTR", "rangeAxis": "" }] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "12": {
+      "type": "data",
+      "title": "Slowest 10 MTTRs across the tenant",
+      "query": "fetch dt.davis.problems\n| filter event.kind == \"DAVIS_PROBLEM\" and event.status == \"CLOSED\" and toLong(resolved_problem_duration) >= (toLong($PIT_Selector)*60000000000)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| filter not(dt.davis.is_duplicate)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\t| dedup display_id\n| summarize  MTTR = median(toDuration(resolved_problem_duration)), by:{event.name}\n| sort MTTR, direction:\"descending\"\n| fields MTTR, event.name\n| limit 10",
+      "visualization": "categoricalBarChart",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "categoricalBarChartSettings": {
+            "categoryAxis": "event.name",
+            "categoryAxisLabel": "event.name",
+            "valueAxis": "MTTR",
+            "valueAxisLabel": "MTTR"
+          }
+        },
+        "singleValue": { "showLabel": true, "label": "", "autoscale": true, "recordField": "MTTR" },
+        "table": { "enableLineWrap": false, "lineWrapIds": [] },
+        "honeycomb": {
+          "shape": "square",
+          "dataMappings": { "category": "event.name", "value": "event.name" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [{ "valueAxis": "MTTR", "rangeAxis": "" }] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "13": {
+      "type": "data",
+      "title": "MTTR (Mean Time to Resolution) with and without RCA (bucketized in 12h window)",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selector)*60000000000)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| filter not(dt.davis.is_duplicate)\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\t| dedup display_id| fieldsAdd containRCA=if((isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id)),\"With RCA\", else:\"No RCA\")\n| summarize MTTR=avg(toDuration(resolved_problem_duration)),\n          by:{bin(timestamp,12h), containRCA}",
+      "visualization": "lineChart",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "seriesOverrides": [
+            {
+              "seriesId": ["With RCA", "MTTR"],
+              "override": {
+                "color": {
+                  "Default": "var(--dt-colors-charts-categorical-color-09-default, #0d9c29)",
+                  "Hover": "var(--dt-colors-charts-categorical-color-09-hover, #0a7b20)",
+                  "Active": "var(--dt-colors-charts-categorical-color-09-active, #075f19)",
+                  "DefaultTransparent": "var(--dt-colors-charts-categorical-color-09-default-transparent, #008500cc)",
+                  "HoverTransparent": "var(--dt-colors-charts-categorical-color-09-hover-transparent, #005905cc)",
+                  "ActiveTransparent": "var(--dt-colors-charts-categorical-color-09-active-transparent, #003112cc)"
+                }
+              }
+            },
+            {
+              "seriesId": ["No RCA", "MTTR"],
+              "override": {
+                "color": {
+                  "Default": "var(--dt-colors-charts-categorical-color-12-default, #d50b34)",
+                  "Hover": "var(--dt-colors-charts-categorical-color-12-hover, #b30024)",
+                  "Active": "var(--dt-colors-charts-categorical-color-12-active, #7e071d)",
+                  "DefaultTransparent": "var(--dt-colors-charts-categorical-color-12-default-transparent, #c5000ccc)",
+                  "HoverTransparent": "var(--dt-colors-charts-categorical-color-12-hover-transparent, #83000fcc)",
+                  "ActiveTransparent": "var(--dt-colors-charts-categorical-color-12-active-transparent, #140000cc)"
+                }
+              }
+            },
+            { "seriesId": ["No RCA", "MTTR"], "override": { "color": "#b3007d" } }
+          ],
+          "categoricalBarChartSettings": {
+            "categoryAxis": "containRCA",
+            "categoryAxisLabel": "containRCA",
+            "valueAxis": "MTTR",
+            "valueAxisLabel": "MTTR"
+          },
+          "fieldMapping": {
+            "timestamp": "bin(timestamp, 12h)",
+            "leftAxisValues": ["MTTR"],
+            "leftAxisDimensions": ["containRCA"]
+          },
+          "hiddenLegendFields": []
+        },
+        "singleValue": { "showLabel": true, "label": "", "autoscale": true, "recordField": "bin(timestamp, 12h)" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": {
+          "shape": "square",
+          "dataMappings": { "category": "containRCA", "value": "bin(timestamp, 12h)" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [{ "valueAxis": "MTTR", "rangeAxis": "" }] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "14": {
+      "type": "data",
+      "title": "MTTR categorization",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| filter not(dt.davis.is_duplicate)\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(labels.alerting.profile,$alerting_profile)\t| expand alerting_profile=labels.alerting_profile\n| dedup display_id| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selector)*60000000000)\n| summarize resolved_problem_duration=median(toLong(resolved_problem_duration)),\n            by:{event.category}\n| summarize total=(median(toDuration(resolved_problem_duration))),by:{event.category}\n",
+      "visualization": "donutChart",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "categoricalBarChartSettings": {
+            "categoryAxis": "event.category",
+            "categoryAxisLabel": "event.category",
+            "valueAxis": "total",
+            "valueAxisLabel": "total"
+          },
+          "circleChartSettings": { "showTotalValue": false }
+        },
+        "singleValue": { "showLabel": true, "label": "", "autoscale": true, "recordField": "event.category" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": {
+          "shape": "square",
+          "dataMappings": { "category": "event.category", "value": "event.category" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [{ "valueAxis": "total", "rangeAxis": "" }] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    }
+  },
+  "layouts": {
+    "0": { "x": 0, "y": 16, "w": 24, "h": 6 },
+    "1": { "x": 0, "y": 2, "w": 24, "h": 2 },
+    "3": { "x": 0, "y": 4, "w": 11, "h": 6 },
+    "4": { "x": 11, "y": 4, "w": 13, "h": 6 },
+    "5": { "x": 11, "y": 10, "w": 13, "h": 6 },
+    "6": { "x": 0, "y": 10, "w": 11, "h": 6 },
+    "7": { "x": 0, "y": 22, "w": 24, "h": 2 },
+    "9": { "x": 0, "y": 24, "w": 24, "h": 7 },
+    "10": { "x": 0, "y": 0, "w": 24, "h": 2 },
+    "11": { "x": 0, "y": 31, "w": 11, "h": 6 },
+    "12": { "x": 11, "y": 31, "w": 11, "h": 6 },
+    "13": { "x": 0, "y": 37, "w": 11, "h": 6 },
+    "14": { "x": 11, "y": 37, "w": 11, "h": 6 }
+  },
+  "importedWithCode": false
+}

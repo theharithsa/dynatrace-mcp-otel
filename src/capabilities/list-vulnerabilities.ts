@@ -1,17 +1,26 @@
 import { _OAuthHttpClient } from '@dynatrace-sdk/http-client';
-import { SecurityProblemsClient } from '@dynatrace-sdk/client-classic-environment-v2';
+import { executeDql } from './execute-dql';
 
 export const listVulnerabilities = async (dtClient: _OAuthHttpClient) => {
-  const securityProblemsClient = new SecurityProblemsClient(dtClient);
+  const dqlQuery = `
+    fetch events
+    | filter event.kind == "SECURITY_EVENT"
+    | filter event.davis.risk_assessment.risk_score >= 8.0
+    | limit 100
+    | sort event.davis.risk_assessment.risk_score desc
+    | fields security_problem_id=event.davis.security_problem_id, display_id=event.davis.display_id, title=event.davis.title, technology=event.davis.technology, external_vulnerability_id=event.davis.external_vulnerability_id, cve_ids=event.davis.cve_ids, risk_score=event.davis.risk_assessment.risk_score
+  `;
 
-  const response = await securityProblemsClient.getSecurityProblems({
-    sort: '-riskAssessment.riskScore',
-    pageSize: 100,
-    securityProblemSelector: `minRiskScore("8.0")`,
+  const result = await executeDql(dtClient, {
+    query: dqlQuery,
   });
 
-  const securityProblems = response.securityProblems?.map((secProb) => {
-    return `${secProb.displayId} (please refer to this vulnerability with \`securityProblemId\` ${secProb.securityProblemId}): ${secProb.title} (Technology: ${secProb.technology}, External Vulnerability ID: ${secProb.externalVulnerabilityId}, CVE: ${secProb.cveIds?.join(', ')})`;
+  if (!result.records || result.records.length === 0) {
+    return [];
+  }
+
+  const securityProblems = result.records.map((record: any) => {
+    return `${record.display_id || 'N/A'} (please refer to this vulnerability with \`securityProblemId\` ${record.security_problem_id || 'N/A'}): ${record.title || 'No title'} (Technology: ${record.technology || 'Unknown'}, External Vulnerability ID: ${record.external_vulnerability_id || 'N/A'}, CVE: ${record.cve_ids ? (Array.isArray(record.cve_ids) ? record.cve_ids.join(', ') : record.cve_ids) : 'N/A'}, Risk Score: ${record.risk_score || 'N/A'})`;
   });
 
   return securityProblems;

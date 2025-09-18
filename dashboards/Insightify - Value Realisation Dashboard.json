@@ -1,1 +1,833 @@
-{"version":15,"variables":[{"key":"PIT_Selecor","type":"csv","input":"0,5,10,15,20,25,30,35,40,45,50,55,60","multiple":false,"visible":true},{"key":"RCA_ResourceCost","type":"csv","input":"20,29,50,75,100,150,200,250,300,400","multiple":false,"visible":true},{"key":"RCA_ResourceCount","type":"csv","input":"1,2,3,4,5,6,7,8,9,10","multiple":false,"visible":true},{"key":"NoRCA_ResourceCount","type":"csv","input":"1,2,3,4,5,6,7,8,9,10,11,12","multiple":false,"visible":true},{"key":"NoRCA_ResourceCost","type":"csv","input":"40,50,60,70,75,80,90,100","multiple":false,"visible":true},{"key":"entity_tags","type":"query","visible":true,"input":"fetch dt.davis.problems\n| expand entity_tags\n| fields entity_tags\n| append [data record(entity_tags=\"NONE\")]\n| dedup entity_tags\n| limit 100000","multiple":true,"defaultValue":["NONE"]},{"key":"alerting_profile","type":"query","visible":true,"input":"fetch dt.davis.problems\n| expand labels.alerting_profile\n| fields labels.alerting_profile\n| append [data record(labels.alerting_profile=\"NONE\")]\n| dedup labels.alerting_profile\n| limit 100000","multiple":false,"defaultValue":"NONE"}],"tiles":{"1":{"type":"data","title":"Problems","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter dt.davis.is_duplicate == false\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| filter if($entity_tags !=\"NONE\", in(tags, $entity_tags), else:display_id!=\"\")\n| expand alerting_profile=labels.alerting_profile\n| filter if($alerting_profile !=\"NONE\", in(labels.alerting_profile, $alerting_profile), else:display_id!=\"\")\n| dedup display_id\n| summarize close_rs=max(closed),by:{display_id}\n| summarize count=count()","visualizationSettings":{"thresholds":[{"id":1,"field":"","title":"","isEnabled":true,"rules":[{"id":0,"color":{"Default":"var(--dt-colors-charts-categorical-color-09-default, #649438)"},"comparator":"≥","label":"","value":200},{"id":1,"color":{"Default":"var(--dt-colors-charts-categorical-color-14-default, #d56b1a)"},"comparator":"≥","label":"","value":100},{"id":2,"color":{"Default":"var(--dt-colors-charts-categorical-color-12-default, #cd3741)"},"comparator":"≥","label":"","value":400}]}],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{}},"singleValue":{"showLabel":false,"label":"","autoscale":false,"recordField":"count"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"hexagon","legend":"auto","dataMappings":{}},"singleValueSettings":{"suffix":"problems","showLabel":false,"autoscale":true},"histogram":{"dataMappings":[{"valueAxis":"count","rangeAxis":""}]}},"visualization":"singleValue","querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"3":{"type":"data","title":" Incidents","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| filter dt.davis.is_duplicate == false\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| filter if($entity_tags !=\"NONE\", in(tags, $entity_tags), else:display_id!=\"\")\n| expand alerting_profile=labels.alerting_profile\n| filter if($alerting_profile !=\"NONE\", in(labels.alerting_profile, $alerting_profile), else:display_id!=\"\")\n| dedup display_id\n| summarize close_rs=max(closed),by:{display_id}\n| summarize count=count()","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{}},"singleValue":{"showLabel":false,"label":"","autoscale":false,"recordField":"count"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[["Incidents_Generated"]]},"honeycomb":{"shape":"hexagon","legend":"auto","dataMappings":{}},"singleValueSettings":{"suffix":"incidents","showLabel":false,"autoscale":true},"histogram":{"dataMappings":[{"valueAxis":"count","rangeAxis":""}]}},"visualization":"singleValue","querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"4":{"type":"data","title":"🔸 Incidents w/o RCA","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n| filter dt.davis.is_duplicate == false and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| filter isNull(root_cause_entity_id) and isNull(root_cause_me_id)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| summarize Incidents = countDistinct(display_id), by:{display_id,root_cause_entity_id, root_cause_me_id}\n| summarize count=count()","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{}},"singleValue":{"showLabel":false,"label":"","autoscale":false,"recordField":"count"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"hexagon","legend":"auto","dataMappings":{}},"singleValueSettings":{"suffix":"incidents","showLabel":false,"autoscale":true},"histogram":{"dataMappings":[{"valueAxis":"count","rangeAxis":""}]}},"visualization":"singleValue","querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"7":{"type":"data","title":"⚡ Operations Efficiency","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter dt.davis.is_duplicate == false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| fieldsAdd closed=if(event.status==\"CLOSED\", timestamp)\n| filter isNotNull(closed)\n| fieldsAdd RCA=if((isNotNull(root_cause_entity_id ) or isNotNull(root_cause_me_id)),TRUE,else:FALSE )\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| summarize close_rs=max(closed),\n            resolved_problem_duration=max(toLong(resolved_problem_duration)),\n            by:{display_id, RCA}\n| fieldsAdd mttr_rca = if(RCA, toLong(resolved_problem_duration)), mttr_no_rca = if(NOT RCA, toLong(resolved_problem_duration))\n| summarize operations_efficiency=(1 - ((median(toLong(mttr_no_rca))))/((median(toLong(mttr_rca)))+(median(toLong(mttr_no_rca)))))*100\n| fields concat(round(operations_efficiency,decimals:2), \" %\")\n\n\n","visualizationSettings":{"thresholds":[{"id":1,"field":"","title":"","isEnabled":true,"rules":[{"id":0,"color":{"Default":"var(--dt-colors-charts-categorical-color-09-default, #649438)"},"comparator":"≥","label":"","value":0}]}],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{}},"singleValue":{"showLabel":false,"label":"","autoscale":true,"recordField":"concat(round(operations_efficiency, decimals:2), \" %\")"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[["list"]]},"honeycomb":{"shape":"hexagon","dataMappings":{"category":"concat(round(operations_efficiency, decimals:2), \" %\")","value":"concat(round(operations_efficiency, decimals:2), \" %\")"},"legend":"auto"},"singleValueSettings":{"suffix":"%","showLabel":false,"autoscale":true},"histogram":{"dataMappings":[]}},"visualization":"singleValue","querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"8":{"type":"data","title":"⌚ Average MTTR With RCA (mins)","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and event.status_transition==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter dt.davis.is_duplicate == false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n\n| fieldsAdd containRCA=(isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id))\n| filter containRCA\n| summarize problem_list=collectDistinct(display_id), \n            resolved_problem_duration=max(toLong(resolved_problem_duration)),\n            by:{display_id, containRCA}\n| fieldsAdd mttr_rca = if(containRCA, toLong(resolved_problem_duration))\n| summarize total=(median(toLong(mttr_rca))/60000000000)\n| fields concat(round(total,decimals:2), \"\")\n\n","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{}},"singleValue":{"showLabel":false,"label":"","autoscale":true,"recordField":"concat(round(total, decimals:2), \"\")"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[["entity_tags"]]},"honeycomb":{"shape":"hexagon","dataMappings":{"category":"concat(round(total, decimals:2), \"\")","value":"concat(round(total, decimals:2), \"\")"},"legend":"auto"},"singleValueSettings":{"suffix":"Hours","showLabel":false,"autoscale":true},"histogram":{"dataMappings":[]}},"visualization":"singleValue","querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"9":{"type":"data","title":"⌛ Average MTTR W/o RCA (mins)","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and event.status_transition==\"CLOSED\"\n| filter dt.davis.is_duplicate == false and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| fieldsAdd containnoRCA=(isNull(root_cause_entity_id))\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| filter containnoRCA\n| summarize problem_list=collectDistinct(display_id), \n            resolved_problem_duration=median(toLong(resolved_problem_duration)),\n            by:{display_id}\n| summarize total=(median(toLong(resolved_problem_duration))/60000000000)\n| fields concat(round(total,decimals:2), \"\")\n","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{}},"singleValue":{"showLabel":false,"label":"","autoscale":true,"recordField":"concat(round(total, decimals:2), \"\")"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"hexagon","dataMappings":{"category":"concat(round(total, decimals:2), \"\")","value":"concat(round(total, decimals:2), \"\")"},"legend":"auto"},"singleValueSettings":{"suffix":"Hours","showLabel":false,"autoscale":true},"histogram":{"dataMappings":[]}},"visualization":"singleValue","querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"12":{"type":"data","title":"🔹 Incidents with RCA","query":"fetch events, scanLimitGBytes:-1\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" \n| filter dt.davis.is_duplicate == false and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| filterOut isNull(root_cause_entity_id) and isNull(root_cause_me_id)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| summarize Incidents = countDistinct(display_id), by:{display_id,root_cause_entity_id, root_cause_me_id}\n| summarize count=count()","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{}},"singleValue":{"showLabel":false,"label":"Incidents with RCA -> Higher the better","autoscale":false,"recordField":"count"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"hexagon","legend":"auto","dataMappings":{}},"singleValueSettings":{"suffix":"incidents","showLabel":false,"autoscale":true},"histogram":{"dataMappings":[{"valueAxis":"count","rangeAxis":""}]}},"visualization":"singleValue","querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"16":{"type":"code","title":"💲 Est Cost with RCA","input":"/*\n* This function will run in the DYNATRACE JavaScript runtime.\n* For information visit https://dt-url.net/functions-help\n*/\nimport { queryExecutionClient } from '@dynatrace-sdk/client-query';\n\nfunction convert(n) {\n    if (n==null) {\n      return \"$ 0.00\";\n    }\n    else {\n\t  var parts = n.toFixed(2).toString().split(\".\");\n\t  const numberPart = parts[0];\n\t  const thousands = /\\B(?=(\\d{3})+(?!\\d))/g;\n      return \"$ \" + numberPart.replace(thousands, \",\");\n    }\n}\n\nexport default async function () {\nconst timeout = 60;\nconst transition_time=parseInt($PIT_Selecor*60000000000);\nconst rca_multiplying_factor=parseInt($RCA_ResourceCost)*parseInt($RCA_ResourceCount);\n\n  // Converting the MgmtZone from Array to json String\n  let entityString = [];\n  let entityArr = $entity_tags;\n        \n  for (let i = 0; i < entityArr.length; i++) {\n    entityString.push(JSON.stringify(entityArr[i]));\n  }\n  let alerting_profile_str=$alerting_profile;\n\nconst query = `fetch events, from: \\\"` + $dt_timeframe_from + `\\\",to:\\\" ` + $dt_timeframe_to + `\\\", scanLimitGBytes:-1\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"  and maintenance.is_under_maintenance==false\n  | fieldsAdd entity_tags = if(isNull(entity_tags), \\\"NA\\\", else:entity_tags)\n  | expand entityId = affected_entity_ids\n  | expand tags=entity_tags\n  | filter in(` + entityString + `,\"NONE\") OR in(tags,` + entityString + `)\n  | filter in(\"` + alerting_profile_str + `\",\"NONE\") OR in(alerting_profile,` + alerting_profile_str + `) \n  | filter not(dt.davis.is_duplicate)\n  | dedup display_id\n  | filter toLong(resolved_problem_duration) >=` + String(transition_time) + \"\\n\" + \n`| fieldsAdd containRCA=(isNotNull(root_cause_entity_id))\n| filter containRCA\n| summarize problem_list=collectDistinct(display_id), \n            resolved_problem_duration=max(toLong(resolved_problem_duration)),\n            by:{display_id, containRCA}\n| summarize total=(median(resolved_problem_duration)/3600000000000),\n             incident=collectArray(display_id)\n| fields total=round(total*arraySize(incident)*`+String(rca_multiplying_factor)+`,decimals:0)`;\n  \n  console.log(query);\n  const response = await queryExecutionClient.queryExecute({ body: { query, requestTimeoutMilliseconds: timeout * 1000, fetchTimeoutSeconds: timeout  } });\n  console.log(response);\n  if (response.result.records[0] !== null && response.result.records[0] !== undefined) {\n    return convert(response.result.records[0].total);\n  }\n  else {\n    return -1;\n  }\n}","visualization":"singleValue","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{}},"singleValue":{"showLabel":false,"label":"","autoscale":true,"recordField":"element"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"hexagon","dataMappings":{"category":"element","value":"element"},"legend":"auto"},"histogram":{"dataMappings":[]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":1,"defaultSamplingRatio":10,"enableSampling":false}},"17":{"type":"code","title":"💲 Est Cost w/o RCA","input":"/*\n* This function will run in the DYNATRACE JavaScript runtime.\n* For information visit https://dt-url.net/functions-help\n*/\nimport { queryExecutionClient } from '@dynatrace-sdk/client-query';\n\nfunction convert(n) {\n    if (n==null) {\n      return \"$ 0.00\";\n    }\n    else {\n\t  var parts = n.toFixed(2).toString().split(\".\");\n\t  const numberPart = parts[0];\n\t  const thousands = /\\B(?=(\\d{3})+(?!\\d))/g;\n      return \"$ \" + numberPart.replace(thousands, \",\");// + (decimalPart ? \".\" + decimalPart : \"\");\n    }\n}\n\n  \nexport default async function () {\n  const timeout = 60;\n\n\n  let entityString = [];\n  let entityArr = $entity_tags;\n          \n  for (let i = 0; i < entityArr.length; i++) {\n      entityString.push(JSON.stringify(entityArr[i]));\n  }\n  let alerting_profile_str=$alerting_profile;\n  const transition_time=parseInt($PIT_Selecor*60000000000);\n  const norca_multiplying_factor=parseInt($NoRCA_ResourceCost)*parseInt($NoRCA_ResourceCount);\n  \n  const query = `fetch events, from: \\\"` + $dt_timeframe_from + `\\\",to:\\\" ` + $dt_timeframe_to + `\\\", scanLimitGBytes:-1\n  | filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"  \n  | filter dt.davis.is_duplicate == false  and maintenance.is_under_maintenance==false\n  | fieldsAdd entity_tags = if(isNull(entity_tags), \\\"NA\\\", else:entity_tags)\n  | expand entityId = affected_entity_ids\n  | expand tags=entity_tags\n  | filter in(` + entityString + `,\"NONE\") OR in(tags,` + entityString + `)\n  | expand alerting_profile=labels.alerting_profile\n  | filter in(\"` + alerting_profile_str + `\",\"NONE\") OR in(alerting_profile,` + alerting_profile_str + `)   \n  | filter toLong(resolved_problem_duration) >=` + String(transition_time) + \"\\n\" + \n  `| fieldsAdd containnoRCA=(isNull(root_cause_entity_id))\n  | filter containnoRCA\n  | summarize problem_list=collectDistinct(display_id), \n              resolved_problem_duration=max(toLong(resolved_problem_duration)),\n              by:{display_id, containRCA}\n  | summarize total=(median(resolved_problem_duration)/3600000000000),\n               incident=collectArray(display_id)\n  | fields total=round(total*arraySize(incident)*`+String(norca_multiplying_factor)+`,decimals:0)`;\n\n  console.log(query);\n  const response = await queryExecutionClient.queryExecute({ body: { query, requestTimeoutMilliseconds: timeout * 1000, fetchTimeoutSeconds: timeout  } });\n  if (response.result.records[0] !== null && response.result.records[0] !== undefined) {\n    return convert(response.result.records[0].total);\n  }\n  else {\n    return -1;\n  }\n}","visualization":"singleValue","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{}},"singleValue":{"showLabel":false,"label":"","autoscale":false,"recordField":"element"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"hexagon","dataMappings":{"category":"element","value":"element"},"legend":"auto"},"histogram":{"dataMappings":[]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":1,"defaultSamplingRatio":10,"enableSampling":false}},"18":{"type":"code","title":"💵 Current Savings with RCA","input":"/*\n* This function will run in the DYNATRACE JavaScript runtime.\n* For information visit https://dt-url.net/functions-help\n*/\nimport { queryExecutionClient } from '@dynatrace-sdk/client-query';\n\nfunction convert(n) {\n    if (n==null) {\n      return \"$ 0.00\";\n    }\n    else {\n\t  var parts = n.toFixed(2).toString().split(\".\");\n\t  const numberPart = parts[0];\n\t  //const decimalPart = parts[1];\n\t  const thousands = /\\B(?=(\\d{3})+(?!\\d))/g;\n      return \"$ \" + numberPart.replace(thousands, \",\");// + (decimalPart ? \".\" + decimalPart : \"\");\n    }\n}\n\nexport default async function () {\n  const timeout = 60;\n  let entityString = [];\n  let entityArr = $entity_tags;\n        \n  for (let i = 0; i < entityArr.length; i++) {\n    entityString.push(JSON.stringify(entityArr[i]));\n  }\n  let alerting_profile_str=$alerting_profile;\n  \n\n  const transition_time=parseInt($PIT_Selecor)*60000000000;\n  const multiplying_factor=parseInt($NoRCA_ResourceCost)*parseInt($NoRCA_ResourceCount)-(parseInt($RCA_ResourceCost)*parseInt($RCA_ResourceCount));\n  \n  const query = `fetch events, from: \\\"` + $dt_timeframe_from + `\\\",to:\\\" ` + $dt_timeframe_to + `\\\", scanLimitGBytes:-1\n    | filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n    | filter dt.davis.is_duplicate == false and maintenance.is_under_maintenance==false\n    | fieldsAdd entity_tags = if(isNull(entity_tags), \\\"NA\\\", else:entity_tags)\n    | expand entityId = affected_entity_ids\n    | expand tags=entity_tags\n    | filter in(` + entityString + `,\"NONE\") OR in(tags,` + entityString + `)\n    | expand alerting_profile=labels.alerting_profile\n    | filter in(\"` + alerting_profile_str + `\",\"NONE\") OR in(alerting_profile,` + alerting_profile_str + `) \n    | filter toLong(resolved_problem_duration) >=` + String(transition_time) + \"\\n\" + \n    `| fieldsAdd containRCA=(isNotNull(root_cause_entity_id))\n    | filter containRCA\n    | summarize problem_list=collectDistinct(display_id), \n              resolved_problem_duration=max(toLong(resolved_problem_duration)),\n              by:{display_id, containRCA}\n    | summarize total=(median(resolved_problem_duration)/3600000000000),\n               incident=collectArray(display_id)\n    | fields total=round(total*arraySize(incident)*`+String(multiplying_factor)+`,decimals:0)`;\n  \n  const response = await queryExecutionClient.queryExecute({ body: { query, requestTimeoutMilliseconds: timeout * 1000, fetchTimeoutSeconds: timeout  } });\n  if (response.result.records[0] !== null && response.result.records[0] !== undefined) {\n    return convert(response.result.records[0].total);\n  }\n  else {\n    return -1;\n  }\n}","visualization":"singleValue","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{}},"singleValue":{"showLabel":false,"label":"","autoscale":false,"recordField":"element"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"hexagon","dataMappings":{"category":"element","value":"element"},"legend":"auto"},"histogram":{"dataMappings":[]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":1,"defaultSamplingRatio":10,"enableSampling":false}},"19":{"type":"code","title":"+ Potential Savings with DAVIS AI Causation","input":"/*\n* This function will run in the DYNATRACE JavaScript runtime.\n* For information visit https://dt-url.net/functions-help\n*/\nimport { queryExecutionClient } from '@dynatrace-sdk/client-query';\n\nfunction convert(n) {\n    if (n==null) {\n      return \"$ 0.00\";\n    }\n    else {\n\t  var parts = n.toFixed(2).toString().split(\".\");\n\t  const numberPart = parts[0];\n\t  //const decimalPart = parts[1];\n\t  const thousands = /\\B(?=(\\d{3})+(?!\\d))/g;\n      return \"$ \" + numberPart.replace(thousands, \",\");// + (decimalPart ? \".\" + decimalPart : \"\");\n    }\n}\nfunction median(array) {\n  // Sort the array in ascending order.\n  array.sort((a, b) => a - b);\n\n  // Get the middle element of the array.\n  const mid = Math.floor(array.length / 2);\n\n  // If the array has an odd number of elements, the median is the middle element.\n  if (array.length % 2 !== 0) {\n    return array[mid];\n  }\n\n  // If the array has an even number of elements, the median is the average of the two middle elements.\n  return (array[mid - 1] + array[mid]) / 2;\n}\nexport default async function () {\n  const timeout = 60;\n  const transition_time=parseInt($PIT_Selecor)*60000000000;\n  const norca_multiplying_factor=parseInt($NoRCA_ResourceCount)*parseInt($NoRCA_ResourceCost);\n  const rca_multiplying_factor=parseInt($RCA_ResourceCount)*parseInt($RCA_ResourceCost);\n\n  let entityString = [];\n  let entityArr = $entity_tags;\n        \n  for (let i = 0; i < entityArr.length; i++) {\n    entityString.push(JSON.stringify(entityArr[i]));\n  }\n  let alerting_profile_str=$alerting_profile;\n  \n\nconst query = `fetch events, from: \\\"` + $dt_timeframe_from + `\\\",to:\\\" ` + $dt_timeframe_to + `\\\", scanLimitGBytes:-1\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n| filter dt.davis.is_duplicate == false and maintenance.is_under_maintenance==false\n| fieldsAdd entity_tags = if(isNull(entity_tags), \\\"NA\\\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| filter in(` + entityString + `,\"NONE\") OR in(tags,` + entityString + `)\n| expand alerting_profile=labels.alerting_profile\n| filter in(\"` + alerting_profile_str + `\",\"NONE\") OR in(alerting_profile,` + alerting_profile_str + `) \n| filter toLong(resolved_problem_duration) >=` + String(transition_time) + \n`\\n | fieldsAdd containRCA=(isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id))\n| summarize resolved_problem_duration=max(toLong(resolved_problem_duration)),\n            by:{display_id, containRCA}`;\n  \n  const response = await queryExecutionClient.queryExecute({ body: { query, requestTimeoutMilliseconds: timeout * 1000, fetchTimeoutSeconds: timeout  } });\n  console.log(response.result.records);\n\n  if (response.result.records[0] !== null && response.result.records[0] !== undefined) {\n    var incidents_with_rca=0;\n    var incidents_wo_rca=0;\n    var mttr_rca=[];\n    var mttr_no_rca=[];\n  \n    for (var i=0; i<response.result.records.length; i++) {\n      \n      if (response.result.records[i].containRCA) {\n        console.log(\"RCA\", response.result.records[i]);\n        incidents_with_rca = incidents_with_rca + 1;\n        mttr_rca.push(response.result.records[i].resolved_problem_duration/3600000000000);\n      }\n      else {\n        incidents_wo_rca = incidents_wo_rca + 1;\n        mttr_no_rca.push(response.result.records[i].resolved_problem_duration/3600000000000);\n      }\n    }\n   var total_time_spent_rca_incidents  =  median(mttr_rca)*incidents_with_rca;\n   var total_time_spend_norca_incidents = median(mttr_no_rca)*incidents_wo_rca;\n   var total_savings = (1 - (total_time_spent_rca_incidents*rca_multiplying_factor)/(total_time_spent_rca_incidents*norca_multiplying_factor))*(total_time_spend_norca_incidents*norca_multiplying_factor);\n       \n   return convert(total_savings);\n  }\n  else {\n    return -1;\n  }\n}\n","visualization":"singleValue","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{}},"singleValue":{"showLabel":false,"label":"","autoscale":true,"recordField":"element"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"hexagon","dataMappings":{"category":"element","value":"element"},"legend":"auto"},"histogram":{"dataMappings":[]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":1,"defaultSamplingRatio":10,"enableSampling":false}},"20":{"type":"code","title":"💰 Total Savings will All Problems managed with DAVIS AI CAUSATION","input":"/*\n* This function will run in the DYNATRACE JavaScript runtime.\n* For information visit https://dt-url.net/functions-help\n*/\nimport { queryExecutionClient } from '@dynatrace-sdk/client-query';\n\nfunction convert(n) {\n    if (n==null) {\n      return \"$ 0.00\";\n    }\n    else {\n\t  var parts = n.toFixed(2).toString().split(\".\");\n\t  const numberPart = parts[0];\n\t  //const decimalPart = parts[1];\n\t  const thousands = /\\B(?=(\\d{3})+(?!\\d))/g;\n      return \"$ \" + numberPart.replace(thousands, \",\");// + (decimalPart ? \".\" + decimalPart : \"\");\n    }\n}\nfunction median(array) {\n  array.sort((a, b) => a - b);\n  console.log(array);\n  // Get the middle element of the array.\n  const mid = Math.floor(array.length / 2);\n\n  // If the array has an odd number of elements, the median is the middle element.\n  if (array.length % 2 !== 0) {\n    return array[mid];\n  }\n\n  // If the array has an even number of elements, the median is the average of the two middle elements.\n  return (array[mid - 1] + array[mid]) / 2;\n}\nexport default async function () {\n  const timeout = 60;\n  const transition_time=parseInt($PIT_Selecor)*60000000000;\n  const norca_multiplying_factor=parseInt($NoRCA_ResourceCount)*parseInt($NoRCA_ResourceCost);\n  const rca_multiplying_factor=parseInt($RCA_ResourceCount)*parseInt($RCA_ResourceCost);\n  console.log(norca_multiplying_factor);\n  const potential_multiplying_factor=norca_multiplying_factor-rca_multiplying_factor;\n  console.log(\"Potential_factor:\", potential_multiplying_factor);\n\n  let entityString = [];\n  let entityArr = $entity_tags;\n        \n  for (let i = 0; i < entityArr.length; i++) {\n    entityString.push(JSON.stringify(entityArr[i]));\n  }\n  let alerting_profile_str=$alerting_profile;\n  \n\nconst query = `fetch events, from: \\\"` + $dt_timeframe_from + `\\\",to:\\\" ` + $dt_timeframe_to + `\\\", scanLimitGBytes:-1\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n| fieldsAdd entity_tags = if(isNull(entity_tags), \\\"NA\\\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| filter in(` + entityString + `,\"NONE\") OR in(tags,` + entityString + `)\n| expand alerting_profile=labels.alerting_profile\n| filter in(\"` + alerting_profile_str + `\",\"NONE\") OR in(alerting_profile,` + alerting_profile_str + `) \n| filter dt.davis.is_duplicate == false and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >=` + String(transition_time) + \n`\\n | fieldsAdd containRCA=(isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id))\n| summarize resolved_problem_duration=max(toLong(resolved_problem_duration)),\n            by:{display_id, containRCA}`;\n  \n  const response = await queryExecutionClient.queryExecute({ body: { query, requestTimeoutMilliseconds: timeout * 1000, fetchTimeoutSeconds: timeout  } });\n  console.log(response.result.records);\n\n  if (response.result.records[0] !== null && response.result.records[0] !== undefined) {\n    var incidents_with_rca=0;\n    var incidents_wo_rca=0;\n    var mttr_rca=[];\n    var mttr_no_rca=[];\n  \n    for (var i=0; i<response.result.records.length; i++) {\n      \n      if (response.result.records[i].containRCA) {\n        console.log(\"RCA\", response.result.records[i]);\n        incidents_with_rca = incidents_with_rca + 1;\n        mttr_rca.push(response.result.records[i].resolved_problem_duration/3600000000000);\n      }\n      else {\n        incidents_wo_rca = incidents_wo_rca + 1;\n        mttr_no_rca.push(response.result.records[i].resolved_problem_duration/3600000000000);\n      }\n   }\n   var total_time_spent_rca_incidents  =  median(mttr_rca)*incidents_with_rca;\n   var total_time_spend_norca_incidents = (median(mttr_no_rca))*incidents_wo_rca;\n   var total_savings = (1 - (total_time_spent_rca_incidents*rca_multiplying_factor)/(total_time_spent_rca_incidents*norca_multiplying_factor))*(total_time_spend_norca_incidents*norca_multiplying_factor)\n                       + (total_time_spent_rca_incidents*potential_multiplying_factor);\n   \n   return convert(total_savings);\n  }\n  else {\n    return -1;\n  }\n}","visualization":"singleValue","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{}},"singleValue":{"showLabel":false,"label":"","autoscale":false,"recordField":"element"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"hexagon","dataMappings":{"category":"element","value":"element"},"legend":"auto"},"histogram":{"dataMappings":[]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":1,"defaultSamplingRatio":10,"enableSampling":false}},"21":{"type":"markdown","title":"","content":"##### 🚥 Operational Cost Parameter\n---\n>||  🟢 RCA   |   🔴 RCA\n> --- | --: | --: \n>👥 **No.**  **Resources** | $RCA_ResourceCount | $NoRCA_ResourceCount\n>🪙 **Hourly** **Cost** **/** **Resource** | $ $RCA_ResourceCost | $ $NoRCA_ResourceCost \n\n>\n##### 🚥 Problem to Incident Trans. Time:  ***$PIT_Selecor***\n---\n\n>Not all problems are required to be actioned. The parameter PIT_Selector is the threshold for total problem resolution time. In most cases, customers would ignore problems that were resolved in under 30 minutes."},"22":{"title":"","type":"markdown","content":"## 📈 Problems Trend Analysis"},"26":{"type":"data","title":"⏳ MTTR Comparison","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and event.status_transition==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| filter dt.davis.is_duplicate == false\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| fieldsAdd containRCA=if((isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id)),\"RCA\", else:\"NoRCA\")\n| summarize MTTR=avg(toLong(resolved_problem_duration))/3600000,\n          by:{bin(timestamp,1h), containRCA}","visualization":"lineChart","visualizationSettings":{"thresholds":[{"id":1,"field":"","title":"","isEnabled":true,"rules":[{"id":0,"color":{"Default":"var(--dt-colors-charts-categorical-color-09-default, #649438)"},"comparator":"≥","label":"","value":0},{"id":1,"color":{"Default":"var(--dt-colors-charts-categorical-color-06-default, #a9780f)"},"comparator":"≥","label":"","value":250},{"id":2,"color":{"Default":"var(--dt-colors-charts-categorical-color-12-default, #cd3741)"},"comparator":"≥","label":"","value":400}]}],"chartSettings":{"gapPolicy":"connect","colorPalette":"purple-rain","seriesOverrides":[{"seriesId":["NoRCA","MTTR"],"override":{"color":{"Default":"var(--dt-colors-charts-categorical-color-12-default, #d50b34)","Hover":"var(--dt-colors-charts-categorical-color-12-hover, #b30024)","Active":"var(--dt-colors-charts-categorical-color-12-active, #7e071d)","DefaultTransparent":"var(--dt-colors-charts-categorical-color-12-default-transparent, #c5000ccc)","HoverTransparent":"var(--dt-colors-charts-categorical-color-12-hover-transparent, #83000fcc)","ActiveTransparent":"var(--dt-colors-charts-categorical-color-12-active-transparent, #140000cc)"}}},{"seriesId":["NoRCA","MTTR"],"override":{"color":"#b3007d"}},{"seriesId":["No RCA","MTTR"],"override":{"color":{"Default":"var(--dt-colors-charts-categorical-color-12-default, #d50b34)","Hover":"var(--dt-colors-charts-categorical-color-12-hover, #b30024)","Active":"var(--dt-colors-charts-categorical-color-12-active, #7e071d)","DefaultTransparent":"var(--dt-colors-charts-categorical-color-12-default-transparent, #c5000ccc)","HoverTransparent":"var(--dt-colors-charts-categorical-color-12-hover-transparent, #83000fcc)","ActiveTransparent":"var(--dt-colors-charts-categorical-color-12-active-transparent, #140000cc)"}}},{"seriesId":["With RCA","MTTR"],"override":{"color":{"Default":"var(--dt-colors-charts-categorical-color-09-default, #0d9c29)","Hover":"var(--dt-colors-charts-categorical-color-09-hover, #0a7b20)","Active":"var(--dt-colors-charts-categorical-color-09-active, #075f19)","DefaultTransparent":"var(--dt-colors-charts-categorical-color-09-default-transparent, #008500cc)","HoverTransparent":"var(--dt-colors-charts-categorical-color-09-hover-transparent, #005905cc)","ActiveTransparent":"var(--dt-colors-charts-categorical-color-09-active-transparent, #003112cc)"}}}],"leftYAxisSettings":{"label":"Average MTTR"},"categoricalBarChartSettings":{"categoryAxis":"containRCA","categoryAxisLabel":"containRCA","valueAxis":"MTTR","valueAxisLabel":"MTTR"},"fieldMapping":{"timestamp":"bin(timestamp, 1h)","leftAxisValues":["MTTR"],"leftAxisDimensions":["containRCA"]},"hiddenLegendFields":[]},"singleValue":{"showLabel":true,"label":"","autoscale":true,"recordField":"bin(timestamp, 1h)"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"hexagon","dataMappings":{"category":"containRCA","value":"bin(timestamp, 1h)"},"legend":"auto"},"histogram":{"dataMappings":[{"valueAxis":"MTTR","rangeAxis":""}]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"27":{"type":"data","title":"🤖 DAVIS detected Problems RCA Vs NoRCA","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and event.status_transition==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| filter dt.davis.is_duplicate == false\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| fieldsAdd containRCA=if((isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id)),\"RCA\", else:\"NoRCA\")\n| summarize Problems=count(),\n          by:{bin(timestamp, 12h), containRCA}","visualization":"barChart","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","colorPalette":"categorical","seriesOverrides":[{"seriesId":["With RCA","Problems"],"override":{"color":{"Default":"var(--dt-colors-charts-categorical-color-09-default, #0d9c29)","Hover":"var(--dt-colors-charts-categorical-color-09-hover, #0a7b20)","Active":"var(--dt-colors-charts-categorical-color-09-active, #075f19)","DefaultTransparent":"var(--dt-colors-charts-categorical-color-09-default-transparent, #008500cc)","HoverTransparent":"var(--dt-colors-charts-categorical-color-09-hover-transparent, #005905cc)","ActiveTransparent":"var(--dt-colors-charts-categorical-color-09-active-transparent, #003112cc)"}}},{"seriesId":["No RCA","Problems"],"override":{"color":"#EC5413"}}],"leftYAxisSettings":{"label":"Total Number of Problems Detected"},"categoricalBarChartSettings":{"categoryAxis":"containRCA","categoryAxisLabel":"containRCA","valueAxis":"Problems","valueAxisLabel":"Problems"},"fieldMapping":{"timestamp":"bin(timestamp, 12h)","leftAxisValues":["Problems"],"leftAxisDimensions":["containRCA"]},"hiddenLegendFields":[]},"singleValue":{"showLabel":true,"label":"","autoscale":true,"recordField":"bin(timestamp, 12h)"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"hexagon","dataMappings":{"category":"containRCA","value":"bin(timestamp, 12h)"},"legend":"auto"},"histogram":{"dataMappings":[{"valueAxis":"Problems","rangeAxis":""}]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"28":{"type":"data","title":"〽️ Estimate Operation Cost Comparison RCA Vs NoRCA","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and event.status_transition==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| fieldsAdd containRCA=if((isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id)),\"RCA\", else:\"NoRCA\")\n| fieldsAdd testRCA=(isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id))\n| summarize TotalCost=if(takeAny(testRCA),((sum(toLong(resolved_problem_duration))/3600000000000)*toLong($RCA_ResourceCost)*toLong($RCA_ResourceCount)),else:(sum(toLong(resolved_problem_duration))/3600000)*toLong($NoRCA_ResourceCost)*toLong($NoRCA_ResourceCount)),\n          by:{bin(timestamp, 12h), containRCA}","visualization":"lineChart","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","colorPalette":"categorical","seriesOverrides":[{"seriesId":["No RCA","TotalCost"],"override":{"color":"#b3007d"}}],"leftYAxisSettings":{"label":"💵 Total Cost ($)"},"categoricalBarChartSettings":{"categoryAxis":"containRCA","categoryAxisLabel":"containRCA","valueAxis":"TotalCost","valueAxisLabel":"TotalCost"},"fieldMapping":{"timestamp":"bin(timestamp, 12h)","leftAxisValues":["TotalCost"],"leftAxisDimensions":["containRCA"]},"hiddenLegendFields":[]},"singleValue":{"showLabel":true,"label":"","autoscale":true,"recordField":"bin(timestamp, 12h)"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"hexagon","dataMappings":{"category":"containRCA","value":"bin(timestamp, 12h)"},"legend":"auto"},"histogram":{"dataMappings":[{"valueAxis":"TotalCost","rangeAxis":""}]}},"querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"32":{"type":"code","title":"selected tags","input":"export default async function() {\n  let selectedList=\"🔹 \" + $entity_tags;\n  return selectedList;\n}","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","categoricalBarChartSettings":{}},"singleValue":{"showLabel":true,"label":"","autoscale":true,"recordField":"element"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[],"rowDensity":"condensed"},"honeycomb":{"shape":"hexagon","dataMappings":{"category":"element","value":"element"},"legend":"auto"},"histogram":{"dataMappings":[]}},"visualization":"table","querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":1,"defaultSamplingRatio":10,"enableSampling":false}},"34":{"type":"markdown","title":"","content":"### 🎛️ Dashboard Parameter Selection\n---"},"39":{"type":"markdown","title":"","content":"---\n\n\n\n"},"40":{"type":"markdown","title":"","content":"### 💡 Key Benefits Summary\n---"},"41":{"type":"markdown","title":"","content":">###### 👽 WITH DAVIS AI CAUSATION"},"42":{"type":"markdown","title":"","content":">######  🤷 WITHOUT DAVIS AI CAUSATION"},"43":{"type":"markdown","title":"","content":">\n### 🚨 Operational Cost Benefit\n---\n\n\n\n"},"44":{"type":"data","title":"Incidents RCA Vs NoRCA","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter dt.davis.is_duplicate == false \n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| summarize Incidents = countDistinct(display_id), by:{display_id,root_cause_entity_id, root_cause_me_id}\n| fieldsAdd RCA=if(isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id), \"RCA\", else: \"NoRCA\")\n| summarize SubTotal=count(), by:{RCA}\n","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","colorPalette":"purple-rain","circleChartSettings":{"thresholdType":"relative","hideLabels":false,"showTotalValue":true,"valueType":"relative"},"legend":{"position":"bottom","hidden":false},"categoricalBarChartSettings":{"categoryAxis":"RCA","categoryAxisLabel":"RCA","valueAxis":"SubTotal","valueAxisLabel":"SubTotal"}},"singleValue":{"showLabel":false,"label":"Incidents with RCA -> Higher the better","autoscale":false,"recordField":"RCA"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"hexagon","dataMappings":{"category":"RCA","value":"SubTotal"},"legend":"auto"},"singleValueSettings":{"suffix":"incidents","showLabel":false,"autoscale":true},"histogram":{"dataMappings":[{"valueAxis":"SubTotal","rangeAxis":""}]}},"visualization":"donutChart","querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"45":{"type":"data","title":"Cost Distribution RCA Vs NoRCA","query":"fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and event.status_transition==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter dt.davis.is_duplicate == false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| summarize Incidents = countDistinct(display_id), by:{display_id,root_cause_entity_id, root_cause_me_id, resolved_problem_duration}\n| fieldsAdd containRCA=if((isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id)),\"RCA\", else:\"NoRCA\")\n| fieldsAdd testRCA=(isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id))\n| summarize TotalCost=if(takeAny(testRCA),((sum(toLong(resolved_problem_duration))/3600000)*toLong($RCA_ResourceCost)*toLong($RCA_ResourceCount)),else:(sum(toLong(resolved_problem_duration))/3600000)*toLong($NoRCA_ResourceCost)*toLong($NoRCA_ResourceCount)),\n          by:{containRCA}","visualizationSettings":{"thresholds":[],"chartSettings":{"gapPolicy":"connect","colorPalette":"log-status","circleChartSettings":{"thresholdType":"relative","hideLabels":false,"showTotalValue":false},"legend":{"position":"bottom","hidden":false},"categoricalBarChartSettings":{"categoryAxis":"containRCA","categoryAxisLabel":"containRCA","valueAxis":"TotalCost","valueAxisLabel":"TotalCost"}},"singleValue":{"showLabel":false,"label":"Incidents with RCA -> Higher the better","autoscale":false,"recordField":"containRCA"},"table":{"enableLineWrap":true,"hiddenColumns":[],"lineWrapIds":[]},"honeycomb":{"shape":"hexagon","dataMappings":{"category":"containRCA","value":"TotalCost"},"legend":"auto"},"singleValueSettings":{"suffix":"incidents","showLabel":false,"autoscale":true},"histogram":{"dataMappings":[{"valueAxis":"TotalCost","rangeAxis":""}]}},"visualization":"donutChart","querySettings":{"maxResultRecords":1000,"defaultScanLimitGbytes":500,"maxResultMegaBytes":100,"defaultSamplingRatio":10,"enableSampling":false},"davis":{}},"46":{"type":"markdown","title":"","content":"---\n\n\n\n"},"47":{"type":"markdown","title":"","content":"###### ⏱️ Avg. MTTR\n---\n\n\n\n"},"48":{"type":"markdown","title":"","content":"###### ⚠️ Incidents\n---"},"49":{"type":"markdown","title":"","content":"###### 💰Est. Cost\n---\n\n\n\n"},"50":{"type":"markdown","title":"","content":"\n\n\n\n"},"51":{"type":"markdown","title":"","content":">##### 💰 Est. Cost Savings"},"52":{"type":"markdown","title":"","content":"---\n\n\n\n"},"53":{"type":"markdown","title":"","content":"---\n\n\n\n"},"54":{"type":"markdown","title":"","content":"---\n\n\n\n"},"55":{"type":"markdown","title":"","content":">Not all problems are equal hence the MTTR for the problems may not provide absolute comparison between the two RCA and NoRCA MTTR. However, it provides reasonable indication of what can be done to optimise the MTTR event further. If MTTR of RCA is significantly higher, then we need to see if the adequate configuration has been performed so that the internal team is leveraging Dynatrace at its full capacity. Poorly configured Dynatrace may deter customer’s team not to action due to alert storms."},"56":{"type":"markdown","title":"","content":">Not all problems are equal hence the MTTR for the problems may not provide absolute comparison between the two RCA and NoRCA MTTR. However, it provides reasonable indication of what can be done to optimise the MTTR event further. If MTTR of RCA is significantly higher, then we need to see if the adequate configuration has been performed so that the internal team is leveraging Dynatrace at its full capacity. Poorly configured Dynatrace may deter customer’s team not to action due to alert storms."},"57":{"type":"markdown","title":"","content":">Not all problems are equal hence the MTTR for the problems may not provide absolute comparison between the two RCA and NoRCA MTTR. However, it provides reasonable indication of what can be done to optimise the MTTR event further. If MTTR of RCA is significantly higher, then we need to see if the adequate configuration has been performed so that the internal team is leveraging Dynatrace at its full capacity. Poorly configured Dynatrace may deter customer’s team not to action due to alert storms."}},"layouts":{"1":{"x":8,"y":6,"w":3,"h":2},"3":{"x":11,"y":6,"w":3,"h":2},"4":{"x":14,"y":15,"w":5,"h":3},"7":{"x":8,"y":2,"w":6,"h":4},"8":{"x":10,"y":11,"w":4,"h":3},"9":{"x":10,"y":15,"w":4,"h":3},"12":{"x":14,"y":11,"w":5,"h":3},"16":{"x":19,"y":11,"w":5,"h":3},"17":{"x":19,"y":15,"w":5,"h":3},"18":{"x":10,"y":19,"w":7,"h":3},"19":{"x":17,"y":19,"w":7,"h":3},"20":{"x":10,"y":22,"w":14,"h":3},"21":{"x":0,"y":2,"w":6,"h":7},"22":{"x":0,"y":26,"w":24,"h":1},"26":{"x":0,"y":27,"w":19,"h":5},"27":{"x":0,"y":32,"w":19,"h":6},"28":{"x":0,"y":38,"w":19,"h":5},"32":{"x":0,"y":9,"w":6,"h":3},"34":{"x":0,"y":0,"w":7,"h":1},"39":{"x":7,"y":14,"w":17,"h":1},"40":{"x":7,"y":0,"w":17,"h":1},"41":{"x":7,"y":11,"w":3,"h":3},"42":{"x":7,"y":15,"w":3,"h":3},"43":{"x":7,"y":8,"w":17,"h":2},"44":{"x":14,"y":2,"w":5,"h":6},"45":{"x":19,"y":2,"w":5,"h":6},"46":{"x":7,"y":18,"w":17,"h":1},"47":{"x":10,"y":10,"w":4,"h":1},"48":{"x":14,"y":10,"w":5,"h":1},"49":{"x":19,"y":10,"w":5,"h":1},"50":{"x":7,"y":10,"w":3,"h":1},"51":{"x":7,"y":19,"w":3,"h":6},"52":{"x":7,"y":1,"w":17,"h":1},"53":{"x":0,"y":1,"w":7,"h":1},"54":{"x":0,"y":25,"w":24,"h":1},"55":{"x":19,"y":27,"w":5,"h":5},"56":{"x":19,"y":32,"w":5,"h":6},"57":{"x":19,"y":38,"w":5,"h":5}},"importedWithCode":true}
+{
+  "version": 15,
+  "variables": [
+    {
+      "key": "PIT_Selecor",
+      "type": "csv",
+      "input": "0,5,10,15,20,25,30,35,40,45,50,55,60",
+      "multiple": false,
+      "visible": true
+    },
+    {
+      "key": "RCA_ResourceCost",
+      "type": "csv",
+      "input": "20,29,50,75,100,150,200,250,300,400",
+      "multiple": false,
+      "visible": true
+    },
+    { "key": "RCA_ResourceCount", "type": "csv", "input": "1,2,3,4,5,6,7,8,9,10", "multiple": false, "visible": true },
+    {
+      "key": "NoRCA_ResourceCount",
+      "type": "csv",
+      "input": "1,2,3,4,5,6,7,8,9,10,11,12",
+      "multiple": false,
+      "visible": true
+    },
+    {
+      "key": "NoRCA_ResourceCost",
+      "type": "csv",
+      "input": "40,50,60,70,75,80,90,100",
+      "multiple": false,
+      "visible": true
+    },
+    {
+      "key": "entity_tags",
+      "type": "query",
+      "visible": true,
+      "input": "fetch dt.davis.problems\n| expand entity_tags\n| fields entity_tags\n| append [data record(entity_tags=\"NONE\")]\n| dedup entity_tags\n| limit 100000",
+      "multiple": true,
+      "defaultValue": ["NONE"]
+    },
+    {
+      "key": "alerting_profile",
+      "type": "query",
+      "visible": true,
+      "input": "fetch dt.davis.problems\n| expand labels.alerting_profile\n| fields labels.alerting_profile\n| append [data record(labels.alerting_profile=\"NONE\")]\n| dedup labels.alerting_profile\n| limit 100000",
+      "multiple": false,
+      "defaultValue": "NONE"
+    }
+  ],
+  "tiles": {
+    "1": {
+      "type": "data",
+      "title": "Problems",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter dt.davis.is_duplicate == false\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| filter if($entity_tags !=\"NONE\", in(tags, $entity_tags), else:display_id!=\"\")\n| expand alerting_profile=labels.alerting_profile\n| filter if($alerting_profile !=\"NONE\", in(labels.alerting_profile, $alerting_profile), else:display_id!=\"\")\n| dedup display_id\n| summarize close_rs=max(closed),by:{display_id}\n| summarize count=count()",
+      "visualizationSettings": {
+        "thresholds": [
+          {
+            "id": 1,
+            "field": "",
+            "title": "",
+            "isEnabled": true,
+            "rules": [
+              {
+                "id": 0,
+                "color": { "Default": "var(--dt-colors-charts-categorical-color-09-default, #649438)" },
+                "comparator": "≥",
+                "label": "",
+                "value": 200
+              },
+              {
+                "id": 1,
+                "color": { "Default": "var(--dt-colors-charts-categorical-color-14-default, #d56b1a)" },
+                "comparator": "≥",
+                "label": "",
+                "value": 100
+              },
+              {
+                "id": 2,
+                "color": { "Default": "var(--dt-colors-charts-categorical-color-12-default, #cd3741)" },
+                "comparator": "≥",
+                "label": "",
+                "value": 400
+              }
+            ]
+          }
+        ],
+        "chartSettings": { "gapPolicy": "connect", "categoricalBarChartSettings": {} },
+        "singleValue": { "showLabel": false, "label": "", "autoscale": false, "recordField": "count" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": { "shape": "hexagon", "legend": "auto", "dataMappings": {} },
+        "singleValueSettings": { "suffix": "problems", "showLabel": false, "autoscale": true },
+        "histogram": { "dataMappings": [{ "valueAxis": "count", "rangeAxis": "" }] }
+      },
+      "visualization": "singleValue",
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "3": {
+      "type": "data",
+      "title": " Incidents",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| filter dt.davis.is_duplicate == false\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| filter if($entity_tags !=\"NONE\", in(tags, $entity_tags), else:display_id!=\"\")\n| expand alerting_profile=labels.alerting_profile\n| filter if($alerting_profile !=\"NONE\", in(labels.alerting_profile, $alerting_profile), else:display_id!=\"\")\n| dedup display_id\n| summarize close_rs=max(closed),by:{display_id}\n| summarize count=count()",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": { "gapPolicy": "connect", "categoricalBarChartSettings": {} },
+        "singleValue": { "showLabel": false, "label": "", "autoscale": false, "recordField": "count" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [["Incidents_Generated"]] },
+        "honeycomb": { "shape": "hexagon", "legend": "auto", "dataMappings": {} },
+        "singleValueSettings": { "suffix": "incidents", "showLabel": false, "autoscale": true },
+        "histogram": { "dataMappings": [{ "valueAxis": "count", "rangeAxis": "" }] }
+      },
+      "visualization": "singleValue",
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "4": {
+      "type": "data",
+      "title": "🔸 Incidents w/o RCA",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n| filter dt.davis.is_duplicate == false and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| filter isNull(root_cause_entity_id) and isNull(root_cause_me_id)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| summarize Incidents = countDistinct(display_id), by:{display_id,root_cause_entity_id, root_cause_me_id}\n| summarize count=count()",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": { "gapPolicy": "connect", "categoricalBarChartSettings": {} },
+        "singleValue": { "showLabel": false, "label": "", "autoscale": false, "recordField": "count" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": { "shape": "hexagon", "legend": "auto", "dataMappings": {} },
+        "singleValueSettings": { "suffix": "incidents", "showLabel": false, "autoscale": true },
+        "histogram": { "dataMappings": [{ "valueAxis": "count", "rangeAxis": "" }] }
+      },
+      "visualization": "singleValue",
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "7": {
+      "type": "data",
+      "title": "⚡ Operations Efficiency",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter dt.davis.is_duplicate == false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| fieldsAdd closed=if(event.status==\"CLOSED\", timestamp)\n| filter isNotNull(closed)\n| fieldsAdd RCA=if((isNotNull(root_cause_entity_id ) or isNotNull(root_cause_me_id)),TRUE,else:FALSE )\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| summarize close_rs=max(closed),\n            resolved_problem_duration=max(toLong(resolved_problem_duration)),\n            by:{display_id, RCA}\n| fieldsAdd mttr_rca = if(RCA, toLong(resolved_problem_duration)), mttr_no_rca = if(NOT RCA, toLong(resolved_problem_duration))\n| summarize operations_efficiency=(1 - ((median(toLong(mttr_no_rca))))/((median(toLong(mttr_rca)))+(median(toLong(mttr_no_rca)))))*100\n| fields concat(round(operations_efficiency,decimals:2), \" %\")\n\n\n",
+      "visualizationSettings": {
+        "thresholds": [
+          {
+            "id": 1,
+            "field": "",
+            "title": "",
+            "isEnabled": true,
+            "rules": [
+              {
+                "id": 0,
+                "color": { "Default": "var(--dt-colors-charts-categorical-color-09-default, #649438)" },
+                "comparator": "≥",
+                "label": "",
+                "value": 0
+              }
+            ]
+          }
+        ],
+        "chartSettings": { "gapPolicy": "connect", "categoricalBarChartSettings": {} },
+        "singleValue": {
+          "showLabel": false,
+          "label": "",
+          "autoscale": true,
+          "recordField": "concat(round(operations_efficiency, decimals:2), \" %\")"
+        },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [["list"]] },
+        "honeycomb": {
+          "shape": "hexagon",
+          "dataMappings": {
+            "category": "concat(round(operations_efficiency, decimals:2), \" %\")",
+            "value": "concat(round(operations_efficiency, decimals:2), \" %\")"
+          },
+          "legend": "auto"
+        },
+        "singleValueSettings": { "suffix": "%", "showLabel": false, "autoscale": true },
+        "histogram": { "dataMappings": [] }
+      },
+      "visualization": "singleValue",
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "8": {
+      "type": "data",
+      "title": "⌚ Average MTTR With RCA (mins)",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and event.status_transition==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter dt.davis.is_duplicate == false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n\n| fieldsAdd containRCA=(isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id))\n| filter containRCA\n| summarize problem_list=collectDistinct(display_id), \n            resolved_problem_duration=max(toLong(resolved_problem_duration)),\n            by:{display_id, containRCA}\n| fieldsAdd mttr_rca = if(containRCA, toLong(resolved_problem_duration))\n| summarize total=(median(toLong(mttr_rca))/60000000000)\n| fields concat(round(total,decimals:2), \"\")\n\n",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": { "gapPolicy": "connect", "categoricalBarChartSettings": {} },
+        "singleValue": {
+          "showLabel": false,
+          "label": "",
+          "autoscale": true,
+          "recordField": "concat(round(total, decimals:2), \"\")"
+        },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [["entity_tags"]] },
+        "honeycomb": {
+          "shape": "hexagon",
+          "dataMappings": {
+            "category": "concat(round(total, decimals:2), \"\")",
+            "value": "concat(round(total, decimals:2), \"\")"
+          },
+          "legend": "auto"
+        },
+        "singleValueSettings": { "suffix": "Hours", "showLabel": false, "autoscale": true },
+        "histogram": { "dataMappings": [] }
+      },
+      "visualization": "singleValue",
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "9": {
+      "type": "data",
+      "title": "⌛ Average MTTR W/o RCA (mins)",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and event.status_transition==\"CLOSED\"\n| filter dt.davis.is_duplicate == false and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| fieldsAdd containnoRCA=(isNull(root_cause_entity_id))\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| filter containnoRCA\n| summarize problem_list=collectDistinct(display_id), \n            resolved_problem_duration=median(toLong(resolved_problem_duration)),\n            by:{display_id}\n| summarize total=(median(toLong(resolved_problem_duration))/60000000000)\n| fields concat(round(total,decimals:2), \"\")\n",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": { "gapPolicy": "connect", "categoricalBarChartSettings": {} },
+        "singleValue": {
+          "showLabel": false,
+          "label": "",
+          "autoscale": true,
+          "recordField": "concat(round(total, decimals:2), \"\")"
+        },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": {
+          "shape": "hexagon",
+          "dataMappings": {
+            "category": "concat(round(total, decimals:2), \"\")",
+            "value": "concat(round(total, decimals:2), \"\")"
+          },
+          "legend": "auto"
+        },
+        "singleValueSettings": { "suffix": "Hours", "showLabel": false, "autoscale": true },
+        "histogram": { "dataMappings": [] }
+      },
+      "visualization": "singleValue",
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "12": {
+      "type": "data",
+      "title": "🔹 Incidents with RCA",
+      "query": "fetch events, scanLimitGBytes:-1\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" \n| filter dt.davis.is_duplicate == false and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| filterOut isNull(root_cause_entity_id) and isNull(root_cause_me_id)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| summarize Incidents = countDistinct(display_id), by:{display_id,root_cause_entity_id, root_cause_me_id}\n| summarize count=count()",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": { "gapPolicy": "connect", "categoricalBarChartSettings": {} },
+        "singleValue": {
+          "showLabel": false,
+          "label": "Incidents with RCA -> Higher the better",
+          "autoscale": false,
+          "recordField": "count"
+        },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": { "shape": "hexagon", "legend": "auto", "dataMappings": {} },
+        "singleValueSettings": { "suffix": "incidents", "showLabel": false, "autoscale": true },
+        "histogram": { "dataMappings": [{ "valueAxis": "count", "rangeAxis": "" }] }
+      },
+      "visualization": "singleValue",
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "16": {
+      "type": "code",
+      "title": "💲 Est Cost with RCA",
+      "input": "/*\n* This function will run in the DYNATRACE JavaScript runtime.\n* For information visit https://dt-url.net/functions-help\n*/\nimport { queryExecutionClient } from '@dynatrace-sdk/client-query';\n\nfunction convert(n) {\n    if (n==null) {\n      return \"$ 0.00\";\n    }\n    else {\n\t  var parts = n.toFixed(2).toString().split(\".\");\n\t  const numberPart = parts[0];\n\t  const thousands = /\\B(?=(\\d{3})+(?!\\d))/g;\n      return \"$ \" + numberPart.replace(thousands, \",\");\n    }\n}\n\nexport default async function () {\nconst timeout = 60;\nconst transition_time=parseInt($PIT_Selecor*60000000000);\nconst rca_multiplying_factor=parseInt($RCA_ResourceCost)*parseInt($RCA_ResourceCount);\n\n  // Converting the MgmtZone from Array to json String\n  let entityString = [];\n  let entityArr = $entity_tags;\n        \n  for (let i = 0; i < entityArr.length; i++) {\n    entityString.push(JSON.stringify(entityArr[i]));\n  }\n  let alerting_profile_str=$alerting_profile;\n\nconst query = `fetch events, from: \\\"` + $dt_timeframe_from + `\\\",to:\\\" ` + $dt_timeframe_to + `\\\", scanLimitGBytes:-1\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"  and maintenance.is_under_maintenance==false\n  | fieldsAdd entity_tags = if(isNull(entity_tags), \\\"NA\\\", else:entity_tags)\n  | expand entityId = affected_entity_ids\n  | expand tags=entity_tags\n  | filter in(` + entityString + `,\"NONE\") OR in(tags,` + entityString + `)\n  | filter in(\"` + alerting_profile_str + `\",\"NONE\") OR in(alerting_profile,` + alerting_profile_str + `) \n  | filter not(dt.davis.is_duplicate)\n  | dedup display_id\n  | filter toLong(resolved_problem_duration) >=` + String(transition_time) + \"\\n\" + \n`| fieldsAdd containRCA=(isNotNull(root_cause_entity_id))\n| filter containRCA\n| summarize problem_list=collectDistinct(display_id), \n            resolved_problem_duration=max(toLong(resolved_problem_duration)),\n            by:{display_id, containRCA}\n| summarize total=(median(resolved_problem_duration)/3600000000000),\n             incident=collectArray(display_id)\n| fields total=round(total*arraySize(incident)*`+String(rca_multiplying_factor)+`,decimals:0)`;\n  \n  console.log(query);\n  const response = await queryExecutionClient.queryExecute({ body: { query, requestTimeoutMilliseconds: timeout * 1000, fetchTimeoutSeconds: timeout  } });\n  console.log(response);\n  if (response.result.records[0] !== null && response.result.records[0] !== undefined) {\n    return convert(response.result.records[0].total);\n  }\n  else {\n    return -1;\n  }\n}",
+      "visualization": "singleValue",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": { "gapPolicy": "connect", "categoricalBarChartSettings": {} },
+        "singleValue": { "showLabel": false, "label": "", "autoscale": true, "recordField": "element" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": {
+          "shape": "hexagon",
+          "dataMappings": { "category": "element", "value": "element" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 1,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "17": {
+      "type": "code",
+      "title": "💲 Est Cost w/o RCA",
+      "input": "/*\n* This function will run in the DYNATRACE JavaScript runtime.\n* For information visit https://dt-url.net/functions-help\n*/\nimport { queryExecutionClient } from '@dynatrace-sdk/client-query';\n\nfunction convert(n) {\n    if (n==null) {\n      return \"$ 0.00\";\n    }\n    else {\n\t  var parts = n.toFixed(2).toString().split(\".\");\n\t  const numberPart = parts[0];\n\t  const thousands = /\\B(?=(\\d{3})+(?!\\d))/g;\n      return \"$ \" + numberPart.replace(thousands, \",\");// + (decimalPart ? \".\" + decimalPart : \"\");\n    }\n}\n\n  \nexport default async function () {\n  const timeout = 60;\n\n\n  let entityString = [];\n  let entityArr = $entity_tags;\n          \n  for (let i = 0; i < entityArr.length; i++) {\n      entityString.push(JSON.stringify(entityArr[i]));\n  }\n  let alerting_profile_str=$alerting_profile;\n  const transition_time=parseInt($PIT_Selecor*60000000000);\n  const norca_multiplying_factor=parseInt($NoRCA_ResourceCost)*parseInt($NoRCA_ResourceCount);\n  \n  const query = `fetch events, from: \\\"` + $dt_timeframe_from + `\\\",to:\\\" ` + $dt_timeframe_to + `\\\", scanLimitGBytes:-1\n  | filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"  \n  | filter dt.davis.is_duplicate == false  and maintenance.is_under_maintenance==false\n  | fieldsAdd entity_tags = if(isNull(entity_tags), \\\"NA\\\", else:entity_tags)\n  | expand entityId = affected_entity_ids\n  | expand tags=entity_tags\n  | filter in(` + entityString + `,\"NONE\") OR in(tags,` + entityString + `)\n  | expand alerting_profile=labels.alerting_profile\n  | filter in(\"` + alerting_profile_str + `\",\"NONE\") OR in(alerting_profile,` + alerting_profile_str + `)   \n  | filter toLong(resolved_problem_duration) >=` + String(transition_time) + \"\\n\" + \n  `| fieldsAdd containnoRCA=(isNull(root_cause_entity_id))\n  | filter containnoRCA\n  | summarize problem_list=collectDistinct(display_id), \n              resolved_problem_duration=max(toLong(resolved_problem_duration)),\n              by:{display_id, containRCA}\n  | summarize total=(median(resolved_problem_duration)/3600000000000),\n               incident=collectArray(display_id)\n  | fields total=round(total*arraySize(incident)*`+String(norca_multiplying_factor)+`,decimals:0)`;\n\n  console.log(query);\n  const response = await queryExecutionClient.queryExecute({ body: { query, requestTimeoutMilliseconds: timeout * 1000, fetchTimeoutSeconds: timeout  } });\n  if (response.result.records[0] !== null && response.result.records[0] !== undefined) {\n    return convert(response.result.records[0].total);\n  }\n  else {\n    return -1;\n  }\n}",
+      "visualization": "singleValue",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": { "gapPolicy": "connect", "categoricalBarChartSettings": {} },
+        "singleValue": { "showLabel": false, "label": "", "autoscale": false, "recordField": "element" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": {
+          "shape": "hexagon",
+          "dataMappings": { "category": "element", "value": "element" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 1,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "18": {
+      "type": "code",
+      "title": "💵 Current Savings with RCA",
+      "input": "/*\n* This function will run in the DYNATRACE JavaScript runtime.\n* For information visit https://dt-url.net/functions-help\n*/\nimport { queryExecutionClient } from '@dynatrace-sdk/client-query';\n\nfunction convert(n) {\n    if (n==null) {\n      return \"$ 0.00\";\n    }\n    else {\n\t  var parts = n.toFixed(2).toString().split(\".\");\n\t  const numberPart = parts[0];\n\t  //const decimalPart = parts[1];\n\t  const thousands = /\\B(?=(\\d{3})+(?!\\d))/g;\n      return \"$ \" + numberPart.replace(thousands, \",\");// + (decimalPart ? \".\" + decimalPart : \"\");\n    }\n}\n\nexport default async function () {\n  const timeout = 60;\n  let entityString = [];\n  let entityArr = $entity_tags;\n        \n  for (let i = 0; i < entityArr.length; i++) {\n    entityString.push(JSON.stringify(entityArr[i]));\n  }\n  let alerting_profile_str=$alerting_profile;\n  \n\n  const transition_time=parseInt($PIT_Selecor)*60000000000;\n  const multiplying_factor=parseInt($NoRCA_ResourceCost)*parseInt($NoRCA_ResourceCount)-(parseInt($RCA_ResourceCost)*parseInt($RCA_ResourceCount));\n  \n  const query = `fetch events, from: \\\"` + $dt_timeframe_from + `\\\",to:\\\" ` + $dt_timeframe_to + `\\\", scanLimitGBytes:-1\n    | filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n    | filter dt.davis.is_duplicate == false and maintenance.is_under_maintenance==false\n    | fieldsAdd entity_tags = if(isNull(entity_tags), \\\"NA\\\", else:entity_tags)\n    | expand entityId = affected_entity_ids\n    | expand tags=entity_tags\n    | filter in(` + entityString + `,\"NONE\") OR in(tags,` + entityString + `)\n    | expand alerting_profile=labels.alerting_profile\n    | filter in(\"` + alerting_profile_str + `\",\"NONE\") OR in(alerting_profile,` + alerting_profile_str + `) \n    | filter toLong(resolved_problem_duration) >=` + String(transition_time) + \"\\n\" + \n    `| fieldsAdd containRCA=(isNotNull(root_cause_entity_id))\n    | filter containRCA\n    | summarize problem_list=collectDistinct(display_id), \n              resolved_problem_duration=max(toLong(resolved_problem_duration)),\n              by:{display_id, containRCA}\n    | summarize total=(median(resolved_problem_duration)/3600000000000),\n               incident=collectArray(display_id)\n    | fields total=round(total*arraySize(incident)*`+String(multiplying_factor)+`,decimals:0)`;\n  \n  const response = await queryExecutionClient.queryExecute({ body: { query, requestTimeoutMilliseconds: timeout * 1000, fetchTimeoutSeconds: timeout  } });\n  if (response.result.records[0] !== null && response.result.records[0] !== undefined) {\n    return convert(response.result.records[0].total);\n  }\n  else {\n    return -1;\n  }\n}",
+      "visualization": "singleValue",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": { "gapPolicy": "connect", "categoricalBarChartSettings": {} },
+        "singleValue": { "showLabel": false, "label": "", "autoscale": false, "recordField": "element" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": {
+          "shape": "hexagon",
+          "dataMappings": { "category": "element", "value": "element" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 1,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "19": {
+      "type": "code",
+      "title": "+ Potential Savings with DAVIS AI Causation",
+      "input": "/*\n* This function will run in the DYNATRACE JavaScript runtime.\n* For information visit https://dt-url.net/functions-help\n*/\nimport { queryExecutionClient } from '@dynatrace-sdk/client-query';\n\nfunction convert(n) {\n    if (n==null) {\n      return \"$ 0.00\";\n    }\n    else {\n\t  var parts = n.toFixed(2).toString().split(\".\");\n\t  const numberPart = parts[0];\n\t  //const decimalPart = parts[1];\n\t  const thousands = /\\B(?=(\\d{3})+(?!\\d))/g;\n      return \"$ \" + numberPart.replace(thousands, \",\");// + (decimalPart ? \".\" + decimalPart : \"\");\n    }\n}\nfunction median(array) {\n  // Sort the array in ascending order.\n  array.sort((a, b) => a - b);\n\n  // Get the middle element of the array.\n  const mid = Math.floor(array.length / 2);\n\n  // If the array has an odd number of elements, the median is the middle element.\n  if (array.length % 2 !== 0) {\n    return array[mid];\n  }\n\n  // If the array has an even number of elements, the median is the average of the two middle elements.\n  return (array[mid - 1] + array[mid]) / 2;\n}\nexport default async function () {\n  const timeout = 60;\n  const transition_time=parseInt($PIT_Selecor)*60000000000;\n  const norca_multiplying_factor=parseInt($NoRCA_ResourceCount)*parseInt($NoRCA_ResourceCost);\n  const rca_multiplying_factor=parseInt($RCA_ResourceCount)*parseInt($RCA_ResourceCost);\n\n  let entityString = [];\n  let entityArr = $entity_tags;\n        \n  for (let i = 0; i < entityArr.length; i++) {\n    entityString.push(JSON.stringify(entityArr[i]));\n  }\n  let alerting_profile_str=$alerting_profile;\n  \n\nconst query = `fetch events, from: \\\"` + $dt_timeframe_from + `\\\",to:\\\" ` + $dt_timeframe_to + `\\\", scanLimitGBytes:-1\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n| filter dt.davis.is_duplicate == false and maintenance.is_under_maintenance==false\n| fieldsAdd entity_tags = if(isNull(entity_tags), \\\"NA\\\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| filter in(` + entityString + `,\"NONE\") OR in(tags,` + entityString + `)\n| expand alerting_profile=labels.alerting_profile\n| filter in(\"` + alerting_profile_str + `\",\"NONE\") OR in(alerting_profile,` + alerting_profile_str + `) \n| filter toLong(resolved_problem_duration) >=` + String(transition_time) + \n`\\n | fieldsAdd containRCA=(isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id))\n| summarize resolved_problem_duration=max(toLong(resolved_problem_duration)),\n            by:{display_id, containRCA}`;\n  \n  const response = await queryExecutionClient.queryExecute({ body: { query, requestTimeoutMilliseconds: timeout * 1000, fetchTimeoutSeconds: timeout  } });\n  console.log(response.result.records);\n\n  if (response.result.records[0] !== null && response.result.records[0] !== undefined) {\n    var incidents_with_rca=0;\n    var incidents_wo_rca=0;\n    var mttr_rca=[];\n    var mttr_no_rca=[];\n  \n    for (var i=0; i<response.result.records.length; i++) {\n      \n      if (response.result.records[i].containRCA) {\n        console.log(\"RCA\", response.result.records[i]);\n        incidents_with_rca = incidents_with_rca + 1;\n        mttr_rca.push(response.result.records[i].resolved_problem_duration/3600000000000);\n      }\n      else {\n        incidents_wo_rca = incidents_wo_rca + 1;\n        mttr_no_rca.push(response.result.records[i].resolved_problem_duration/3600000000000);\n      }\n    }\n   var total_time_spent_rca_incidents  =  median(mttr_rca)*incidents_with_rca;\n   var total_time_spend_norca_incidents = median(mttr_no_rca)*incidents_wo_rca;\n   var total_savings = (1 - (total_time_spent_rca_incidents*rca_multiplying_factor)/(total_time_spent_rca_incidents*norca_multiplying_factor))*(total_time_spend_norca_incidents*norca_multiplying_factor);\n       \n   return convert(total_savings);\n  }\n  else {\n    return -1;\n  }\n}\n",
+      "visualization": "singleValue",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": { "gapPolicy": "connect", "categoricalBarChartSettings": {} },
+        "singleValue": { "showLabel": false, "label": "", "autoscale": true, "recordField": "element" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": {
+          "shape": "hexagon",
+          "dataMappings": { "category": "element", "value": "element" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 1,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "20": {
+      "type": "code",
+      "title": "💰 Total Savings will All Problems managed with DAVIS AI CAUSATION",
+      "input": "/*\n* This function will run in the DYNATRACE JavaScript runtime.\n* For information visit https://dt-url.net/functions-help\n*/\nimport { queryExecutionClient } from '@dynatrace-sdk/client-query';\n\nfunction convert(n) {\n    if (n==null) {\n      return \"$ 0.00\";\n    }\n    else {\n\t  var parts = n.toFixed(2).toString().split(\".\");\n\t  const numberPart = parts[0];\n\t  //const decimalPart = parts[1];\n\t  const thousands = /\\B(?=(\\d{3})+(?!\\d))/g;\n      return \"$ \" + numberPart.replace(thousands, \",\");// + (decimalPart ? \".\" + decimalPart : \"\");\n    }\n}\nfunction median(array) {\n  array.sort((a, b) => a - b);\n  console.log(array);\n  // Get the middle element of the array.\n  const mid = Math.floor(array.length / 2);\n\n  // If the array has an odd number of elements, the median is the middle element.\n  if (array.length % 2 !== 0) {\n    return array[mid];\n  }\n\n  // If the array has an even number of elements, the median is the average of the two middle elements.\n  return (array[mid - 1] + array[mid]) / 2;\n}\nexport default async function () {\n  const timeout = 60;\n  const transition_time=parseInt($PIT_Selecor)*60000000000;\n  const norca_multiplying_factor=parseInt($NoRCA_ResourceCount)*parseInt($NoRCA_ResourceCost);\n  const rca_multiplying_factor=parseInt($RCA_ResourceCount)*parseInt($RCA_ResourceCost);\n  console.log(norca_multiplying_factor);\n  const potential_multiplying_factor=norca_multiplying_factor-rca_multiplying_factor;\n  console.log(\"Potential_factor:\", potential_multiplying_factor);\n\n  let entityString = [];\n  let entityArr = $entity_tags;\n        \n  for (let i = 0; i < entityArr.length; i++) {\n    entityString.push(JSON.stringify(entityArr[i]));\n  }\n  let alerting_profile_str=$alerting_profile;\n  \n\nconst query = `fetch events, from: \\\"` + $dt_timeframe_from + `\\\",to:\\\" ` + $dt_timeframe_to + `\\\", scanLimitGBytes:-1\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\"\n| fieldsAdd entity_tags = if(isNull(entity_tags), \\\"NA\\\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| filter in(` + entityString + `,\"NONE\") OR in(tags,` + entityString + `)\n| expand alerting_profile=labels.alerting_profile\n| filter in(\"` + alerting_profile_str + `\",\"NONE\") OR in(alerting_profile,` + alerting_profile_str + `) \n| filter dt.davis.is_duplicate == false and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >=` + String(transition_time) + \n`\\n | fieldsAdd containRCA=(isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id))\n| summarize resolved_problem_duration=max(toLong(resolved_problem_duration)),\n            by:{display_id, containRCA}`;\n  \n  const response = await queryExecutionClient.queryExecute({ body: { query, requestTimeoutMilliseconds: timeout * 1000, fetchTimeoutSeconds: timeout  } });\n  console.log(response.result.records);\n\n  if (response.result.records[0] !== null && response.result.records[0] !== undefined) {\n    var incidents_with_rca=0;\n    var incidents_wo_rca=0;\n    var mttr_rca=[];\n    var mttr_no_rca=[];\n  \n    for (var i=0; i<response.result.records.length; i++) {\n      \n      if (response.result.records[i].containRCA) {\n        console.log(\"RCA\", response.result.records[i]);\n        incidents_with_rca = incidents_with_rca + 1;\n        mttr_rca.push(response.result.records[i].resolved_problem_duration/3600000000000);\n      }\n      else {\n        incidents_wo_rca = incidents_wo_rca + 1;\n        mttr_no_rca.push(response.result.records[i].resolved_problem_duration/3600000000000);\n      }\n   }\n   var total_time_spent_rca_incidents  =  median(mttr_rca)*incidents_with_rca;\n   var total_time_spend_norca_incidents = (median(mttr_no_rca))*incidents_wo_rca;\n   var total_savings = (1 - (total_time_spent_rca_incidents*rca_multiplying_factor)/(total_time_spent_rca_incidents*norca_multiplying_factor))*(total_time_spend_norca_incidents*norca_multiplying_factor)\n                       + (total_time_spent_rca_incidents*potential_multiplying_factor);\n   \n   return convert(total_savings);\n  }\n  else {\n    return -1;\n  }\n}",
+      "visualization": "singleValue",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": { "gapPolicy": "connect", "categoricalBarChartSettings": {} },
+        "singleValue": { "showLabel": false, "label": "", "autoscale": false, "recordField": "element" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": {
+          "shape": "hexagon",
+          "dataMappings": { "category": "element", "value": "element" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 1,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "21": {
+      "type": "markdown",
+      "title": "",
+      "content": "##### 🚥 Operational Cost Parameter\n---\n>||  🟢 RCA   |   🔴 RCA\n> --- | --: | --: \n>👥 **No.**  **Resources** | $RCA_ResourceCount | $NoRCA_ResourceCount\n>🪙 **Hourly** **Cost** **/** **Resource** | $ $RCA_ResourceCost | $ $NoRCA_ResourceCost \n\n>\n##### 🚥 Problem to Incident Trans. Time:  ***$PIT_Selecor***\n---\n\n>Not all problems are required to be actioned. The parameter PIT_Selector is the threshold for total problem resolution time. In most cases, customers would ignore problems that were resolved in under 30 minutes."
+    },
+    "22": { "title": "", "type": "markdown", "content": "## 📈 Problems Trend Analysis" },
+    "26": {
+      "type": "data",
+      "title": "⏳ MTTR Comparison",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and event.status_transition==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| filter dt.davis.is_duplicate == false\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| fieldsAdd containRCA=if((isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id)),\"RCA\", else:\"NoRCA\")\n| summarize MTTR=avg(toLong(resolved_problem_duration))/3600000,\n          by:{bin(timestamp,1h), containRCA}",
+      "visualization": "lineChart",
+      "visualizationSettings": {
+        "thresholds": [
+          {
+            "id": 1,
+            "field": "",
+            "title": "",
+            "isEnabled": true,
+            "rules": [
+              {
+                "id": 0,
+                "color": { "Default": "var(--dt-colors-charts-categorical-color-09-default, #649438)" },
+                "comparator": "≥",
+                "label": "",
+                "value": 0
+              },
+              {
+                "id": 1,
+                "color": { "Default": "var(--dt-colors-charts-categorical-color-06-default, #a9780f)" },
+                "comparator": "≥",
+                "label": "",
+                "value": 250
+              },
+              {
+                "id": 2,
+                "color": { "Default": "var(--dt-colors-charts-categorical-color-12-default, #cd3741)" },
+                "comparator": "≥",
+                "label": "",
+                "value": 400
+              }
+            ]
+          }
+        ],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "colorPalette": "purple-rain",
+          "seriesOverrides": [
+            {
+              "seriesId": ["NoRCA", "MTTR"],
+              "override": {
+                "color": {
+                  "Default": "var(--dt-colors-charts-categorical-color-12-default, #d50b34)",
+                  "Hover": "var(--dt-colors-charts-categorical-color-12-hover, #b30024)",
+                  "Active": "var(--dt-colors-charts-categorical-color-12-active, #7e071d)",
+                  "DefaultTransparent": "var(--dt-colors-charts-categorical-color-12-default-transparent, #c5000ccc)",
+                  "HoverTransparent": "var(--dt-colors-charts-categorical-color-12-hover-transparent, #83000fcc)",
+                  "ActiveTransparent": "var(--dt-colors-charts-categorical-color-12-active-transparent, #140000cc)"
+                }
+              }
+            },
+            { "seriesId": ["NoRCA", "MTTR"], "override": { "color": "#b3007d" } },
+            {
+              "seriesId": ["No RCA", "MTTR"],
+              "override": {
+                "color": {
+                  "Default": "var(--dt-colors-charts-categorical-color-12-default, #d50b34)",
+                  "Hover": "var(--dt-colors-charts-categorical-color-12-hover, #b30024)",
+                  "Active": "var(--dt-colors-charts-categorical-color-12-active, #7e071d)",
+                  "DefaultTransparent": "var(--dt-colors-charts-categorical-color-12-default-transparent, #c5000ccc)",
+                  "HoverTransparent": "var(--dt-colors-charts-categorical-color-12-hover-transparent, #83000fcc)",
+                  "ActiveTransparent": "var(--dt-colors-charts-categorical-color-12-active-transparent, #140000cc)"
+                }
+              }
+            },
+            {
+              "seriesId": ["With RCA", "MTTR"],
+              "override": {
+                "color": {
+                  "Default": "var(--dt-colors-charts-categorical-color-09-default, #0d9c29)",
+                  "Hover": "var(--dt-colors-charts-categorical-color-09-hover, #0a7b20)",
+                  "Active": "var(--dt-colors-charts-categorical-color-09-active, #075f19)",
+                  "DefaultTransparent": "var(--dt-colors-charts-categorical-color-09-default-transparent, #008500cc)",
+                  "HoverTransparent": "var(--dt-colors-charts-categorical-color-09-hover-transparent, #005905cc)",
+                  "ActiveTransparent": "var(--dt-colors-charts-categorical-color-09-active-transparent, #003112cc)"
+                }
+              }
+            }
+          ],
+          "leftYAxisSettings": { "label": "Average MTTR" },
+          "categoricalBarChartSettings": {
+            "categoryAxis": "containRCA",
+            "categoryAxisLabel": "containRCA",
+            "valueAxis": "MTTR",
+            "valueAxisLabel": "MTTR"
+          },
+          "fieldMapping": {
+            "timestamp": "bin(timestamp, 1h)",
+            "leftAxisValues": ["MTTR"],
+            "leftAxisDimensions": ["containRCA"]
+          },
+          "hiddenLegendFields": []
+        },
+        "singleValue": { "showLabel": true, "label": "", "autoscale": true, "recordField": "bin(timestamp, 1h)" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": {
+          "shape": "hexagon",
+          "dataMappings": { "category": "containRCA", "value": "bin(timestamp, 1h)" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [{ "valueAxis": "MTTR", "rangeAxis": "" }] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "27": {
+      "type": "data",
+      "title": "🤖 DAVIS detected Problems RCA Vs NoRCA",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and event.status_transition==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| filter dt.davis.is_duplicate == false\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| fieldsAdd containRCA=if((isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id)),\"RCA\", else:\"NoRCA\")\n| summarize Problems=count(),\n          by:{bin(timestamp, 12h), containRCA}",
+      "visualization": "barChart",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "colorPalette": "categorical",
+          "seriesOverrides": [
+            {
+              "seriesId": ["With RCA", "Problems"],
+              "override": {
+                "color": {
+                  "Default": "var(--dt-colors-charts-categorical-color-09-default, #0d9c29)",
+                  "Hover": "var(--dt-colors-charts-categorical-color-09-hover, #0a7b20)",
+                  "Active": "var(--dt-colors-charts-categorical-color-09-active, #075f19)",
+                  "DefaultTransparent": "var(--dt-colors-charts-categorical-color-09-default-transparent, #008500cc)",
+                  "HoverTransparent": "var(--dt-colors-charts-categorical-color-09-hover-transparent, #005905cc)",
+                  "ActiveTransparent": "var(--dt-colors-charts-categorical-color-09-active-transparent, #003112cc)"
+                }
+              }
+            },
+            { "seriesId": ["No RCA", "Problems"], "override": { "color": "#EC5413" } }
+          ],
+          "leftYAxisSettings": { "label": "Total Number of Problems Detected" },
+          "categoricalBarChartSettings": {
+            "categoryAxis": "containRCA",
+            "categoryAxisLabel": "containRCA",
+            "valueAxis": "Problems",
+            "valueAxisLabel": "Problems"
+          },
+          "fieldMapping": {
+            "timestamp": "bin(timestamp, 12h)",
+            "leftAxisValues": ["Problems"],
+            "leftAxisDimensions": ["containRCA"]
+          },
+          "hiddenLegendFields": []
+        },
+        "singleValue": { "showLabel": true, "label": "", "autoscale": true, "recordField": "bin(timestamp, 12h)" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": {
+          "shape": "hexagon",
+          "dataMappings": { "category": "containRCA", "value": "bin(timestamp, 12h)" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [{ "valueAxis": "Problems", "rangeAxis": "" }] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "28": {
+      "type": "data",
+      "title": "〽️ Estimate Operation Cost Comparison RCA Vs NoRCA",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and event.status_transition==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| fieldsAdd containRCA=if((isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id)),\"RCA\", else:\"NoRCA\")\n| fieldsAdd testRCA=(isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id))\n| summarize TotalCost=if(takeAny(testRCA),((sum(toLong(resolved_problem_duration))/3600000000000)*toLong($RCA_ResourceCost)*toLong($RCA_ResourceCount)),else:(sum(toLong(resolved_problem_duration))/3600000)*toLong($NoRCA_ResourceCost)*toLong($NoRCA_ResourceCount)),\n          by:{bin(timestamp, 12h), containRCA}",
+      "visualization": "lineChart",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "colorPalette": "categorical",
+          "seriesOverrides": [{ "seriesId": ["No RCA", "TotalCost"], "override": { "color": "#b3007d" } }],
+          "leftYAxisSettings": { "label": "💵 Total Cost ($)" },
+          "categoricalBarChartSettings": {
+            "categoryAxis": "containRCA",
+            "categoryAxisLabel": "containRCA",
+            "valueAxis": "TotalCost",
+            "valueAxisLabel": "TotalCost"
+          },
+          "fieldMapping": {
+            "timestamp": "bin(timestamp, 12h)",
+            "leftAxisValues": ["TotalCost"],
+            "leftAxisDimensions": ["containRCA"]
+          },
+          "hiddenLegendFields": []
+        },
+        "singleValue": { "showLabel": true, "label": "", "autoscale": true, "recordField": "bin(timestamp, 12h)" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": {
+          "shape": "hexagon",
+          "dataMappings": { "category": "containRCA", "value": "bin(timestamp, 12h)" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [{ "valueAxis": "TotalCost", "rangeAxis": "" }] }
+      },
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "32": {
+      "type": "code",
+      "title": "selected tags",
+      "input": "export default async function() {\n  let selectedList=\"🔹 \" + $entity_tags;\n  return selectedList;\n}",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": { "gapPolicy": "connect", "categoricalBarChartSettings": {} },
+        "singleValue": { "showLabel": true, "label": "", "autoscale": true, "recordField": "element" },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [], "rowDensity": "condensed" },
+        "honeycomb": {
+          "shape": "hexagon",
+          "dataMappings": { "category": "element", "value": "element" },
+          "legend": "auto"
+        },
+        "histogram": { "dataMappings": [] }
+      },
+      "visualization": "table",
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 1,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      }
+    },
+    "34": { "type": "markdown", "title": "", "content": "### 🎛️ Dashboard Parameter Selection\n---" },
+    "39": { "type": "markdown", "title": "", "content": "---\n\n\n\n" },
+    "40": { "type": "markdown", "title": "", "content": "### 💡 Key Benefits Summary\n---" },
+    "41": { "type": "markdown", "title": "", "content": ">###### 👽 WITH DAVIS AI CAUSATION" },
+    "42": { "type": "markdown", "title": "", "content": ">######  🤷 WITHOUT DAVIS AI CAUSATION" },
+    "43": { "type": "markdown", "title": "", "content": ">\n### 🚨 Operational Cost Benefit\n---\n\n\n\n" },
+    "44": {
+      "type": "data",
+      "title": "Incidents RCA Vs NoRCA",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter dt.davis.is_duplicate == false \n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| summarize Incidents = countDistinct(display_id), by:{display_id,root_cause_entity_id, root_cause_me_id}\n| fieldsAdd RCA=if(isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id), \"RCA\", else: \"NoRCA\")\n| summarize SubTotal=count(), by:{RCA}\n",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "colorPalette": "purple-rain",
+          "circleChartSettings": {
+            "thresholdType": "relative",
+            "hideLabels": false,
+            "showTotalValue": true,
+            "valueType": "relative"
+          },
+          "legend": { "position": "bottom", "hidden": false },
+          "categoricalBarChartSettings": {
+            "categoryAxis": "RCA",
+            "categoryAxisLabel": "RCA",
+            "valueAxis": "SubTotal",
+            "valueAxisLabel": "SubTotal"
+          }
+        },
+        "singleValue": {
+          "showLabel": false,
+          "label": "Incidents with RCA -> Higher the better",
+          "autoscale": false,
+          "recordField": "RCA"
+        },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": {
+          "shape": "hexagon",
+          "dataMappings": { "category": "RCA", "value": "SubTotal" },
+          "legend": "auto"
+        },
+        "singleValueSettings": { "suffix": "incidents", "showLabel": false, "autoscale": true },
+        "histogram": { "dataMappings": [{ "valueAxis": "SubTotal", "rangeAxis": "" }] }
+      },
+      "visualization": "donutChart",
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "45": {
+      "type": "data",
+      "title": "Cost Distribution RCA Vs NoRCA",
+      "query": "fetch dt.davis.problems\n| filter event.kind==\"DAVIS_PROBLEM\" and event.status==\"CLOSED\" and event.status_transition==\"CLOSED\" and maintenance.is_under_maintenance==false\n| filter dt.davis.is_duplicate == false\n| filter toLong(resolved_problem_duration) >= (toLong($PIT_Selecor)*60000000000)\n| fieldsAdd entity_tags = if(isNull(entity_tags), \"NA\", else:entity_tags)\n| expand entityId = affected_entity_ids\n| expand tags=entity_tags\n| expand alerting_profile=labels.alerting_profile\n| filter in($entity_tags, \"NONE\") OR in(tags,$entity_tags)\n| filter in($alerting_profile, \"NONE\") OR in(alerting_profile,$alerting_profile)\n| dedup display_id\n| summarize Incidents = countDistinct(display_id), by:{display_id,root_cause_entity_id, root_cause_me_id, resolved_problem_duration}\n| fieldsAdd containRCA=if((isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id)),\"RCA\", else:\"NoRCA\")\n| fieldsAdd testRCA=(isNotNull(root_cause_entity_id) or isNotNull(root_cause_me_id))\n| summarize TotalCost=if(takeAny(testRCA),((sum(toLong(resolved_problem_duration))/3600000)*toLong($RCA_ResourceCost)*toLong($RCA_ResourceCount)),else:(sum(toLong(resolved_problem_duration))/3600000)*toLong($NoRCA_ResourceCost)*toLong($NoRCA_ResourceCount)),\n          by:{containRCA}",
+      "visualizationSettings": {
+        "thresholds": [],
+        "chartSettings": {
+          "gapPolicy": "connect",
+          "colorPalette": "log-status",
+          "circleChartSettings": { "thresholdType": "relative", "hideLabels": false, "showTotalValue": false },
+          "legend": { "position": "bottom", "hidden": false },
+          "categoricalBarChartSettings": {
+            "categoryAxis": "containRCA",
+            "categoryAxisLabel": "containRCA",
+            "valueAxis": "TotalCost",
+            "valueAxisLabel": "TotalCost"
+          }
+        },
+        "singleValue": {
+          "showLabel": false,
+          "label": "Incidents with RCA -> Higher the better",
+          "autoscale": false,
+          "recordField": "containRCA"
+        },
+        "table": { "enableLineWrap": true, "hiddenColumns": [], "lineWrapIds": [] },
+        "honeycomb": {
+          "shape": "hexagon",
+          "dataMappings": { "category": "containRCA", "value": "TotalCost" },
+          "legend": "auto"
+        },
+        "singleValueSettings": { "suffix": "incidents", "showLabel": false, "autoscale": true },
+        "histogram": { "dataMappings": [{ "valueAxis": "TotalCost", "rangeAxis": "" }] }
+      },
+      "visualization": "donutChart",
+      "querySettings": {
+        "maxResultRecords": 1000,
+        "defaultScanLimitGbytes": 500,
+        "maxResultMegaBytes": 100,
+        "defaultSamplingRatio": 10,
+        "enableSampling": false
+      },
+      "davis": {}
+    },
+    "46": { "type": "markdown", "title": "", "content": "---\n\n\n\n" },
+    "47": { "type": "markdown", "title": "", "content": "###### ⏱️ Avg. MTTR\n---\n\n\n\n" },
+    "48": { "type": "markdown", "title": "", "content": "###### ⚠️ Incidents\n---" },
+    "49": { "type": "markdown", "title": "", "content": "###### 💰Est. Cost\n---\n\n\n\n" },
+    "50": { "type": "markdown", "title": "", "content": "\n\n\n\n" },
+    "51": { "type": "markdown", "title": "", "content": ">##### 💰 Est. Cost Savings" },
+    "52": { "type": "markdown", "title": "", "content": "---\n\n\n\n" },
+    "53": { "type": "markdown", "title": "", "content": "---\n\n\n\n" },
+    "54": { "type": "markdown", "title": "", "content": "---\n\n\n\n" },
+    "55": {
+      "type": "markdown",
+      "title": "",
+      "content": ">Not all problems are equal hence the MTTR for the problems may not provide absolute comparison between the two RCA and NoRCA MTTR. However, it provides reasonable indication of what can be done to optimise the MTTR event further. If MTTR of RCA is significantly higher, then we need to see if the adequate configuration has been performed so that the internal team is leveraging Dynatrace at its full capacity. Poorly configured Dynatrace may deter customer’s team not to action due to alert storms."
+    },
+    "56": {
+      "type": "markdown",
+      "title": "",
+      "content": ">Not all problems are equal hence the MTTR for the problems may not provide absolute comparison between the two RCA and NoRCA MTTR. However, it provides reasonable indication of what can be done to optimise the MTTR event further. If MTTR of RCA is significantly higher, then we need to see if the adequate configuration has been performed so that the internal team is leveraging Dynatrace at its full capacity. Poorly configured Dynatrace may deter customer’s team not to action due to alert storms."
+    },
+    "57": {
+      "type": "markdown",
+      "title": "",
+      "content": ">Not all problems are equal hence the MTTR for the problems may not provide absolute comparison between the two RCA and NoRCA MTTR. However, it provides reasonable indication of what can be done to optimise the MTTR event further. If MTTR of RCA is significantly higher, then we need to see if the adequate configuration has been performed so that the internal team is leveraging Dynatrace at its full capacity. Poorly configured Dynatrace may deter customer’s team not to action due to alert storms."
+    }
+  },
+  "layouts": {
+    "1": { "x": 8, "y": 6, "w": 3, "h": 2 },
+    "3": { "x": 11, "y": 6, "w": 3, "h": 2 },
+    "4": { "x": 14, "y": 15, "w": 5, "h": 3 },
+    "7": { "x": 8, "y": 2, "w": 6, "h": 4 },
+    "8": { "x": 10, "y": 11, "w": 4, "h": 3 },
+    "9": { "x": 10, "y": 15, "w": 4, "h": 3 },
+    "12": { "x": 14, "y": 11, "w": 5, "h": 3 },
+    "16": { "x": 19, "y": 11, "w": 5, "h": 3 },
+    "17": { "x": 19, "y": 15, "w": 5, "h": 3 },
+    "18": { "x": 10, "y": 19, "w": 7, "h": 3 },
+    "19": { "x": 17, "y": 19, "w": 7, "h": 3 },
+    "20": { "x": 10, "y": 22, "w": 14, "h": 3 },
+    "21": { "x": 0, "y": 2, "w": 6, "h": 7 },
+    "22": { "x": 0, "y": 26, "w": 24, "h": 1 },
+    "26": { "x": 0, "y": 27, "w": 19, "h": 5 },
+    "27": { "x": 0, "y": 32, "w": 19, "h": 6 },
+    "28": { "x": 0, "y": 38, "w": 19, "h": 5 },
+    "32": { "x": 0, "y": 9, "w": 6, "h": 3 },
+    "34": { "x": 0, "y": 0, "w": 7, "h": 1 },
+    "39": { "x": 7, "y": 14, "w": 17, "h": 1 },
+    "40": { "x": 7, "y": 0, "w": 17, "h": 1 },
+    "41": { "x": 7, "y": 11, "w": 3, "h": 3 },
+    "42": { "x": 7, "y": 15, "w": 3, "h": 3 },
+    "43": { "x": 7, "y": 8, "w": 17, "h": 2 },
+    "44": { "x": 14, "y": 2, "w": 5, "h": 6 },
+    "45": { "x": 19, "y": 2, "w": 5, "h": 6 },
+    "46": { "x": 7, "y": 18, "w": 17, "h": 1 },
+    "47": { "x": 10, "y": 10, "w": 4, "h": 1 },
+    "48": { "x": 14, "y": 10, "w": 5, "h": 1 },
+    "49": { "x": 19, "y": 10, "w": 5, "h": 1 },
+    "50": { "x": 7, "y": 10, "w": 3, "h": 1 },
+    "51": { "x": 7, "y": 19, "w": 3, "h": 6 },
+    "52": { "x": 7, "y": 1, "w": 17, "h": 1 },
+    "53": { "x": 0, "y": 1, "w": 7, "h": 1 },
+    "54": { "x": 0, "y": 25, "w": 24, "h": 1 },
+    "55": { "x": 19, "y": 27, "w": 5, "h": 5 },
+    "56": { "x": 19, "y": 32, "w": 5, "h": 6 },
+    "57": { "x": 19, "y": 38, "w": 5, "h": 5 }
+  },
+  "importedWithCode": true
+}

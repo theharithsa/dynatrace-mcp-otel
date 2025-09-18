@@ -11,7 +11,16 @@
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-green?logo=anthropic&logoColor=white)](https://modelcontextprotocol.io/)
 [![Dynatrace Platform](https://img.shields.io/badge/Dynatrace-Platform%20Ready-blue?logo=dynatrace&logoColor=white)](https://docs.dynatrace.com/)
 
-A Model Context Protocol (MCP) server that provides AI assistants with comprehensive access to Dynatrace observability data, automation capabilities, and operational insights. Enhanced with Davis CoPilot AI for intelligent query generation, natural language explanations, and professional email communication.
+A powerful Model Context Protocol (MCP) server that provides AI assistants with comprehensive access to Dynatrace's observability platform. Features dual authentication architecture, Davis CoPilot AI integration, and 27 specialized tools for monitoring, automation, and operational intelligence.
+
+## 🚀 What's New in v2.6.0
+
+- **📊 Grail Budget Tracking**: Advanced budget monitoring system with real-time usage tracking, warnings, and limits
+- **� Enhanced DQL Execution**: Improved metadata extraction, error handling, and budget integration
+- **📈 HTTP Server Mode**: Run as a standalone HTTP server for broader integration possibilities
+- **🔧 Enhanced Logging**: Comprehensive logging system with configurable levels and structured output
+- **🧪 Comprehensive Testing**: 38 test cases covering all major functionality with 100% success rate
+- **📚 Extended Documentation**: Updated guides, examples, and troubleshooting resources
 
 ## Costs
 
@@ -117,12 +126,48 @@ npm install -g @theharithsa/dynatrace-mcp-server
 }
 ```
 
+### HTTP Server Mode (NEW!)
+
+Run as a standalone HTTP server for broader integration possibilities:
+
+```bash
+# Install globally first
+npm install -g @theharithsa/dynatrace-mcp-server
+
+# Run as HTTP server (requires all environment variables set)
+dynatrace-mcp-server --http-port 3000
+
+# Server will be available at http://localhost:3000
+# Endpoints:
+# GET  /health      - Health check
+# POST /tools/list  - List available tools  
+# POST /tools/call  - Execute tool calls
+```
+
+**Environment Variables for HTTP Mode:**
+```bash
+export OAUTH_CLIENT_ID="dt0s02.your-client-id"
+export OAUTH_CLIENT_SECRET="dt0s02.your-client-id.your-client-secret"
+export DT_ENVIRONMENT="https://your-tenant.apps.dynatrace.com"
+export DT_GRAIL_QUERY_BUDGET_GB="100"  # Optional: Set Grail budget limit
+export LOG_LEVEL="info"                # Optional: debug, info, warn, error
+```
+
+**Docker Support:**
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+RUN npm install -g @theharithsa/dynatrace-mcp-server
+EXPOSE 3000
+CMD ["dynatrace-mcp-server", "--http-port", "3000"]
+```
+
 ## Available Tools
 
 ### 🤖 Davis CoPilot AI (NEW!)
 
 - **`generate_dql_from_natural_language`** - Convert natural language to DQL queries using Davis CoPilot AI
-- **`explain_dql_in_natural_language`** - Get plain English explanations of complex DQL statements  
+- **`explain_dql_in_natural_language`** - Get plain English explanations of complex DQL statements
 - **`chat_with_davis_copilot`** - AI-powered assistant for Dynatrace questions and troubleshooting
 
 ### 🔍 Monitoring & Observability
@@ -164,6 +209,11 @@ npm install -g @theharithsa/dynatrace-mcp-server
 - **`send_slack_message`** - Send messages via Slack integration
 - **`send_email`** - Send emails via Dynatrace Email API
 
+### 📊 Budget & Usage Management (NEW!)
+
+- **`get_grail_budget_status`** - Get current Grail query budget usage and limits
+- **`reset_grail_budget`** - Reset the Grail budget tracker to start fresh
+
 ## Davis CoPilot AI Integration
 
 ### Overview
@@ -177,7 +227,9 @@ Davis CoPilot AI integration brings intelligent query generation and natural lan
 ### Key Features
 
 #### Natural Language to DQL
+
 Transform plain English into powerful queries:
+
 ```
 "Show me errors in the payment service from the last hour"
 ↓
@@ -185,7 +237,9 @@ fetch logs | filter contains(content, "error") and dt.entity.service == "payment
 ```
 
 #### DQL Explanation
+
 Understand complex queries in plain English:
+
 ```
 fetch spans | filter duration > 5s | summarize avg(duration) by service.name
 ↓
@@ -193,11 +247,13 @@ fetch spans | filter duration > 5s | summarize avg(duration) by service.name
 ```
 
 #### AI Assistant
+
 Get contextual help for any Dynatrace topic, from troubleshooting to best practices.
 
 ### Workflow Integration
 
 The recommended AI workflow is:
+
 1. **Generate**: Use `generate_dql_from_natural_language` to create queries
 2. **Verify**: Use `verify_dql` to validate syntax
 3. **Execute**: Use `execute_dql` to run the query
@@ -216,6 +272,7 @@ davis-copilot:conversations:execute
 ### Usage Examples
 
 #### Generate DQL from Natural Language
+
 ```json
 {
   "tool": "generate_dql_from_natural_language",
@@ -226,9 +283,10 @@ davis-copilot:conversations:execute
 ```
 
 #### Explain Complex DQL
+
 ```json
 {
-  "tool": "explain_dql_in_natural_language", 
+  "tool": "explain_dql_in_natural_language",
   "arguments": {
     "dql": "fetch logs | filter status_code == 500 | summarize count() by service.name | sort count desc"
   }
@@ -236,6 +294,7 @@ davis-copilot:conversations:execute
 ```
 
 #### Chat with Davis CoPilot
+
 ```json
 {
   "tool": "chat_with_davis_copilot",
@@ -250,41 +309,49 @@ davis-copilot:conversations:execute
 
 ### Core Required Variables
 
-| Variable | Description | Example | Required |
-|----------|-------------|---------|----------|
-| `OAUTH_CLIENT_ID` | Dynatrace OAuth Client ID | `dt0s02.ABC123...` | ✅ |
-| `OAUTH_CLIENT_SECRET` | Dynatrace OAuth Client Secret | `dt0s02.ABC123.DEF456...` | ✅ |
-| `DT_ENVIRONMENT` | Dynatrace environment URL (Platform API) | `https://abc12345.apps.dynatrace.com` | ✅ |
-| `DT_PLATFORM_TOKEN` | Platform API token for Davis CoPilot | `dt0c01.XYZ789...` | ✅ (for Davis CoPilot) |
+| Variable              | Description                              | Example                               | Required               |
+| --------------------- | ---------------------------------------- | ------------------------------------- | ---------------------- |
+| `OAUTH_CLIENT_ID`     | Dynatrace OAuth Client ID                | `dt0s02.ABC123...`                    | ✅                     |
+| `OAUTH_CLIENT_SECRET` | Dynatrace OAuth Client Secret            | `dt0s02.ABC123.DEF456...`             | ✅                     |
+| `DT_ENVIRONMENT`      | Dynatrace environment URL (Platform API) | `https://abc12345.apps.dynatrace.com` | ✅                     |
+| `DT_PLATFORM_TOKEN`   | Platform API token for Davis CoPilot     | `dt0c01.XYZ789...`                    | ✅ (for Davis CoPilot) |
+
+### Budget & Logging Configuration (NEW!)
+
+| Variable                      | Description                          | Example | Default |
+| ----------------------------- | ------------------------------------ | ------- | ------- |
+| `DT_GRAIL_QUERY_BUDGET_GB`    | Grail query budget limit in GB       | `100`   | `10`    |
+| `LOG_LEVEL`                   | Logging level (debug/info/warn/error)| `info`  | `info`  |
+| `HTTP_PORT`                   | Port for HTTP server mode            | `3000`  | None    |
 
 ### OAuth Configuration (Optional)
 
-| Variable | Description | Default |
-|----------|-------------|---------|
+| Variable          | Description          | Default                                      |
+| ----------------- | -------------------- | -------------------------------------------- |
 | `OAUTH_TOKEN_URL` | OAuth token endpoint | `https://sso.dynatrace.com/sso/oauth2/token` |
-| `OAUTH_URN` | OAuth resource URN | `urn:dtaccount:<your-account-urn-guid>` |
+| `OAUTH_URN`       | OAuth resource URN   | `urn:dtaccount:<your-account-urn-guid>`      |
 
 ### OpenTelemetry Tracing (Optional)
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP endpoint for traces | `https://abc12345.live.dynatrace.com/api/v2/otlp/v1/traces` |
-| `DYNATRACE_API_TOKEN` | API token for trace/log export | `dt0c01.ABC123...` |
-| `DYNATRACE_LOG_INGEST_URL` | Log ingest endpoint | `https://abc12345.live.dynatrace.com/api/v2/logs/ingest` |
-| `OTEL_RESOURCE_ATTRIBUTES` | OpenTelemetry resource attributes | `service.name=dynatrace-mcp-server,service.version=2.2.0` |
+| Variable                      | Description                       | Example                                                     |
+| ----------------------------- | --------------------------------- | ----------------------------------------------------------- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP endpoint for traces          | `https://abc12345.live.dynatrace.com/api/v2/otlp/v1/traces` |
+| `DYNATRACE_API_TOKEN`         | API token for trace/log export    | `dt0c01.ABC123...`                                          |
+| `DYNATRACE_LOG_INGEST_URL`    | Log ingest endpoint               | `https://abc12345.live.dynatrace.com/api/v2/logs/ingest`    |
+| `OTEL_RESOURCE_ATTRIBUTES`    | OpenTelemetry resource attributes | `service.name=dynatrace-mcp-server,service.version=2.2.0`   |
 
 ### Slack Integration (Optional)
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SLACK_CONNECTION_ID` | Slack connection ID from Dynatrace | None |
+| Variable              | Description                        | Default |
+| --------------------- | ---------------------------------- | ------- |
+| `SLACK_CONNECTION_ID` | Slack connection ID from Dynatrace | None    |
 
 ### Document Sharing (Optional)
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DT_SHARE_RECIPIENTS` | Comma-separated list of user/group IDs | None |
-| `DT_SHARE_TYPE` | Type of recipients (user/group) | `group` |
+| Variable              | Description                            | Default |
+| --------------------- | -------------------------------------- | ------- |
+| `DT_SHARE_RECIPIENTS` | Comma-separated list of user/group IDs | None    |
+| `DT_SHARE_TYPE`       | Type of recipients (user/group)        | `group` |
 
 ### Complete Configuration Example
 
@@ -312,45 +379,113 @@ davis-copilot:conversations:execute
 
 ## Authentication
 
-### Required Scopes
+### 🔐 Dual Authentication Architecture
 
-Your OAuth client needs these scopes:
+Version 2.5.0 introduces a powerful dual authentication system that automatically routes requests to the appropriate Dynatrace API endpoints:
 
-**Core Scopes:**
+#### 1. **OAuth Client Authentication** (Primary)
 
-- `app-engine:apps:run`
-- `app-engine:functions:run`
+- **Purpose**: Davis CoPilot AI, advanced platform features, and app execution
+- **Endpoint**: `apps.dynatrace.com`
+- **Token Format**: `dt0s02.CLIENT_ID` and `dt0s02.CLIENT_ID.CLIENT_SECRET`
+- **Configuration**: `OAUTH_CLIENT_ID` and `OAUTH_CLIENT_SECRET`
 
-**Davis CoPilot Scopes (NEW!):**
+#### 2. **API Token Authentication** (Secondary)
 
-- `davis-copilot:nl2dql:execute` - For natural language to DQL conversion
-- `davis-copilot:dql2nl:execute` - For DQL explanation in natural language
-- `davis-copilot:conversations:execute` - For AI-powered conversations
+- **Purpose**: Entity operations, tagging, basic data access
+- **Endpoint**: `live.dynatrace.com`
+- **Token Format**: `dt0c01.API_TOKEN`
+- **Configuration**: `DT_API_TOKEN` (optional for entity operations)
 
-**Feature-Specific Scopes:**
+#### 3. **Platform Token Authentication** (Tertiary)
 
-- `environment-api:security-problems:read` - For vulnerability management
-- `environment-api:problems:read` - For problem analysis
-- `environment-api:entities:read` - For entity information
-- `storage:*:read` - For DQL queries (logs, metrics, events, etc.)
-- `automation:workflows:write` - For workflow creation
-- `automation:workflows:read` - For workflow management
-- `automation:workflows:run` - For workflow execution
-- `document:documents:write` - For dashboard creation
-- `document:documents:delete` - For dashboard deletion
-- `document:environment-shares:write` - For document sharing
-- `document:direct-shares:write` - For direct document sharing
-- `app-settings:objects:read` - For Slack integration
-- `settings:objects:read` - For ownership information
-- `email:emails:send` - For sending emails via Dynatrace Email API
+- **Purpose**: Environment information and platform management
+- **Endpoint**: `apps.dynatrace.com`
+- **Token Format**: `dt0s16.PLATFORM_TOKEN`
+- **Configuration**: `DT_PLATFORM_TOKEN` (optional for environment info)
 
-### Setting Up OAuth Client
+### Required OAuth Scopes
+
+**🤖 Davis CoPilot AI (Core Features):**
+
+- `davis-copilot:nl2dql:execute` - Natural language to DQL conversion
+- `davis-copilot:dql2nl:execute` - DQL explanation in natural language
+- `davis-copilot:conversations:execute` - AI-powered conversations
+
+**🏗️ Platform & App Engine:**
+
+- `app-engine:apps:run` - Execute Dynatrace apps
+- `app-engine:functions:run` - Execute TypeScript functions
+
+**📊 Data & Query Engine:**
+
+- `storage:*:read` - DQL queries (logs, metrics, events, spans)
+- `environment-api:entities:read` - Entity information
+- `environment-api:entities:write` - Entity tagging (when using OAuth)
+
+**🔍 Monitoring & Security:**
+
+- `environment-api:problems:read` - Problem analysis
+- `environment-api:security-problems:read` - Vulnerability management
+
+**🔧 Automation & Workflows:**
+
+- `automation:workflows:write` - Workflow creation
+- `automation:workflows:read` - Workflow management
+- `automation:workflows:run` - Workflow execution
+
+**📋 Documents & Dashboards:**
+
+- `document:documents:write` - Dashboard creation
+- `document:documents:delete` - Dashboard deletion
+- `document:environment-shares:write` - Document sharing
+- `document:direct-shares:write` - Direct document sharing
+
+**💬 Communication:**
+
+- `email:emails:send` - Email notifications
+- `app-settings:objects:read` - Slack integration
+- `settings:objects:read` - Ownership information
+
+### Setting Up Authentication
+
+#### Step 1: Create OAuth Client
 
 1. Navigate to **Settings** → **Platform Management** → **OAuth clients**
 2. Click **Create OAuth client**
 3. Set **Client type** to `Public`
 4. Add all required scopes from the list above
 5. Save and copy the Client ID and Secret
+
+#### Step 2: (Optional) Generate API Token
+
+1. Go to **Settings** → **Access Tokens** → **Generate new token**
+2. Add scopes: `entities.read`, `entities.write`, `problems.read`
+3. Copy the token (format: `dt0c01.XXXXXX`)
+
+#### Step 3: Configuration
+
+**Minimal Configuration (OAuth only):**
+
+```json
+{
+  "OAUTH_CLIENT_ID": "dt0s02.ABC123...",
+  "OAUTH_CLIENT_SECRET": "dt0s02.ABC123.DEF456...",
+  "DT_ENVIRONMENT": "https://abc12345.apps.dynatrace.com"
+}
+```
+
+**Full Configuration (All features):**
+
+```json
+{
+  "OAUTH_CLIENT_ID": "dt0s02.ABC123...",
+  "OAUTH_CLIENT_SECRET": "dt0s02.ABC123.DEF456...",
+  "DT_ENVIRONMENT": "https://abc12345.apps.dynatrace.com",
+  "DT_API_TOKEN": "dt0c01.XYZ789...",
+  "DT_PLATFORM_TOKEN": "dt0s16.PLATFORM123..."
+}
+```
 
 ## Advanced Usage
 
@@ -364,7 +499,7 @@ Execute custom logic using the Dynatrace Function Executor:
 
 ```typescript
 // Example: Query and process data
-export default async function({ entityId }) {
+export default async function ({ entityId }) {
   // Your custom TypeScript code here
   return { processed: true, entityId };
 }
@@ -390,6 +525,7 @@ Send professional emails with rich formatting using the `send_email` tool:
 ```
 
 **Key Features:**
+
 - Support for To, CC, and BCC recipients (up to 100 total)
 - HTML and plain text content types
 - Professional formatting with markdown support

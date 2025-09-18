@@ -14,7 +14,6 @@ Clear explanations of the changes and resolutions for each bug
 
 All Slack messages must be clear, concise, and properly formatted for readability, highlighting the location and severity of each bug and fix. You don't have to ask my feedback about the plan you can continue executing and craft a beautiful slack message which should be visually appealing and then send the report summary to slack channel #teams-bugs.
 
-
 # Vulnerabilities:
 
 Please perform a comprehensive vulnerability assessment of the environment:
@@ -27,8 +26,7 @@ Please perform a comprehensive vulnerability assessment of the environment:
 3. Send the vulnerability report to the #team-security Slack channel, using Slack formatting for sections and emphasis.
 4. Include direct links to relevant dashboards or supporting documentation.
 
-Ensure the report is actionable, well-structured, and easy to interpret at a glance. You don't have to ask my feedback about the plan you can continue executing and craft a beautiful slack message which should be visually appealing. 
-
+Ensure the report is actionable, well-structured, and easy to interpret at a glance. You don't have to ask my feedback about the plan you can continue executing and craft a beautiful slack message which should be visually appealing.
 
 # Env Health Check
 
@@ -43,8 +41,7 @@ Actionable remediation recommendations
 Relevant timestamps and direct links to each host’s environment page
 Send the completed health report to the #team-ops Slack channel, formatted for clarity and easy review.
 
-Please proceed with the test as well don't ask my confirmation. Also please do beautiful formatting for slack message. While adding links, please make sure you fetch env details and add links accordingly and also in the footer please mention Analysis done by Vishruth Harithsa and add current date and time. Please add links and make the font smaller for those links. 
-
+Please proceed with the test as well don't ask my confirmation. Also please do beautiful formatting for slack message. While adding links, please make sure you fetch env details and add links accordingly and also in the footer please mention Analysis done by Vishruth Harithsa and add current date and time. Please add links and make the font smaller for those links.
 
 # Service
 
@@ -62,8 +59,4 @@ Send the complete RCA and recommendations to the #team-service-health Slack chan
 
 Ensure all findings are clearly formatted, actionable, and easy to follow. Please proceed with the test as well don't ask my confirmation. Also please do beautiful formatting for slack message.
 
-While adding links, please make sure you fetch env details and add links accordingly and also in the footer please mention Analysis done by Vishruth Harithsa and add current date and time. Please add links and make the font smaller for those links. 
-
-
-
-   
+While adding links, please make sure you fetch env details and add links accordingly and also in the footer please mention Analysis done by Vishruth Harithsa and add current date and time. Please add links and make the font smaller for those links.

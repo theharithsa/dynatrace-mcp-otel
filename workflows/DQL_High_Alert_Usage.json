@@ -18,17 +18,13 @@
         }
       },
       "description": "Build a custom task running js Code",
-      "predecessors": [
-        "find_expensive_queries"
-      ]
+      "predecessors": ["find_expensive_queries"]
     },
     "sending_email": {
       "name": "sending_email",
       "input": {
         "cc": [],
-        "to": [
-          "{{ _.item.email }}"
-        ],
+        "to": ["{{ _.item.email }}"],
         "bcc": [],
         "taskId": "{{ task().id }}",
         "content": "{{ _.item.message }}",
@@ -50,9 +46,7 @@
       "withItems": "item in {{ result(\"create_output\")[\"recipients\"] | to_json }}",
       "concurrency": 1,
       "description": "Send email",
-      "predecessors": [
-        "create_output"
-      ]
+      "predecessors": ["create_output"]
     },
     "find_expensive_queries": {
       "name": "find_expensive_queries",

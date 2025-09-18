@@ -14,10 +14,24 @@ export const verifyDqlStatement = async (dtClient: HttpClient, dqlStatement: str
   return response;
 };
 
+export interface DqlResponse {
+  records?: QueryResult['records'];
+  scannedBytes?: number;
+  scannedRecords?: number;
+  sampled?: boolean;
+  budgetWarning?: string;
+  budgetState?: {
+    totalBytesScanned: number;
+    budgetLimitBytes: number;
+    budgetLimitGB: number;
+  };
+}
+
 export const executeDql = async (
   dtClient: HttpClient,
   body: ExecuteRequest,
-): Promise<QueryResult['records'] | undefined> => {
+  grailBudgetGB?: number
+): Promise<DqlResponse> => {
   const queryExecutionClient = new QueryExecutionClient(dtClient);
 
   const response = await queryExecutionClient.queryExecute({
@@ -25,12 +39,12 @@ export const executeDql = async (
     dtClientContext: getUserAgent(),
   });
 
+  let finalResult: QueryResult | undefined;
+
   if (response.result) {
     // return response result immediately
-    return response.result.records;
-  }
-  // else: We might have to poll
-  if (response.requestToken) {
+    finalResult = response.result;
+  } else if (response.requestToken) {
     // poll for the result
     let pollResponse;
     do {
@@ -42,10 +56,46 @@ export const executeDql = async (
       });
       // done - let's return it
       if (pollResponse.result) {
-        return pollResponse.result.records;
+        finalResult = pollResponse.result;
+        break;
       }
     } while (pollResponse.state === 'RUNNING' || pollResponse.state === 'NOT_STARTED');
   }
-  // else: whatever happened - we have an error
-  return undefined;
+
+  if (!finalResult) {
+    return { records: undefined };
+  }
+
+  // Extract metadata (if available)
+  const metadata = finalResult.metadata as any; // Type assertion since the SDK might not expose all fields
+  const scannedBytes = metadata?.scannedBytes || metadata?.totalProcessedBytes;
+  const scannedRecords = metadata?.scannedRecords || metadata?.scannedDataPoints;
+  const sampled = metadata?.sampled;
+
+  // Build the enhanced response
+  const dqlResponse: DqlResponse = {
+    records: finalResult.records,
+    scannedBytes,
+    scannedRecords,
+    sampled
+  };
+
+  // Add budget tracking if grailBudgetGB is provided
+  if (grailBudgetGB && scannedBytes) {
+    // Import budget functions dynamically to avoid circular dependencies
+    const { addBytesScanned, getBudgetWarning, getGrailBudgetTracker } = await import('../utils/grail-budget-tracker');
+    
+    const warning = addBytesScanned(scannedBytes, grailBudgetGB);
+    const tracker = getGrailBudgetTracker(grailBudgetGB);
+    const state = tracker.getState();
+
+    dqlResponse.budgetWarning = getBudgetWarning(warning) || undefined;
+    dqlResponse.budgetState = {
+      totalBytesScanned: state.totalBytesScanned,
+      budgetLimitBytes: state.budgetLimitBytes,
+      budgetLimitGB: state.budgetLimitGB
+    };
+  }
+
+  return dqlResponse;
 };

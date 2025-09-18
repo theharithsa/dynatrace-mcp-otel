@@ -5,8 +5,8 @@ description: >- # this means to ignore newlines until "baseurl:"
   for monitoring automation and analytics. Bridge the gap between human language 
   and Dynatrace monitoring capabilities.
 
-baseurl: "/dynatrace-mcp-otel" # the subpath of your site, e.g. /blog
-url: "https://theharithsa.github.io" # the base hostname & protocol for your site
+baseurl: '/dynatrace-mcp-otel' # the subpath of your site, e.g. /blog
+url: 'https://theharithsa.github.io' # the base hostname & protocol for your site
 
 # Repository information
 repository: theharithsa/dynatrace-mcp-otel
@@ -21,10 +21,10 @@ theme: minima
 
 # Minima theme configuration
 minima:
-  skin: dark  # Use dark theme variant
+  skin: dark # Use dark theme variant
   social_links:
     - platform: github
-      user_url: "https://github.com/theharithsa/dynatrace-mcp-otel"
+      user_url: 'https://github.com/theharithsa/dynatrace-mcp-otel'
 
 # Build settings
 markdown: kramdown
