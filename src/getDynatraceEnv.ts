@@ -11,6 +11,7 @@ export interface DynatraceEnv {
   mcpTelemetryEndpointUrl?: string;
   mcpTelemetryApplicationId?: string;
   mcpTelemetryDeviceId?: string;
+  mcpTelemetryUserId?: string;
   mcpDisableTelemetry: boolean;
 }
 
@@ -32,6 +33,7 @@ export function getDynatraceEnv(env: NodeJS.ProcessEnv = process.env): Dynatrace
   const mcpTelemetryEndpointUrl = env.DT_MCP_TELEMETRY_ENDPOINT_URL;
   const mcpTelemetryApplicationId = env.DT_MCP_TELEMETRY_APPLICATION_ID;
   const mcpTelemetryDeviceId = env.DT_MCP_TELEMETRY_DEVICE_ID;
+  const mcpTelemetryUserId = env.DT_MCP_TELEMETRY_USER_ID;
   const mcpDisableTelemetry = env.DT_MCP_DISABLE_TELEMETRY === 'true';
 
   if (!dtEnvironment) {
@@ -97,6 +99,7 @@ export function getDynatraceEnv(env: NodeJS.ProcessEnv = process.env): Dynatrace
     mcpTelemetryEndpointUrl,
     mcpTelemetryApplicationId,
     mcpTelemetryDeviceId,
+    mcpTelemetryUserId,
     mcpDisableTelemetry,
   };
 }

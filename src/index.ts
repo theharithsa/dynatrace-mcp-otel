@@ -78,6 +78,7 @@ const main = async () => {
     mcpTelemetryEndpointUrl,
     mcpTelemetryApplicationId,
     mcpTelemetryDeviceId,
+    mcpTelemetryUserId,
     mcpDisableTelemetry,
   } = dynatraceEnv;
 
@@ -107,6 +108,7 @@ const main = async () => {
     mcpTelemetryApplicationId,
     mcpTelemetryDeviceId,
     mcpDisableTelemetry,
+    mcpTelemetryUserId,
   );
   await telemetry.trackMcpServerStart();
 
@@ -1086,7 +1088,7 @@ main().catch(async (error) => {
   console.error('Fatal error in main():', error);
   try {
     // Report error in main
-    const telemetry = createTelemetry();
+    const telemetry = createTelemetry(undefined, undefined, undefined, false, undefined);
     await telemetry.trackError(error, 'main_error');
     await telemetry.shutdown();
   } catch (e) {

@@ -7,6 +7,7 @@ export interface Telemetry {
   trackMcpServerStart(): Promise<void>;
   trackMcpToolUsage(toolName: string, success: boolean, duration?: number): Promise<void>;
   trackError(error: Error, context?: string): Promise<void>;
+  identifyUser(userTag: string): Promise<void>;
   shutdown(): Promise<void>;
 }
 
@@ -173,6 +174,24 @@ class DynatraceMcpTelemetry implements Telemetry {
     }
   }
 
+  /**
+   * Identify User for current session
+   * @param userTag User identifier to associate with the session
+   * @returns nothing
+   */
+  async identifyUser(userTag: string): Promise<void> {
+    if (!this.isEnabled) return;
+
+    await this.initPromise;
+    if (!this.session) return;
+
+    try {
+      this.session.identifyUser(userTag);
+    } catch (error) {
+      console.warn('Failed to identify user:', error);
+    }
+  }
+
   async shutdown(): Promise<void> {
     if (!this.isEnabled) return;
 
@@ -196,7 +215,34 @@ class NoOpTelemetry implements Telemetry {
   async trackMcpServerStart(): Promise<void> {}
   async trackMcpToolUsage(): Promise<void> {}
   async trackError(): Promise<void> {}
+  async identifyUser(): Promise<void> {}
   async shutdown(): Promise<void> {}
+}
+
+/**
+ * Generate a user identifier from multiple sources with fallback priority
+ * 1. Environment variable DT_MCP_TELEMETRY_USER_ID
+ * 2. Auto-generated from hostname and username
+ * 3. Generic fallback
+ */
+function generateUserTag(): string {
+  // 1. Environment variable (highest priority)
+  if (process.env.DT_MCP_TELEMETRY_USER_ID) {
+    return process.env.DT_MCP_TELEMETRY_USER_ID;
+  }
+
+  // 2. Auto-generated from system info (medium priority)
+  try {
+    const hostname = os.hostname();
+    const username = os.userInfo().username;
+    const hash = crypto.createHash('md5').update(`${hostname}-${username}`).digest('hex');
+    return `mcp-user-${hash.substring(0, 8)}`;
+  } catch (error) {
+    console.warn('Failed to generate user tag from system info:', error);
+  }
+
+  // 3. Generic fallback (lowest priority)
+  return 'mcp-anonymous-user';
 }
 
 export function createTelemetry(
@@ -204,9 +250,16 @@ export function createTelemetry(
   applicationId?: string,
   deviceId?: string,
   disableTelemetry = false,
+  userTag?: string,
 ): Telemetry {
   try {
-    return new DynatraceMcpTelemetry(endpointUrl, applicationId, deviceId, disableTelemetry);
+    const telemetry = new DynatraceMcpTelemetry(endpointUrl, applicationId, deviceId, disableTelemetry);
+    
+    // Identify user with provided tag or auto-generated tag
+    const finalUserTag = userTag || generateUserTag();
+    telemetry.identifyUser(finalUserTag);
+    
+    return telemetry;
   } catch (e) {
     // Failed to initialize
     console.error(e);

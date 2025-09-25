@@ -372,6 +372,24 @@ davis-copilot:conversations:execute
 | `DT_SHARE_RECIPIENTS` | Comma-separated list of user/group IDs | None    |
 | `DT_SHARE_TYPE`       | Type of recipients (user/group)        | `group` |
 
+### OpenKit Telemetry (Usage Analytics)
+
+| Variable                          | Description                                    | Default |
+| --------------------------------- | ---------------------------------------------- | ------- |
+| `DT_MCP_DISABLE_TELEMETRY`        | Disable usage telemetry collection (set to 'true') | `false` |
+| `DT_MCP_TELEMETRY_ENDPOINT_URL`   | Custom OpenKit telemetry endpoint             | Dynatrace production self-monitoring |
+| `DT_MCP_TELEMETRY_APPLICATION_ID` | Custom OpenKit application ID                 | Default MCP server app ID |
+| `DT_MCP_TELEMETRY_DEVICE_ID`     | Custom device ID for consistent identification | Auto-generated from hostname |
+| `DT_MCP_TELEMETRY_USER_ID`       | User identifier for session tagging          | Auto-generated from hostname+username |
+
+The MCP server collects anonymous usage analytics using Dynatrace OpenKit SDK to help improve the tool. User identification supports multiple sources with fallback priority:
+
+1. **Environment variable** `DT_MCP_TELEMETRY_USER_ID` (highest priority)
+2. **Auto-generated** from system hostname and username: `mcp-user-xxxxxxxx` (medium priority)  
+3. **Generic fallback**: `mcp-anonymous-user` (lowest priority)
+
+You can completely disable telemetry by setting `DT_MCP_DISABLE_TELEMETRY=true`.
+
 ### Complete Configuration Example
 
 ```json

@@ -2,6 +2,19 @@
 
 All notable changes to the Dynatrace MCP Server project will be documented in this file.
 
+## Unreleased Changes
+
+### Added
+
+- **🔖 OpenKit User Identification**: Enhanced telemetry with user session tagging
+  - User identification support with multiple sources and fallback priority
+  - Environment variable `DT_MCP_TELEMETRY_USER_ID` for custom user tags (highest priority)
+  - Auto-generated user tags from hostname and username: `mcp-user-xxxxxxxx` (medium priority)
+  - Generic fallback to `mcp-anonymous-user` when system info unavailable (lowest priority)
+  - Runtime user identification via `identifyUser()` method for dynamic tagging
+  - Comprehensive test coverage for all user identification scenarios
+  - Documentation updates with telemetry configuration details
+
 ## 2.6.0 - 2025-01-08
 
 ### Added (2.6.0)
