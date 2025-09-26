@@ -1,6 +1,6 @@
 {
   "name": "@theharithsa/dynatrace-mcp-server",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "mcpName": "io.github.theharithsa/dynatrace-mcp-otel",
   "description": "Dynatrace Model Context Protocol (MCP) Server for AI assistants (Enhanced Fork)",
   "main": "./dist/index.js",

@@ -15,6 +15,16 @@ All notable changes to the Dynatrace MCP Server project will be documented in th
   - Comprehensive test coverage for all user identification scenarios
   - Documentation updates with telemetry configuration details
 
+### Changed
+
+- **Enhanced Problem & Vulnerability Tools**: Significantly improved `list_problems` and `list_vulnerabilities` with rich filtering capabilities
+  - `list_problems`: Added `additionalFilter` and `maxProblemsToDisplay` parameters with detailed DQL guidance for follow-up queries
+  - `list_vulnerabilities`: Added `riskScore`, `additionalFilter`, and `maxVulnerabilitiesToDisplay` parameters with comprehensive next steps
+  - Both tools now provide structured response formats with actionable guidance and direct links to Dynatrace UI
+  - Updated DQL queries to use proper data sources (`dt.davis.problems` and `security.events`) with 12h/30d time ranges
+- **Scope Alignment**: Updated DQL-based tools to request only the necessary storage read scopes (`storage:buckets:read`, `storage:events:read`, and `storage:security.events:read`) to match the Dynatrace OAuth configuration. Documentation now lists the storage scopes used by `execute_dql`.
+- **Startup Hardening**: The MCP server now validates the Dynatrace connection on boot with automatic retries and clearer client error messages. A dedicated OAuth client helper enforces presence of `OAUTH_CLIENT_ID`/`OAUTH_CLIENT_SECRET` for tool execution, improving failure diagnostics when only a platform token is configured.
+
 ## 2.6.0 - 2025-01-08
 
 ### Added (2.6.0)

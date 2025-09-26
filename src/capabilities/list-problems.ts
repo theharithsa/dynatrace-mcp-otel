@@ -1,25 +1,24 @@
 import { _OAuthHttpClient } from '@dynatrace-sdk/http-client';
 import { executeDql } from './execute-dql';
 
-export const listProblems = async (dtClient: _OAuthHttpClient) => {
-  const dqlQuery = `
-    fetch events
-    | filter event.kind == "DAVIS_PROBLEM"
+export const listProblems = async (dtClient: _OAuthHttpClient, additionalFilter?: string) => {
+  let dqlQuery = `
+    fetch dt.davis.problems, from: now()-12h, to: now()`;
+
+  if (additionalFilter) {
+    dqlQuery += `
+    | filter ${additionalFilter}`;
+  }
+
+  dqlQuery += `
+    | sort timestamp desc
     | limit 100
-    | fields problem_id=event.davis.problem_id, display_id=event.davis.display_id, title=event.davis.title, severity=event.davis.severity_level
+    | fields display_id, problem_id=event.id, event.name, event.status, event.category, affected_users_count, affected_entity_count=affected_entities_count, duration, timestamp
   `;
 
   const result = await executeDql(dtClient, {
     query: dqlQuery,
   });
 
-  if (!result.records || result.records.length === 0) {
-    return [];
-  }
-
-  const problems = result.records.map((record: any) => {
-    return `${record.display_id || 'N/A'} (please refer to this problem with \`problemId\` ${record.problem_id || 'N/A'}): ${record.title || 'No title'} (Severity: ${record.severity || 'Unknown'})`;
-  });
-
-  return problems;
+  return result;
 };

@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 import { config } from 'dotenv';
-config();
 
-import { trace, context, SpanStatusCode, SpanKind } from '@opentelemetry/api';
 import { EnvironmentInformationClient } from '@dynatrace-sdk/client-platform-management-service';
 import { ClientRequestError, isClientRequestError } from '@dynatrace-sdk/shared-errors';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -13,8 +11,8 @@ import { Command } from 'commander';
 
 import { z, ZodRawShape, ZodTypeAny } from 'zod';
 import { version as VERSION } from '../package.json';
-import { sendToDynatraceLog } from './logging';
-import { createOAuthClient, createDtHttpClient } from './authentication/dynatrace-clients';
+import { context, trace, Span, SpanKind, SpanStatusCode } from '@opentelemetry/api';
+import { createDtHttpClient, createOAuthClient } from './authentication/dynatrace-clients';
 import { listVulnerabilities } from './capabilities/list-vulnerabilities';
 import { listProblems } from './capabilities/list-problems';
 
@@ -55,9 +53,84 @@ import { executeTypescript } from './capabilities/execute-typescript';
 import fs from 'fs/promises';
 import path from 'path';
 
+const dotEnvOutput = config({ quiet: true });
+
+if (dotEnvOutput.error) {
+  if ((dotEnvOutput.error as NodeJS.ErrnoException).code !== 'ENOENT') {
+    console.error('Error loading .env file:', dotEnvOutput.error);
+    process.exit(1);
+  }
+} else {
+  console.error(
+    `.env file loaded successfully - loaded ${dotEnvOutput.parsed ? Object.keys(dotEnvOutput.parsed).length : 0} environment variables: ${Object.keys(dotEnvOutput.parsed || {}).join(', ')}`,
+  );
+}
+
+const tracer = trace.getTracer('dynatrace-mcp-server');
+
 let scopesBase = ['app-engine:apps:run', 'app-engine:functions:run'];
 
-const tracer = trace.getTracer('dynatrace-mcp-server', VERSION);
+const handleClientRequestError = (error: ClientRequestError): string => {
+  let additionalErrorInformation = '';
+  if (error.response.status === 403) {
+    additionalErrorInformation =
+      'Note: Your user or service-user is most likely lacking the necessary permissions/scopes for this API Call.';
+  }
+  return `Client Request Error: ${error.message} with HTTP status: ${error.response.status}. ${additionalErrorInformation} (body: ${JSON.stringify(error.body)})`;
+};
+
+const testDynatraceConnection = async (
+  dtEnvironment: string,
+  oauthClientId?: string,
+  oauthClientSecret?: string,
+  dtPlatformToken?: string,
+) => {
+  // Use minimal scopes for connection test
+  const testScopes = ['environment-api:environments:read'];
+  const dtClient = await createDtHttpClient(dtEnvironment, testScopes, oauthClientId, oauthClientSecret, dtPlatformToken);
+  const environmentInformationClient = new EnvironmentInformationClient(dtClient);
+  await environmentInformationClient.getEnvironmentInformation();
+};
+
+const retryTestDynatraceConnection = async (
+  dtEnvironment: string,
+  oauthClientId?: string,
+  oauthClientSecret?: string,
+  dtPlatformToken?: string,
+) => {
+  let retryCount = 0;
+  const maxRetries = 3;
+  const delayMs = 2000;
+
+  while (true) {
+    try {
+      console.error(
+        `Testing connection to Dynatrace environment: ${dtEnvironment}... (Attempt ${retryCount + 1} of ${maxRetries})`,
+      );
+      await testDynatraceConnection(dtEnvironment, oauthClientId, oauthClientSecret, dtPlatformToken);
+      console.error(`Successfully connected to the Dynatrace environment at ${dtEnvironment}.`);
+      break;
+    } catch (error: any) {
+      console.error('Error: Could not connect to the Dynatrace environment.');
+      if (isClientRequestError(error)) {
+        console.error(handleClientRequestError(error));
+      } else {
+        console.error(`Error: ${error.message}`);
+      }
+      retryCount++;
+      if (retryCount >= maxRetries) {
+        console.error(`Fatal: Maximum number of connection retries (${maxRetries}) exceeded. Exiting.`);
+        throw new Error(
+          `Failed to connect to Dynatrace environment ${dtEnvironment} after ${maxRetries} attempts. Most likely your configuration is incorrect. Last error: ${error.message}`,
+          { cause: error },
+        );
+      }
+      const delay = Math.pow(2, retryCount) * delayMs;
+      console.error(`Retrying in ${delay / 1000} seconds...`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+};
 
 const main = async () => {
   let dynatraceEnv: DynatraceEnv;
@@ -82,25 +155,19 @@ const main = async () => {
     mcpDisableTelemetry,
   } = dynatraceEnv;
 
-  // Helper function to create DT client with preferred Platform Token authentication
-  async function createDtClient(additionalScopes: string[] = []) {
-    const allScopes = scopesBase.concat(additionalScopes);
-    return createDtHttpClient(dtEnvironment, allScopes, oauthClient, oauthClientSecret, dtPlatformToken);
-  }
+  const mergeScopes = (additionalScopes: string[] = []) =>
+    Array.from(new Set([...scopesBase, ...additionalScopes]));
 
-  // Helper function to create OAuth client with specific scopes (uses Platform environment)
-  async function createDtOAuthClient(additionalScopes: string[] = []) {
-    if (oauthClient && oauthClientSecret) {
-      return createOAuthClient(
-        oauthClient,
-        oauthClientSecret,
-        dtPlatformEnvironment,
-        scopesBase.concat(additionalScopes),
+  const createDtOAuthClient = async (additionalScopes: string[] = []) => {
+    if (!oauthClient || !oauthClientSecret) {
+      throw new Error(
+        'OAuth client credentials are required for this operation. Please configure OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET.',
       );
-    } else {
-      throw new Error('OAuth credentials required for this operation');
     }
-  }
+
+    const requestedScopes = mergeScopes(additionalScopes);
+    return createOAuthClient(oauthClient, oauthClientSecret, dtPlatformEnvironment, requestedScopes);
+  };
 
   // Initialize telemetry
   const telemetry = createTelemetry(
@@ -113,6 +180,9 @@ const main = async () => {
   await telemetry.trackMcpServerStart();
 
   console.error(`Starting Dynatrace MCP Server v${VERSION}...`);
+
+  // Test connection using platform environment for proper API access
+  await retryTestDynatraceConnection(dtPlatformEnvironment, oauthClient, oauthClientSecret, dtPlatformToken);
 
   const server = new McpServer(
     {
@@ -142,7 +212,7 @@ const main = async () => {
             'Tool.args': JSON.stringify(args),
           },
         },
-        async (span) => {
+  async (span: Span) => {
           // Track start time for telemetry
           const startTime = Date.now();
           let toolCallSuccessful = false;
@@ -231,43 +301,134 @@ const main = async () => {
     }
   });
 
-  tool('list_vulnerabilities', 'Lists vulnerabilities in Dynatrace', {}, async () => {
-    try {
-      const dtClient = await createDtOAuthClient(['environment-api:security-problems:read']);
-      const result = await listVulnerabilities(dtClient);
+  tool(
+    'list_vulnerabilities',
+    'List all non-muted vulnerabilities from Dynatrace for the last 30 days. An additional filter can be provided using DQL filter.',
+    {
+      riskScore: z
+        .number()
+        .optional()
+        .default(8.0)
+        .describe('Minimum risk score of vulnerabilities to list (default: 8.0)'),
+      additionalFilter: z
+        .string()
+        .optional()
+        .describe(
+          'Additional filter for DQL statement for vulnerabilities, e.g., \'vulnerability.stack == "CODE_LIBRARY"\' or \'vulnerability.risk.level == "CRITICAL"\' or \'affected_entity.name contains "prod"\' or \'vulnerability.davis_assessment.exposure_status == "PUBLIC_NETWORK"\'',
+        ),
+      maxVulnerabilitiesToDisplay: z
+        .number()
+        .default(25)
+        .describe('Maximum number of vulnerabilities to display in the response.'),
+    },
+    async ({ riskScore, additionalFilter, maxVulnerabilitiesToDisplay }) => {
+      try {
+        const dtClient = await createDtOAuthClient([
+          'storage:buckets:read',
+          'storage:events:read',
+          'storage:security.events:read',
+        ]);
+        const result = await listVulnerabilities(dtClient, additionalFilter, riskScore);
 
-      if (!result || result.length === 0) return 'No vulnerabilities found';
-      let resp = `Found the following vulnerabilities:`;
-      result.forEach((vulnerability) => {
-        resp += `\n* ${vulnerability}`;
-      });
-      resp += `\nWe recommend to take a look at ${dtPlatformEnvironment}/ui/apps/dynatrace.security.vulnerabilities to get a better overview of vulnerabilities.\n`;
-      return resp;
-    } catch (err: any) {
-      if (isClientRequestError(err)) {
-        const e = err as ClientRequestError;
-        const more = e.response.status === 403 ? 'Missing permission' : '';
-        return `Client Request Error: ${e.message} (${e.response.status}) ${more}`;
+        if (!result || result.length === 0) {
+          return 'No vulnerabilities found in the last 30 days';
+        }
+        let resp = `Found ${result.length} vulnerabilities in the last 30 days! Displaying the top ${maxVulnerabilitiesToDisplay} vulnerabilities:\n`;
+        result.slice(0, maxVulnerabilitiesToDisplay).forEach((vulnerability) => {
+          resp += `\n* ${vulnerability}`;
+        });
+
+        resp +=
+          `\nNext Steps:` +
+          `\n1. For specific vulnerabilities, first always fetch more details using the "execute_dql" tool and the following query:
+          "fetch security.events, from: now()-30d, to: now()
+            | filter event.provider=="Dynatrace"
+                    AND event.type=="VULNERABILITY_STATE_REPORT_EVENT"
+                    AND event.level=="ENTITY"
+            | filter vulnerability.id == "<vulnerability-id>"
+            | dedup {vulnerability.display_id, affected_entity.id}, sort:{timestamp desc}
+
+            | fields vulnerability.external_id, vulnerability.display_id, vulnerability.external_url, vulnerability.cvss.vector, vulnerability.type, vulnerability.risk.score,
+                    vulnerability.stack, vulnerability.remediation.description, vulnerability.parent.davis_assessment.score,
+                    affected_entity.name, affected_entity.affected_processes.names, affected_entity.vulnerable_functions,
+                    related_entities.databases.count, related_entities.databases.ids, related_entities.hosts.ids, related_entities.hosts.names, related_entities.kubernetes_clusters.names, related_entities.kubernetes_workloads.count, related_entities.services.count,
+                    // is it muted?
+                    vulnerability.resolution.status, vulnerability.parent.mute.status, vulnerability.mute.status,
+                    // specific description and code
+                    vulnerability.description, vulnerability.technology, vulnerability.code_location.name,
+                    // entrypoints (pure paths etc...)
+                    entry_points.entry_point_jsons"` +
+          `\nThis will give you more details about the vulnerability, including the affected entity, risk score, code-level insights, and remediation actions. Please use this information.` +
+          `\n2. For a high-level overview, you can leverage the "chat_with_davis_copilot" tool and provide \`vulnerability.id\` as context.` +
+          `\n3. Last but not least, tell the user to visit ${dtPlatformEnvironment}/ui/apps/dynatrace.security.vulnerabilities/vulnerabilities/<vulnerability-id> for full details.`;
+
+        return resp;
+      } catch (err: any) {
+        if (isClientRequestError(err)) {
+          const e = err as ClientRequestError;
+          const more = e.response.status === 403 ? 'Missing permission' : '';
+          return `Client Request Error: ${e.message} (${e.response.status}) ${more}`;
+        }
+        return `Error: ${err.message}`;
       }
-      return `Error: ${err.message}`;
-    }
-  });
+    },
+  );
 
 
-  tool('list_problems', 'List all problems known on Dynatrace', {}, async ({}) => {
-    try {
-      const dtClient = await createDtOAuthClient(['environment-api:problems:read']);
-      const result = await listProblems(dtClient);
-      return result.length === 0 ? 'No problems found' : `Found these problems: ${result.join(',')}`;
-    } catch (err: any) {
-      if (isClientRequestError(err)) {
-        const e = err as ClientRequestError;
-        const more = e.response.status === 403 ? 'Missing permission' : '';
-        return `Client Request Error: ${e.message} (${e.response.status}) ${more}`;
+  tool(
+    'list_problems',
+    'List all problems (dt.davis.problems) known on Dynatrace, sorted by their recency, for the last 12h. An additional filter can be provided using DQL filter.',
+    {
+      additionalFilter: z
+        .string()
+        .optional()
+        .describe(
+          'Additional filter for DQL statement for dt.davis.problems, e.g., \'entity_tags == array("dt.owner:team-foobar", "tag:tag")\'',
+        ),
+      maxProblemsToDisplay: z.number().default(10).describe('Maximum number of problems to display in the response.'),
+    },
+    async ({ additionalFilter, maxProblemsToDisplay }) => {
+      try {
+        const dtClient = await createDtOAuthClient(['storage:buckets:read', 'storage:events:read']);
+        const result = await listProblems(dtClient, additionalFilter);
+        if (result && result.records && result.records.length > 0) {
+          let resp = `Found ${result.records.length} problems! Displaying the top ${maxProblemsToDisplay} problems:\n`;
+          // iterate over dqlResponse and create a string with the problem details, but only show the top maxProblemsToDisplay problems
+          result.records.slice(0, maxProblemsToDisplay).forEach((problem) => {
+            if (problem) {
+              resp += `Problem ${problem['display_id']} (please refer to this problem with \`problemId\` or \`event.id\` ${problem['problem_id']}))
+                    with event.status ${problem['event.status']}, event.category ${problem['event.category']}: ${problem['event.name']} -
+                    affects ${problem['affected_users_count']} users and ${problem['affected_entity_count']} entities for a duration of ${problem['duration']}\n`;
+            }
+          });
+
+          resp +=
+            `\nNext Steps:` +
+            `\n1. Use "execute_dql" tool with the following query to get more details about a specific problem:
+            "fetch dt.davis.problems, from: now()-10h, to: now() | filter event.id == \"<problem-id>\" | fields event.description, event.status, event.category, event.start, event.end,
+              root_cause_entity_id, root_cause_entity_name, duration, affected_entities_count,
+              event_count, affected_users_count, problem_id, dt.davis.mute.status, dt.davis.mute.user,
+              entity_tags, labels.alerting_profile, maintenance.is_under_maintenance,
+              aws.account.id, azure.resource.group, azure.subscription, cloud.provider, cloud.region,
+              dt.cost.costcenter, dt.cost.product, dt.host_group.id, dt.security_context, gcp.project.id,
+              host.name, k8s.cluster.name, k8s.cluster.uid, k8s.container.name, k8s.namespace.name, k8s.node.name, k8s.pod.name, k8s.service.name, k8s.workload.kind, k8s.workload.name"` +
+            `\n2. Use "chat_with_davis_copilot" tool and provide \`problemId\` as context, to get insights about a specific problem via Davis Copilot.` +
+            `\n3. Tell the user to visit ${dtPlatformEnvironment}/ui/apps/dynatrace.davis.problems/problem/<problem-id> for more details.`;
+
+          return resp;
+        } else {
+          return 'No problems found';
+        }
+      } catch (err: any) {
+        if (isClientRequestError(err)) {
+          const e = err as ClientRequestError;
+          const more = e.response.status === 403 ? 'Missing permission' : '';
+          return `Client Request Error: ${e.message} (${e.response.status}) ${more}`;
+        }
+        return `Error: ${err.message}`;
       }
-      return `Error: ${err.message}`;
-    }
-  });
+    },
+  );
 
 
 

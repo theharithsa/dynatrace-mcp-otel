@@ -100,6 +100,8 @@ Your AI assistant can now:
 - **💬 Communication**: Send Slack messages and professional emails
 - **📊 Budget Control**: Track and manage Grail query usage with budget limits
 
+> ℹ️ On startup the server now verifies your Dynatrace connection with up to three exponential-backoff retries. Invalid URLs, credentials, or missing scopes will fail fast with detailed guidance so you can correct the configuration before using any tools.
+
 ## Configuration
 
 ### Basic Configuration
@@ -160,6 +162,7 @@ dynatrace-mcp-server --http-port 3000
 ```
 
 **Environment Variables for HTTP Mode:**
+
 ```bash
 export OAUTH_CLIENT_ID="dt0s02.your-client-id"
 export OAUTH_CLIENT_SECRET="dt0s02.your-client-id.your-client-secret"
@@ -169,6 +172,7 @@ export LOG_LEVEL="info"                # Optional: debug, info, warn, error
 ```
 
 **Docker Support:**
+
 ```dockerfile
 FROM node:18-alpine
 WORKDIR /app
@@ -278,7 +282,7 @@ The recommended AI workflow is:
 
 Add these scopes to your OAuth client:
 
-```
+```text
 davis-copilot:nl2dql:execute
 davis-copilot:dql2nl:execute
 davis-copilot:conversations:execute
@@ -456,14 +460,16 @@ Version 2.5.0 introduces a powerful dual authentication system that automaticall
 
 **📊 Data & Query Engine:**
 
-- `storage:*:read` - DQL queries (logs, metrics, events, spans)
-- `environment-api:entities:read` - Entity information
+- `storage:buckets:read` - Access bucket metadata for Grail queries
+- `storage:events:read` - Read problems and other event data via DQL
+- `storage:security.events:read` - Read security events (vulnerabilities) via DQL
+- `storage:logs:read`, `storage:metrics:read`, `storage:bizevents:read`, `storage:spans:read`, `storage:system:read`, `storage:user.events:read`, `storage:user.sessions:read`, `storage:entities:read` - Required for full `execute_dql` coverage across data domains
+- `environment-api:entities:read` - Entity lookups and ownership information
 - `environment-api:entities:write` - Entity tagging (when using OAuth)
 
 **🔍 Monitoring & Security:**
 
-- `environment-api:problems:read` - Problem analysis
-- `environment-api:security-problems:read` - Vulnerability management
+- (Covered by the DQL scopes above for problems and vulnerabilities)
 
 **🔧 Automation & Workflows:**
 
