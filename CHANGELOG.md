@@ -2,11 +2,20 @@
 
 All notable changes to the Dynatrace MCP Server project will be documented in this file.
 
-## Unreleased Changes
+## 2.7.0 - 2025-01-14
 
 ### Added
 
-- **🔖 OpenKit User Identification**: Enhanced telemetry with user session tagging
+- **📊 OpenTelemetry Distributed Tracing**: Automatic instrumentation for comprehensive observability
+  - Integrated [@theharithsa/opentelemetry-instrumentation-mcp](https://www.npmjs.com/package/@theharithsa/opentelemetry-instrumentation-mcp) package
+  - Auto-registration with zero configuration required - just set environment variables
+  - Parent-child span relationships for complete trace hierarchy (`Tool.{name}` → `mcp.tool:{name}`)
+  - Automatic error tracking and exception recording in spans
+  - OTLP export to Dynatrace with support for custom headers
+  - Configure via `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS` environment variables
+  - Tool wrapper pattern creates parent spans that the instrumentation library automatically enhances
+  - Comprehensive documentation in README with trace structure examples
+- **�🔖 OpenKit User Identification**: Enhanced telemetry with user session tagging
   - User identification support with multiple sources and fallback priority
   - Environment variable `DT_MCP_TELEMETRY_USER_ID` for custom user tags (highest priority)
   - Auto-generated user tags from hostname and username: `mcp-user-xxxxxxxx` (medium priority)

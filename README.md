@@ -356,12 +356,43 @@ davis-copilot:conversations:execute
 
 ### OpenTelemetry Tracing (Optional)
 
-| Variable                      | Description                       | Example                                                     |
-| ----------------------------- | --------------------------------- | ----------------------------------------------------------- |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP endpoint for traces          | `https://abc12345.live.dynatrace.com/api/v2/otlp/v1/traces` |
-| `DYNATRACE_API_TOKEN`         | API token for trace/log export    | `dt0c01.ABC123...`                                          |
-| `DYNATRACE_LOG_INGEST_URL`    | Log ingest endpoint               | `https://abc12345.live.dynatrace.com/api/v2/logs/ingest`    |
-| `OTEL_RESOURCE_ATTRIBUTES`    | OpenTelemetry resource attributes | `service.name=dynatrace-mcp-server,service.version=2.2.0`   |
+The MCP server now includes automatic OpenTelemetry instrumentation using [@theharithsa/opentelemetry-instrumentation-mcp](https://www.npmjs.com/package/@theharithsa/opentelemetry-instrumentation-mcp). This provides comprehensive distributed tracing of all MCP tool calls with zero configuration required.
+
+**Features:**
+
+- 🔄 Automatic instrumentation of MCP tool calls
+- 📊 Parent-child span relationships for complete traces
+- 🚀 Drop-in solution with auto-registration
+- 📈 OTLP export with Dynatrace support
+- 🔍 Error tracking and exception recording
+
+| Variable                        | Description                       | Example                                                      | Required |
+| ------------------------------- | --------------------------------- | ------------------------------------------------------------ | -------- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`   | OTLP endpoint for traces          | `https://abc12345.live.dynatrace.com/api/v2/otlp/v1/traces`  | ✅       |
+| `OTEL_EXPORTER_OTLP_HEADERS`    | OTLP headers (comma-separated)    | `Authorization=Api-Token dt0c01.ABC123...`                   | ✅       |
+
+**Example Configuration:**
+
+```bash
+# Single header
+OTEL_EXPORTER_OTLP_ENDPOINT=https://abc12345.live.dynatrace.com/api/v2/otlp/v1/traces
+OTEL_EXPORTER_OTLP_HEADERS=Authorization=Api-Token dt0c01.ABC123...
+
+# Multiple headers (comma-separated)
+OTEL_EXPORTER_OTLP_HEADERS=Authorization=Api-Token dt0c01.ABC123...,Custom-Header=value
+```
+
+**Trace Structure:**
+
+Each tool call creates a hierarchical span structure:
+
+```text
+Tool.{toolName} (Parent Span)
+  ├── mcp.tool:{toolName} (Child Span - auto-instrumented)
+  │   ├── Duration, status, attributes
+  │   └── Error tracking and exceptions
+  └── Additional child spans from operations
+```
 
 ### Slack Integration (Optional)
 
@@ -407,11 +438,11 @@ You can completely disable telemetry by setting `DT_MCP_DISABLE_TELEMETRY=true`.
         "OAUTH_CLIENT_SECRET": "dt0s02.ABC123.DEF456...",
         "DT_ENVIRONMENT": "https://abc12345.apps.dynatrace.com",
         "OTEL_EXPORTER_OTLP_ENDPOINT": "https://abc12345.live.dynatrace.com/api/v2/otlp/v1/traces",
-        "DYNATRACE_API_TOKEN": "dt0c01.XYZ789...",
-        "DYNATRACE_LOG_INGEST_URL": "https://abc12345.live.dynatrace.com/api/v2/logs/ingest",
+        "OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Api-Token dt0c01.XYZ789...",
         "SLACK_CONNECTION_ID": "your-slack-connection-id",
         "DT_SHARE_RECIPIENTS": "group-id-1,group-id-2",
-        "DT_SHARE_TYPE": "group"
+        "DT_SHARE_TYPE": "group",
+        "DT_GRAIL_QUERY_BUDGET_GB": "100"
       }
     }
   }

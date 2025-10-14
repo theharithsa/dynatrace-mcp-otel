@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// OpenTelemetry auto-registration must be first
+import '@theharithsa/opentelemetry-instrumentation-mcp/register';
+
 import { config } from 'dotenv';
 
 import { EnvironmentInformationClient } from '@dynatrace-sdk/client-platform-management-service';
@@ -66,7 +69,7 @@ if (dotEnvOutput.error) {
   );
 }
 
-const tracer = trace.getTracer('dynatrace-mcp-server');
+const tracer = trace.getTracer('dynatrace-mcp-server', VERSION);
 
 let scopesBase = ['app-engine:apps:run', 'app-engine:functions:run'];
 
@@ -212,17 +215,12 @@ const main = async () => {
             'Tool.args': JSON.stringify(args),
           },
         },
-  async (span: Span) => {
-          // Track start time for telemetry
-          const startTime = Date.now();
-          let toolCallSuccessful = false;
-
+        async (span) => {
           try {
             const result = await context.with(trace.setSpan(context.active(), span), async () => {
               return await cb(args, _extra);
             });
 
-            toolCallSuccessful = true;
             span.setStatus({ code: SpanStatusCode.OK });
             span.setAttributes({
               'mcp.tool.result.length': result.length,
@@ -242,9 +240,6 @@ const main = async () => {
               ],
             };
           } catch (error: any) {
-            // Track error for telemetry
-            telemetry.trackError(error, `tool_${name}`).catch((e) => console.warn('Failed to track error:', e));
-
             span.recordException(error);
             span.setStatus({
               code: SpanStatusCode.ERROR,
@@ -269,12 +264,6 @@ const main = async () => {
               isError: true,
             };
           } finally {
-            // Track tool usage
-            const duration = Date.now() - startTime;
-            telemetry
-              .trackMcpToolUsage(name, toolCallSuccessful, duration)
-              .catch((e) => console.warn('Failed to track tool usage:', e));
-
             span.end();
           }
         },
