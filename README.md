@@ -657,19 +657,108 @@ npm install @theharithsa/dynatrace-mcp-server
 
 ## Dynatrace MCP OpenTelemetry Integration
 
-### Observability Features
+The Dynatrace MCP Server includes optional OpenTelemetry tracing support using [@theharithsa/opentelemetry-instrumentation-mcp](https://www.npmjs.com/package/@theharithsa/opentelemetry-instrumentation-mcp) v1.0.2. This provides comprehensive observability for all MCP tool invocations, including automatic span creation, context propagation, and error tracking.
 
-#### Log Correlation
+### Features
 
-- All logs include `dt.security_context` field set to `dynatrace_mcp_otel`
-- Logs are tagged with `logType: build-logs` for filtering
-- Logs are automatically correlated with traces via standard OpenTelemetry attributes
+- **Automatic Instrumentation**: All 24 MCP tools are automatically traced without code changes
+- **Parent-Child Span Relationships**: Tool invocations create parent spans, with automatic child span creation for nested operations
+- **Rich Metadata**: Captures tool names, arguments, results, success/failure status, and execution duration
+- **Error Tracking**: Automatic exception recording with full stack traces
+- **Dynatrace Integration**: Direct export to Dynatrace via OTLP for unified observability
 
-#### CI/CD Observability
+### Configuration
+
+#### 1. Environment Variables
+
+Add the following to your `.env` file:
+
+```bash
+# Required: Dynatrace OTLP endpoint
+OTEL_EXPORTER_OTLP_ENDPOINT=https://your-environment.live.dynatrace.com/api/v2/otlp
+
+# Required: Dynatrace API token (v1.0.2 format)
+DYNATRACE_API_TOKEN=dt0c01.XXXXXXXXXXXXXXXXXXXXXXXX.YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
+```
+
+**Important**: The `DYNATRACE_API_TOKEN` must have the `openTelemetryTrace.ingest` scope. See [Dynatrace API Token Setup](#dynatrace-api-token-setup) below.
+
+#### 2. Automatic Registration
+
+The OpenTelemetry instrumentation is automatically registered at server startup via:
+
+```typescript
+import '@theharithsa/opentelemetry-instrumentation-mcp/register';
+```
+
+No additional configuration needed in code!
+
+### Trace Structure
+
+Each tool invocation creates the following span structure:
+
+```
+Tool.tool_name (parent span)
+  ├─ Attributes:
+  │   ├─ Tool.name: "tool_name"
+  │   ├─ Tool.args: "{...json args...}"
+  │   ├─ mcp.tool.success: true/false
+  │   └─ mcp.tool.result.length: 1234
+  └─ Child spans (automatically created by instrumentation library)
+      └─ [Internal tool operations...]
+```
+
+**Example**: Executing `execute_dql` creates:
+- Parent span: `Tool.execute_dql` with DQL statement in args
+- Child spans for HTTP requests, JSON parsing, etc.
+
+### Dynatrace API Token Setup
+
+To enable trace export, your Dynatrace API token requires specific permissions:
+
+1. Go to Dynatrace → **Access Tokens** → **Generate new token**
+2. Set token name: `MCP Server OpenTelemetry`
+3. Add required scopes:
+   - ✅ `openTelemetryTrace.ingest` (required for trace export)
+   - ✅ Other scopes for your MCP tools (see [Required Scopes](#required-scopes))
+4. Generate and copy token
+5. Add to `.env` as `DYNATRACE_API_TOKEN`
+
+### Troubleshooting
+
+#### 401 Unauthorized Error
+
+**Symptom**: Traces fail to export with "Token Authentication failed"
+
+**Solution**: Verify your API token has the `openTelemetryTrace.ingest` scope:
+1. Check token scopes in Dynatrace UI
+2. Regenerate token with correct scopes if needed
+3. Update `.env` with new token
+4. Restart the MCP server
+
+**Note**: MCP tools will continue to work even if trace export fails. Tracing is completely optional.
+
+#### No Traces in Dynatrace
+
+**Checklist**:
+- ✅ `OTEL_EXPORTER_OTLP_ENDPOINT` points to correct Dynatrace environment
+- ✅ `DYNATRACE_API_TOKEN` is set and has `openTelemetryTrace.ingest` scope
+- ✅ Endpoint URL ends with `/api/v2/otlp` (not `/v1/traces`)
+- ✅ Token is valid and not expired
+- ✅ Network connectivity to Dynatrace environment
+
+#### Disabling Tracing
+
+To disable OpenTelemetry tracing entirely:
+1. Remove or comment out the environment variables in `.env`
+2. The instrumentation will gracefully skip trace export
+3. All MCP tools continue to function normally
+
+### CI/CD Observability
 
 Our GitHub Actions workflows are instrumented with OpenTelemetry using [inception-health/otel-action](https://github.com/marketplace/actions/opentelemetry-for-github-workflows-jobs-and-steps).
 
-##### Configuration in GitHub Actions
+#### Configuration in GitHub Actions
 
 ```yaml
 - name: Setup OpenTelemetry
@@ -682,15 +771,24 @@ Our GitHub Actions workflows are instrumented with OpenTelemetry using [inceptio
     build_type: ${{ github.ref == 'refs/heads/dev' && 'dev' || 'prod' }}
 ```
 
-##### Required Variables/Secrets
+#### Required Variables/Secrets
 
 - `OTEL_EXPORTER_OTLP_ENDPOINT`: Dynatrace OTLP endpoint URL
 - `DYNATRACE_API_TOKEN`: API token with ingest permission
 - `DYNATRACE_LOG_INGEST_URL`: Dynatrace log ingest URL
 
-#### Known Issues
+### Log Correlation
 
-- In version 1.0.8, trace ingestion might not work correctly in all environments, but logging functionality works as expected
+- All logs include `dt.security_context` field set to `dynatrace_mcp_otel`
+- Logs are tagged with `logType: build-logs` for filtering
+- Logs are automatically correlated with traces via standard OpenTelemetry attributes
+
+### Version Compatibility
+
+- **Current Version**: @theharithsa/opentelemetry-instrumentation-mcp v1.0.2
+- **OpenTelemetry API**: v1.x
+- **Export Protocol**: OTLP/HTTP
+- **Dynatrace Platform**: All versions supporting OTLP ingestion
 
 ## Version History
 

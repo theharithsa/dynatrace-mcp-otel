@@ -2,6 +2,18 @@
 
 All notable changes to the Dynatrace MCP Server project will be documented in this file.
 
+## 2.7.1 - 2025-01-14
+
+### Fixed
+
+- **📚 Documentation Updates**: Comprehensive README improvements for OpenTelemetry integration
+  - Added detailed v1.0.2 configuration guide with environment variable setup
+  - Included troubleshooting section for 401 Unauthorized errors
+  - Documented trace structure with parent-child span relationships
+  - Added Dynatrace API token setup instructions with required scopes
+  - Enhanced examples showing `DYNATRACE_API_TOKEN` usage (v1.0.2 format)
+  - Clarified optional nature of tracing (tools work independently)
+
 ## 2.7.0 - 2025-01-14
 
 ### Added
